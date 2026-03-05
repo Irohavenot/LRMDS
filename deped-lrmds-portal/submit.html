@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DepEd LRMDS – Submit Resource</title>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+</head>
+<body>
+<header class="header" role="banner">
+  <div class="container inner">
+    <a class="brand" href="index.html">
+      <img src="assets/img/logo.svg" alt="DepEd LRMDS Logo"/>
+      <span class="title">LRMDS</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="search.html">Resources</a>
+      <a href="submit.html">Develop</a>
+      <a href="#" aria-disabled="true">Manage</a>
+      <a href="#" aria-disabled="true">Train &amp; Support</a>
+      <a href="#" aria-disabled="true">News</a>
+    </nav>
+    <div class="header-actions">
+      <div class="search-wrap" role="search">
+        <input type="search" name="hdr-q" placeholder="Search resources…" aria-label="Search resources"/>
+        <span class="icon"><img src="assets/icons/magnifying-glass.svg" alt=""></span>
+      </div>
+      <a class="button ghost" href="submit.html"><img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">Submit</a>
+      <button class="button primary" aria-label="Sign in">Sign In</button>
+    </div>
+  </div>
+</header>
+
+<section class="section container">
+  <h1>Submit a Resource</h1>
+  <div class="wizard">
+    <aside class="steps" aria-label="Steps">
+      <div class="step" data-step>1. Upload</div>
+      <div class="step" data-step>2. Metadata</div>
+      <div class="step" data-step>3. MELCs Mapping</div>
+      <div class="step" data-step>4. Review & Submit</div>
+    </aside>
+    <div class="content">
+      <div data-panel>
+        <h2>Upload</h2>
+        <div class="form-row">
+          <div class="field">
+            <label>File</label>
+            <input class="input" type="file"/>
+          </div>
+        </div>
+      </div>
+      <div data-panel hidden>
+        <h2>Metadata</h2>
+        <div class="form-row">
+          <div class="field"><label>Title</label><input class="input" type="text" placeholder="Lorem ipsum…"/></div>
+          <div class="field"><label>Type</label>
+            <select class="select"><option>SLM</option><option>TG</option><option>DLL</option><option>Video</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Grade</label>
+            <select class="select"><option>K</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select>
+          </div>
+          <div class="field"><label>Learning Area</label>
+            <select class="select"><option>English</option><option>Filipino</option><option>Mathematics</option><option>Science</option></select>
+          </div>
+        </div>
+        <div class="field"><label>Description</label><textarea rows="4" placeholder="Short abstract…" class="input"></textarea></div>
+      </div>
+      <div data-panel hidden>
+        <h2>MELCs Mapping</h2>
+        <div class="form-row">
+          <div class="field"><label>MELC Code</label><input class="input" type="text" placeholder="e.g., M6NS-Ia-1"/></div>
+          <div class="field"><label>Quarter</label><select class="select"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+        </div>
+      </div>
+      <div data-panel hidden>
+        <h2>Review & Submit</h2>
+        <p>Please review your information and submit for QA.</p>
+        <button class="button primary">Submit</button>
+      </div>
+      <div class="actions">
+        <button id="prev" class="button ghost" type="button">Back</button>
+        <button id="next" class="button primary" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <h4>About LRMDS</h4>
+        <p style="margin:0">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ut lacus nisl.</p>
+      </div>
+      <div>
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="search.html">Search</a></li>
+          <li><a href="#">Collections</a></li>
+          <li><a href="#">MELCs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Helpdesk</a></li>
+          <li><a href="#">Guides</a></li>
+          <li><a href="#">FAQs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal &amp; Compliance</h4>
+        <ul>
+          <li><a href="#">Accessibility</a></li>
+          <li><a href="#">Data Privacy</a></li>
+          <li><a href="#">Terms of Use</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">© 2026 DepEd LRMDS – Prototype. For demonstration purposes only.</div>
+  </div>
+</footer>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
