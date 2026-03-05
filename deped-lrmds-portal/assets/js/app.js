@@ -318,7 +318,7 @@
               </div>
               <div class="card-footer">
                 <div>${r.qa === 'passed' ? '<span class="badge success">QA Passed</span>' : '<span class="badge warn">Under Review</span>'}</div>
-                <div class="dl-count">⬇ ${r.downloads.toLocaleString()}</div>
+                <div class="dl-count">Downloads ⬇ ${r.downloads.toLocaleString()}</div>
                 <div class="actions">
                   <a href="resource.html" class="button ghost" aria-label="View ${r.title}">View</a>
                   <button class="button primary" aria-label="Download ${r.title}">Download</button>

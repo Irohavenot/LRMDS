@@ -119,7 +119,7 @@ html, body {
 
 .hero {
   background:
-    linear-gradient(120deg, rgba(243,246,251,0.9) 0%, rgba(255,255,255,0.9) 100%),
+    linear-gradient(120deg, rgba(110, 159, 238, 0.9) 0%, rgba(255,255,255,0.9) 100%),
     url("../img/Division.jpg");
   background-size: cover;
   background-position: center;
@@ -195,7 +195,7 @@ html, body {
   scroll-snap-type: x mandatory;
 }
 
-.card {
+.home-card {
   min-width: 280px;
   background: #fff;
   border: 1px solid var(--border);
@@ -204,14 +204,15 @@ html, body {
   scroll-snap-align: start;
 }
 
-.card img {
+.home-card img {
   width: 100%;
   height: 160px;
   object-fit: cover;
   background: #eee;
 }
 
-.card .body { padding: 14px; }
+
+.home-card .body { padding: 14px; }
 
 .tag {
   display: inline-block;
@@ -223,8 +224,8 @@ html, body {
   color: var(--muted);
 }
 
-.card .title { font-weight: 700; margin: 8px 0 6px; }
-.card .link { color: var(--primary); font-weight: 600; text-decoration: none; }
+.home-card .title { font-weight: 700; margin: 8px 0 6px; }
+.home-card .link { color: var(--primary); font-weight: 600; text-decoration: none; }
 
 
 /* ================================
