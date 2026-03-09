@@ -1,0 +1,386 @@
+/* ================================================
+   DepEd LRMDS – signin.css
+   Sign In page styles
+================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+.auth-body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #F0F4FA;
+  min-height: 100vh;
+}
+
+/* ── Layout ── */
+.auth-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+}
+
+/* ── Left panel ── */
+.auth-left {
+  position: relative;
+  background: linear-gradient(145deg, #0B3D91 0%, #0B4F9C 45%, #1565C0 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 52px;
+  overflow: hidden;
+}
+
+/* Decorative background shapes */
+.al-shapes { position: absolute; inset: 0; pointer-events: none; }
+
+.als {
+  position: absolute;
+  border-radius: 50%;
+  opacity: .08;
+  background: #fff;
+}
+.als-1 { width: 480px; height: 480px; top: -160px; right: -180px; }
+.als-2 { width: 260px; height: 260px; bottom: 80px; left: -80px; opacity: .05; }
+.als-3 { width: 120px; height: 120px; bottom: 260px; right: 60px; opacity: .06; }
+
+.al-content { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 48px; flex: 1; }
+
+/* Brand */
+.al-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.al-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  filter: brightness(0) invert(1);
+  opacity: .95;
+}
+.al-system {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #93C5FD;
+}
+.al-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #DBEAFE;
+  line-height: 1.4;
+}
+
+/* Quote */
+.al-quote {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #fff;
+  border-left: 3px solid #F5C400;
+  padding-left: 20px;
+  quotes: none;
+}
+
+/* Stats */
+.al-stats {
+  display: flex;
+  gap: 32px;
+}
+.als-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.als-stat strong {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+.als-stat span {
+  font-size: 12px;
+  color: #93C5FD;
+  font-weight: 500;
+}
+
+.al-footer {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255,255,255,.35);
+}
+
+/* ── Right panel ── */
+.auth-right {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  overflow-y: auto;
+}
+
+.ar-inner {
+  width: 100%;
+  max-width: 420px;
+}
+
+.ar-mobile-brand {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0B4F9C;
+  margin-bottom: 28px;
+}
+
+.ar-header { margin-bottom: 20px; }
+.ar-header h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 6px;
+}
+.ar-header p {
+  margin: 0;
+  color: #6B7280;
+  font-size: 14px;
+}
+
+/* Demo pill */
+.demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 5px 12px;
+  margin-bottom: 24px;
+}
+
+/* Form groups */
+.af-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.af-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.af-label svg { color: #9CA3AF; flex-shrink: 0; }
+
+.af-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 9px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+.af-input:focus {
+  border-color: #0B4F9C;
+  box-shadow: 0 0 0 3px rgba(11, 79, 156, .12);
+}
+.af-input.invalid {
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+.af-input.valid {
+  border-color: #059669;
+}
+
+/* Password wrap */
+.af-pw-wrap { position: relative; }
+.af-pw-wrap .af-input { padding-right: 44px; }
+.af-pw-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #9CA3AF;
+  display: flex;
+  border-radius: 4px;
+  transition: color .15s;
+}
+.af-pw-toggle:hover { color: #374151; }
+
+/* Inline row */
+.af-inline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.af-check-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+.af-check-label input[type="checkbox"] { display: none; }
+.af-checkmark {
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.af-check-label input:checked + .af-checkmark {
+  background: #0B4F9C;
+  border-color: #0B4F9C;
+}
+.af-check-label input:checked + .af-checkmark::after {
+  content: '';
+  display: block;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.af-link {
+  color: #0B4F9C;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.af-link:hover { text-decoration: underline; }
+
+/* Errors */
+.af-error {
+  font-size: 12px;
+  color: #DC2626;
+  min-height: 16px;
+}
+
+/* Primary button */
+.af-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s;
+}
+.af-btn-primary {
+  background: #0B4F9C;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(11,79,156,.25);
+}
+.af-btn-primary:hover {
+  background: #0A4489;
+  box-shadow: 0 4px 14px rgba(11,79,156,.35);
+  transform: translateY(-1px);
+}
+.af-btn-primary:active { transform: translateY(0); }
+.af-btn-primary:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-arrow { flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-spin { animation: spin .7s linear infinite; flex-shrink: 0; }
+
+/* Divider */
+.af-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #9CA3AF;
+  font-size: 12px;
+  font-weight: 600;
+}
+.af-divider::before,
+.af-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E5E7EB;
+}
+
+/* SSO buttons */
+.af-sso-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.af-sso-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.af-sso-btn:hover {
+  border-color: #0B4F9C;
+  background: #F0F6FF;
+  box-shadow: 0 2px 8px rgba(11,79,156,.1);
+}
+
+/* Footer links */
+.ar-switch, .ar-help {
+  text-align: center;
+  font-size: 13px;
+  color: #6B7280;
+  margin: 16px 0 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .auth-layout { grid-template-columns: 1fr; }
+  .auth-left { display: none; }
+  .auth-right { padding: 43px 32px; }
+  .ar-inner { max-width: 100%; }
+  .ar-mobile-brand { display: flex; }
+}
