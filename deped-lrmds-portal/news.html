@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>News & Advisories – DepEd LRMDS</title>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <link rel="stylesheet" href="assets/css/news.css"/>
+</head>
+<body>
+
+<!-- ── Header (same as main site) ── -->
+<header class="header" role="banner">
+  <div class="container inner">
+    <a class="brand" href="index.html">
+      <img src="assets/img/logo.svg" alt="DepEd LRMDS Logo"/>
+      <span class="title">LRMDS</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="search.html">Resources</a>
+      <a href="submit.html">Develop</a>
+      <a href="#" aria-disabled="true">Manage</a>
+      <a href="#" aria-disabled="true">Train &amp; Support</a>
+      <a href="news.html" class="active">News</a>
+    </nav>
+    <div class="header-actions">
+      <div class="search-wrap" role="search">
+        <input type="search" name="hdr-q" placeholder="Search resources…" aria-label="Search resources"/>
+        <span class="icon"><img src="assets/icons/magnifying-glass.svg" alt=""></span>
+      </div>
+      <a class="button ghost" href="submit.html"><img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">Submit</a>
+      <a href="signin.html" class="button primary">Sign In</a>
+    </div>
+  </div>
+</header>
+
+<!-- ── Page Hero ── -->
+<section class="news-hero">
+  <div class="container">
+    <div class="news-hero-inner">
+      <div>
+        <span class="news-eyebrow">DepEd LRMDS</span>
+        <h1>News &amp; Advisories</h1>
+        <p>Stay updated with system announcements, release notes, program updates, and upcoming events.</p>
+      </div>
+      <!-- Category filter tabs -->
+      <div class="news-tabs" role="tablist" aria-label="News categories">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-cat="all">All</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-cat="announcement">
+          <img src="assets/icons/megaphone.svg" alt=""> System Announcements
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-cat="release">
+          <img src="assets/icons/seal-check.svg" alt=""> Release Notes
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-cat="program">
+          <img src="assets/icons/globe.svg" alt=""> Program Updates
+        </button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-cat="event">
+          <img src="assets/icons/calendar.svg" alt=""> Events &amp; Webinars
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Main Content ── -->
+<main class="container news-layout" id="news-main">
+
+  <!-- Left: article list -->
+  <section aria-label="News articles" id="news-list-section">
+    <div class="news-toolbar">
+      <span id="news-count" class="news-count"></span>
+      <div class="news-search-wrap" role="search">
+        <input type="search" id="news-search" placeholder="Search news…" aria-label="Search news"/>
+        <img src="assets/icons/magnifying-glass.svg" alt="" class="news-search-icon">
+      </div>
+    </div>
+
+    <!-- Active filter chips -->
+    <div id="news-chips" class="chips-bar" aria-live="polite"></div>
+
+    <!-- Article list -->
+    <div id="news-list" role="list">
+      <!-- Rendered by news.js -->
+    </div>
+
+    <!-- Empty state -->
+    <div id="news-empty" class="empty-state" hidden>
+      <svg width="44" height="44" fill="none" stroke="#9CA3AF" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>No articles match your filters.</p>
+      <button class="button ghost" id="news-clear">Clear filters</button>
+    </div>
+  </section>
+
+  <!-- Right: Upcoming Events sidebar -->
+  <aside class="news-sidebar" aria-label="Upcoming events">
+    <div class="sidebar-card">
+      <h3 class="sidebar-heading"><img src="assets/icons/calendar.svg" alt=""> Upcoming Events</h3>
+      <ul class="event-list" id="event-sidebar">
+        <!-- Rendered by news.js -->
+      </ul>
+    </div>
+
+    <div class="sidebar-card" style="margin-top:16px">
+      <h3 class="sidebar-heading"><img src="assets/icons/megaphone.svg" alt=""> Latest Advisory</h3>
+      <div id="latest-advisory"><!-- Rendered by news.js --></div>
+    </div>
+  </aside>
+
+</main>
+
+<!-- ── Footer ── -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="cols">
+      <div>
+        <h4>About LRMDS</h4>
+        <p style="margin:0">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ut lacus nisl.</p>
+      </div>
+      <div>
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="search.html">Search</a></li>
+          <li><a href="#">Collections</a></li>
+          <li><a href="#">MELCs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Helpdesk</a></li>
+          <li><a href="#">Guides</a></li>
+          <li><a href="#">FAQs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal &amp; Compliance</h4>
+        <ul>
+          <li><a href="#">Accessibility</a></li>
+          <li><a href="#">Data Privacy</a></li>
+          <li><a href="#">Terms of Use</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="legal">© 2026 DepEd LRMDS – Prototype. For demonstration purposes only.</div>
+  </div>
+</footer>
+
+<script src="assets/js/app.js"></script>
+<script src="assets/js/news.js"></script>
+</body>
+</html>
