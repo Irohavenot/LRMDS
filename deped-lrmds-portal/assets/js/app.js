@@ -91,6 +91,26 @@
       { title: 'LM – SHS Oral Communication', grade: '11', subject: 'SHS Core', type: 'LM', melc: 'EN11/12OC-Ia-1', quarter: 'Q1', lang: 'English', license: 'DepEd', sy: '2022-2023', qa: 'passed', downloads: 950 },
       { title: 'SLM – SHS Empowerment Technologies', grade: '12', subject: 'SHS Applied', type: 'SLM', melc: 'CS_ICT11-12-ICTPT-Ia-1', quarter: 'Q1', lang: 'English', license: 'DepEd', sy: '2023-2024', qa: 'review', downloads: 670 },
     ];
+    const SUBJECT_IMAGES = {
+  'English': 'assets/img/subjects/english.png',
+  'Filipino': 'assets/img/subjects/filipino.png',
+  'Mathematics': 'assets/img/subjects/math.png',
+  'Science': 'assets/img/subjects/science.png',
+  'Araling Panlipunan': 'assets/img/subjects/ap.png',
+  'MAPEH': 'assets/img/subjects/mapeh.png',
+  'EsP': 'assets/img/subjects/esp.png',
+  'EPP/TLE': 'assets/img/subjects/tle.png',
+  'TLE/TVL': 'assets/img/subjects/tle.png',
+  'MTB-MLE': 'assets/img/subjects/mtb-mle.png',
+  'SHS Core': 'assets/img/subjects/shs-core.png',
+  'SHS Applied': 'assets/img/subjects/shs-applied.png',
+  'SHS Specialized': 'assets/img/subjects/shs-specialized.png',
+};
+
+function getSubjectImage(subject) {
+  return SUBJECT_IMAGES[subject] || 'assets/img/subjects/default.jpg';
+}
+    
 
     /* ── Read all URL params ── */
     const params = new URLSearchParams(location.search);
@@ -300,7 +320,7 @@
         list.innerHTML = results.map(r => `
           <article class="result-card">
             <div class="thumb-wrap">
-              <img src="assets/img/placeholder-thumb.svg" alt="" loading="lazy">
+              <img src="${getSubjectImage(r.subject)}" alt="${r.subject} resource image" loading="lazy">
               <span class="type-badge">${r.type}</span>
             </div>
             <div class="meta">
