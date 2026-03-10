@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DepEd LRMDS – Create Account</title>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body class="reg-body">
+
+<div class="reg-layout">
+
+  <aside class="reg-sidebar" aria-label="LRMDS branding">
+    <div class="rs-top">
+      <div class="rs-logos">
+        <div class="rs-logo-wrap" title="DepEd Logo — replace src with your logo">
+          <img src="assets/img/ww.png" alt="DepEd Logo" class="rs-deped-logo"
+               onerror="this.parentElement.classList.add('logo-missing')"/>
+        </div>
+        <div class="rs-logo-divider" aria-hidden="true"></div>
+        <div class="rs-lrmds-name">
+          <span class="rs-lrmds-abbr">LRMDS</span>
+          <span class="rs-lrmds-full">Learning Resource Management<br/>&amp; Development System</span>
+        </div>
+      </div>
+
+      <div class="rs-dept">
+        <p class="rs-dept-name">Republic of the Philippines</p>
+        <p class="rs-dept-sub">Department of Education</p>
+      </div>
+    </div>
+
+    <div class="rs-middle">
+      <h2 class="rs-headline">Join the LRMDS Community</h2>
+      <p class="rs-body-text">Create your account to browse, download, and contribute quality K–12 learning materials aligned to the Most Essential Learning Competencies.</p>
+
+      <ul class="rs-benefits">
+        <li>
+          <span class="rs-ben-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12.75l4 4L20 7"/></svg>
+          </span>
+          Access 50,000+ curated resources
+        </li>
+        <li>
+          <span class="rs-ben-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12.75l4 4L20 7"/></svg>
+          </span>
+          Download SLMs, TGs, DLLs, and more
+        </li>
+        <li>
+          <span class="rs-ben-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12.75l4 4L20 7"/></svg>
+          </span>
+          Submit &amp; share your own materials
+        </li>
+        <li>
+          <span class="rs-ben-icon">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12.75l4 4L20 7"/></svg>
+          </span>
+          MELCs-aligned collections by quarter
+        </li>
+      </ul>
+    </div>
+
+    <div class="rs-shapes" aria-hidden="true">
+      <div class="rss rss-1"></div>
+      <div class="rss rss-2"></div>
+    </div>
+
+    <p class="rs-footer">© 2026 DepEd LRMDS · Prototype · For demonstration purposes only.</p>
+  </aside>
+
+  <main class="reg-main" id="main-content">
+    <div class="rm-inner">
+
+      <div class="reg-progress" role="navigation" aria-label="Registration steps">
+        <div class="rp-step active" data-step="0">
+          <span class="rp-num">1</span>
+          <span class="rp-label">Account</span>
+        </div>
+        <div class="rp-line"></div>
+        <div class="rp-step" data-step="1">
+          <span class="rp-num">2</span>
+          <span class="rp-label">Profile</span>
+        </div>
+        <div class="rp-line"></div>
+        <div class="rp-step" data-step="2">
+          <span class="rp-num">3</span>
+          <span class="rp-label">Role</span>
+        </div>
+      </div>
+
+      <div class="reg-panel active" id="reg-panel-0">
+        <div class="rp-header">
+          <h1>Create your account</h1>
+          <p>Set up your login credentials.</p>
+        </div>
+
+        <div class="rf-group" id="rfg-email">
+          <label class="rf-label" for="reg-email">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+            Email Address <span class="rf-req">*</span>
+          </label>
+          <input class="rf-input" type="email" id="reg-email" name="email"
+            placeholder="yourname@deped.gov.ph"
+            autocomplete="email" aria-describedby="reg-email-err" required/>
+          <span class="rf-hint">Use your official DepEd email if available.</span>
+          <span class="rf-error" id="reg-email-err" role="alert"></span>
+        </div>
+
+        <div class="rf-group" id="rfg-pw">
+          <label class="rf-label" for="reg-pw">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Password <span class="rf-req">*</span>
+          </label>
+          <div class="rf-pw-wrap">
+            <input class="rf-input" type="password" id="reg-pw" name="password"
+              placeholder="Minimum 8 characters"
+              autocomplete="new-password" aria-describedby="reg-pw-err" required/>
+            <button type="button" class="rf-pw-toggle" aria-label="Toggle password" data-target="reg-pw">
+              <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-eye-off" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div class="pw-strength" id="pw-strength" aria-live="polite">
+            <div class="pws-bar">
+              <div class="pws-fill" id="pws-fill"></div>
+            </div>
+            <span class="pws-label" id="pws-label"></span>
+          </div>
+          <span class="rf-error" id="reg-pw-err" role="alert"></span>
+        </div>
+
+        <div class="rf-group" id="rfg-pw2">
+          <label class="rf-label" for="reg-pw2">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Confirm Password <span class="rf-req">*</span>
+          </label>
+          <div class="rf-pw-wrap">
+            <input class="rf-input" type="password" id="reg-pw2" name="password2"
+              placeholder="Re-enter your password"
+              autocomplete="new-password" aria-describedby="reg-pw2-err" required/>
+            <button type="button" class="rf-pw-toggle" aria-label="Toggle confirm password" data-target="reg-pw2">
+              <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-eye-off" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <span class="rf-error" id="reg-pw2-err" role="alert"></span>
+        </div>
+
+        <button type="button" class="rf-btn rf-btn-primary" id="reg-next-0">
+          Continue
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <div class="reg-panel" id="reg-panel-1" hidden>
+        <div class="rp-header">
+          <h1>Your profile</h1>
+          <p>Help us personalize your experience.</p>
+        </div>
+
+        <div class="rf-row">
+          <div class="rf-group" id="rfg-fname">
+            <label class="rf-label" for="reg-fname">First Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-fname" name="fname" placeholder="Juan" autocomplete="given-name" required/>
+            <span class="rf-error" id="reg-fname-err" role="alert"></span>
+          </div>
+          <div class="rf-group" id="rfg-lname">
+            <label class="rf-label" for="reg-lname">Last Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-lname" name="lname" placeholder="dela Cruz" autocomplete="family-name" required/>
+            <span class="rf-error" id="reg-lname-err" role="alert"></span>
+          </div>
+        </div>
+
+        <div class="rf-group">
+          <label class="rf-label" for="reg-employee-id">
+            Employee / Teacher ID
+          </label>
+          <input class="rf-input" type="text" id="reg-employee-id" name="employee_id" placeholder="e.g. 1234567"/>
+          <span class="rf-hint">Optional. Leave blank if not yet assigned.</span>
+        </div>
+
+        <div class="rf-row">
+          <div class="rf-group" id="rfg-region">
+            <label class="rf-label" for="reg-region">Region <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-region" name="region" required>
+              <option value="">Select region…</option>
+              <option>NCR</option><option>CAR</option><option>Region I</option><option>Region II</option>
+              <option>Region III</option><option>Region IV-A</option><option>Region IV-B</option>
+              <option>Region V</option><option>Region VI</option><option>Region VII</option>
+              <option>Region VIII</option><option>Region IX</option><option>Region X</option>
+              <option>Region XI</option><option>Region XII</option><option>CARAGA</option><option>BARMM</option>
+            </select>
+            <span class="rf-error" id="reg-region-err" role="alert"></span>
+          </div>
+          <div class="rf-group">
+            <label class="rf-label" for="reg-division">Division / School</label>
+            <input class="rf-input" type="text" id="reg-division" name="division" placeholder="e.g. Division of Cebu City"/>
+          </div>
+        </div>
+
+        <div class="rf-nav">
+          <button type="button" class="rf-btn rf-btn-ghost" id="reg-back-1">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+          <button type="button" class="rf-btn rf-btn-primary" id="reg-next-1">
+            Continue
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="reg-panel" id="reg-panel-2" hidden>
+        <div class="rp-header">
+          <h1>Your role</h1>
+          <p>This helps us show you relevant resources and tools.</p>
+        </div>
+
+        <div class="rf-role-grid" id="role-grid">
+          <label class="rf-role-card" data-role="teacher">
+            <input type="radio" name="role" value="teacher" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3"/><rect x="8" y="1" width="8" height="4" rx="1"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>
+            </span>
+            <span class="rrc-name">Teacher</span>
+            <span class="rrc-desc">K–12 classroom teacher</span>
+          </label>
+          <label class="rf-role-card" data-role="school-head">
+            <input type="radio" name="role" value="school-head" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </span>
+            <span class="rrc-name">School Head</span>
+            <span class="rrc-desc">Principal / Head Teacher</span>
+          </label>
+          <label class="rf-role-card" data-role="curriculum">
+            <input type="radio" name="role" value="curriculum" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </span>
+            <span class="rrc-name">Curriculum</span>
+            <span class="rrc-desc">Curriculum / Subject supervisor</span>
+          </label>
+          <label class="rf-role-card" data-role="developer">
+            <input type="radio" name="role" value="developer" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </span>
+            <span class="rrc-name">LR Developer</span>
+            <span class="rrc-desc">Creates and submits resources</span>
+          </label>
+          <label class="rf-role-card" data-role="learner">
+            <input type="radio" name="role" value="learner" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </span>
+            <span class="rrc-name">Learner</span>
+            <span class="rrc-desc">Student / Self-learner</span>
+          </label>
+          <label class="rf-role-card" data-role="other">
+            <input type="radio" name="role" value="other" hidden/>
+            <span class="rrc-icon">
+              <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+            </span>
+            <span class="rrc-name">Other</span>
+            <span class="rrc-desc">Parent, partner, or other</span>
+          </label>
+        </div>
+        <span class="rf-error" id="reg-role-err" role="alert" style="margin-top:4px;display:block"></span>
+
+        <div class="rf-terms">
+          <label class="rf-check-label" id="terms-label">
+            <input type="checkbox" id="reg-terms" name="terms"/>
+            <span class="rf-checkmark"></span>
+            I have read and agree to the <a href="#" class="af-link">Terms of Use</a> and <a href="#" class="af-link">Privacy Policy</a>.
+          </label>
+          <span class="rf-error" id="reg-terms-err" role="alert"></span>
+        </div>
+
+        <div class="rf-nav">
+          <button type="button" class="rf-btn rf-btn-ghost" id="reg-back-2">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+          <button type="button" class="rf-btn rf-btn-primary" id="reg-submit">
+            <span class="btn-label">Create Account</span>
+            <svg class="btn-arrow" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <svg class="btn-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="reg-panel" id="reg-panel-success" hidden>
+        <div class="reg-success">
+          <div class="rs-icon-wrap">
+            <svg width="44" height="44" fill="none" stroke="#059669" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          </div>
+          <h2>Account Created!</h2>
+          <p>Welcome to LRMDS. You can now sign in and start accessing learning resources.</p>
+          <a href="signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;margin-top:8px">
+            Go to Sign In
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <p class="rm-switch">Already have an account? <a class="af-link" href="signin.php">Sign in</a></p>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="assets/js/register.js"></script>
+</body>
+</html>
