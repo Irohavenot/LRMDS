@@ -33,7 +33,7 @@
 
      //SEARCH PAGE
 
-  if (location.pathname.endsWith('search.html')) {
+  if (location.pathname.endsWith('search.html') || location.pathname.endsWith('search.php') ) {
 
     /* ── Extended dummy dataset ── */
     const DATA = [
