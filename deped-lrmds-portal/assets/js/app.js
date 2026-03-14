@@ -101,9 +101,9 @@
   'EsP': 'assets/img/subjects/esp.png',
   'EPP/TLE': 'assets/img/subjects/tle.png',
   'TLE/TVL': 'assets/img/subjects/tle.png',
-  'MTB-MLE': 'assets/img/subjects/mtb-mle.png',
-  'SHS Core': 'assets/img/subjects/shs-core.png',
-  'SHS Applied': 'assets/img/subjects/shs-applied.png',
+  'MTB-MLE': 'assets/img/subjects/MTB MLE.png',
+  'SHS Core': 'assets/img/subjects/SHS EARTH SCIENCE.png',
+  'SHS Applied': 'assets/img/subjects/empowerment.png',
   'SHS Specialized': 'assets/img/subjects/shs-specialized.png',
 };
 
