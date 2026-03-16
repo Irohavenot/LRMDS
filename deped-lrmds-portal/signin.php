@@ -53,7 +53,7 @@
     <div class="ar-inner">
 
       <div class="ar-mobile-brand">
-        <img src="assets/img/logo.svg" alt="" width="32"/>
+        <img src="../assets/img/logo.svg" alt="" width="32"/>
         <span>LRMDS</span>
       </div>
 
