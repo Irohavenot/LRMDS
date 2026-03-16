@@ -263,8 +263,9 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 .sim-logo {
     width: 183px;
     height: 49px;
-  filter: brightness(0) invert(1);
   opacity: .92;
+ background-color: #ffffffc4;
+    padding: 5px;
 }
 .sim-system {
   margin: 0;
