@@ -3,7 +3,8 @@
 (function () {
   'use strict';
 
-  if (!location.pathname.endsWith('submit.html')) return;
+  // Guard: only run if the wizard is present on this page
+  if (!document.getElementById('panel-0')) return;
 
   /* ── Helpers ── */
   const qs  = (sel, root = document) => root.querySelector(sel);
@@ -67,7 +68,7 @@
     }
 
     // Scroll to top of section
-    qs('section.section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    qs('section.section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   prevBtn.addEventListener('click', () => goTo(currentStep - 1));
@@ -83,16 +84,18 @@
   /* ════════════════════════════════
      PANEL 0 – FILE UPLOAD
   ════════════════════════════════ */
-  const dropzone   = qs('#dropzone');
-  const fileInput  = qs('#file-input');
+  const dropzone    = qs('#dropzone');
+  const fileInput   = qs('#file-input');
   const filePreview = qs('#file-preview');
-  const fpName     = qs('#fp-name');
-  const fpSize     = qs('#fp-size');
-  const fpIcon     = qs('#fp-icon');
-  const fpRemove   = qs('#fp-remove');
+  const fpName      = qs('#fp-name');
+  const fpSize      = qs('#fp-size');
+  const fpIcon      = qs('#fp-icon');
+  const fpRemove    = qs('#fp-remove');
 
   const FILE_ICONS = { pdf:'📄', docx:'📝', pptx:'📊', mp4:'🎬', mp3:'🎵', zip:'📦', html:'🌐' };
-  const formatSize = bytes => bytes < 1024*1024 ? (bytes/1024).toFixed(1)+' KB' : (bytes/(1024*1024)).toFixed(1)+' MB';
+  const formatSize = bytes => bytes < 1024 * 1024
+    ? (bytes / 1024).toFixed(1) + ' KB'
+    : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 
   function showFile(file) {
     uploadedFile = file;
@@ -175,7 +178,6 @@
     qs('#melc-list').appendChild(entry);
     entry.querySelector('.remove-btn').addEventListener('click', () => {
       entry.remove();
-      // Show remove btn on first entry if only one left
       const entries = qsa('.melc-entry');
       if (entries.length === 1) entries[0].querySelector('.remove-btn').style.display = 'none';
     });
@@ -184,7 +186,6 @@
   addMelcEntry(); // start with one
   qs('#add-melc').addEventListener('click', () => {
     addMelcEntry();
-    // Show remove btn on all if more than one
     qsa('.melc-entry .remove-btn').forEach(b => b.style.display = '');
   });
 
@@ -256,9 +257,9 @@
     });
   });
 
- 
-    //PANEL 4 – REVIEW
-  
+  /* ════════════════════════════════
+     PANEL 4 – REVIEW
+  ════════════════════════════════ */
   function buildReview() {
     const grid = qs('#review-grid');
     if (!grid) return;
@@ -273,24 +274,24 @@
       return (f + ' ' + l).trim();
     }).filter(Boolean).join('; ');
 
-    const license = qs('input[name="license"]:checked')?.value || '—';
+    const license  = qs('input[name="license"]:checked')?.value || '—';
     const fileName = uploadedFile ? uploadedFile.name : (val('resource-url') || '—');
 
     const rows = [
       ['File / URL',      fileName],
-      ['Title',           val('meta-title') || '—'],
-      ['Type',            sVal('meta-type')  || '—'],
-      ['Grade',           sVal('meta-grade') || '—'],
-      ['Learning Area',   sVal('meta-subject') || '—'],
-      ['Language',        sVal('meta-lang') || '—'],
-      ['Quarter',         sVal('meta-quarter') || '—'],
-      ['School Year',     val('meta-sy') || '—'],
-      ['SHS Track',       sVal('meta-track') || 'N/A'],
-      ['MELC Code(s)',    melcCodes || '—'],
-      ['Author(s)',       authors || '—'],
+      ['Title',           val('meta-title')      || '—'],
+      ['Type',            sVal('meta-type')       || '—'],
+      ['Grade',           sVal('meta-grade')      || '—'],
+      ['Learning Area',   sVal('meta-subject')    || '—'],
+      ['Language',        sVal('meta-lang')       || '—'],
+      ['Quarter',         sVal('meta-quarter')    || '—'],
+      ['School Year',     val('meta-sy')          || '—'],
+      ['SHS Track',       sVal('meta-track')      || 'N/A'],
+      ['MELC Code(s)',    melcCodes               || '—'],
+      ['Author(s)',       authors                 || '—'],
       ['License',         license],
-      ['Region',          sVal('rights-region') || '—'],
-      ['Division/School', val('rights-division') || '—'],
+      ['Region',          sVal('rights-region')   || '—'],
+      ['Division/School', val('rights-division')  || '—'],
     ];
 
     grid.innerHTML = rows.map(([label, value]) => `
@@ -312,7 +313,7 @@
     successPanel.hidden = false;
     successPanel.classList.add('active');
     wizardNav.style.display = 'none';
-    qs('#wizard-progress')?.style.setProperty('display', 'none');
+    qs('.wizard-progress')?.style.setProperty('display', 'none');
     // Generate fake ref ID
     const ref = 'LRMDS-2026-' + String(Math.floor(Math.random() * 90000) + 10000);
     qs('#ref-id').textContent = ref;
@@ -341,16 +342,15 @@
     let valid = true;
 
     if (idx === 0) {
-      // At least a file or URL
       const url = qs('#resource-url')?.value?.trim();
       if (!uploadedFile && !url) {
         dropzone.style.borderColor = '#DC2626';
         setTimeout(() => dropzone.style.borderColor = '', 2000);
-        valid = false;
         // Gentle shake
         dropzone.style.animation = 'none';
         dropzone.offsetHeight; // reflow
         dropzone.style.animation = 'shake .3s ease';
+        valid = false;
       }
     }
 
@@ -365,11 +365,9 @@
     if (idx === 3) {
       const originalBox = qs('#rights-original');
       const privacyBox  = qs('#rights-privacy');
-      if (!originalBox?.checked || !privacyBox?.checked) {
-        if (!originalBox?.checked) originalBox.closest('label').style.color = '#DC2626';
-        if (!privacyBox?.checked)  privacyBox.closest('label').style.color = '#DC2626';
-        valid = false;
-      }
+      if (!originalBox?.checked) originalBox.closest('label').style.color = '#DC2626';
+      if (!privacyBox?.checked)  privacyBox.closest('label').style.color = '#DC2626';
+      if (!originalBox?.checked || !privacyBox?.checked) valid = false;
     }
 
     return valid;

@@ -1,0 +1,435 @@
+/* ================================
+   header.css
+   Styles for: sticky header,
+   sign-in modal, sign-out modal
+================================= */
+
+
+/* ── Shared modal animations ── */
+
+@keyframes simFadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes simSlideUp { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes simSpin    { to { transform: rotate(360deg); } }
+@keyframes soutFade   { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes soutSlide  { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+
+
+/* ════════════════════════════════
+   SIGN-OUT CONFIRMATION MODAL
+════════════════════════════════ */
+
+.sout-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: soutFade .15s ease;
+}
+.sout-backdrop[hidden] { display: none; }
+
+.sout-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(11, 79, 156, .18), 0 4px 16px rgba(0, 0, 0, .1);
+  animation: soutSlide .2s ease;
+}
+
+.sout-icon {
+  width: 56px;
+  height: 56px;
+  background: #EFF6FF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.sout-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.sout-sub {
+  font-size: 13px;
+  color: #6B7280;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.sout-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.sout-btn-cancel {
+  flex: 1;
+  padding: 10px;
+  background: #fff;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.sout-btn-cancel:hover { background: #F9FAFB; border-color: #D1D5DB; }
+
+.sout-btn-confirm {
+  flex: 1;
+  padding: 10px;
+  background: #0B4F9C;
+  border: none;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, transform .1s;
+}
+.sout-btn-confirm:hover  { background: #0A4489; transform: translateY(-1px); }
+.sout-btn-confirm:active { transform: none; }
+
+
+/* ════════════════════════════════
+   SIGN-IN MODAL
+════════════════════════════════ */
+
+.sim-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: simFadeIn .18s ease;
+}
+.sim-backdrop[hidden] { display: none; }
+
+/* ── Card layout ── */
+.sim-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  max-width: 680px;
+  width: 100%;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(11, 79, 156, .22), 0 4px 16px rgba(0, 0, 0, .12);
+  animation: simSlideUp .22s ease;
+}
+
+/* ── Close button ── */
+.sim-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  background: rgba(255, 255, 255, .15);
+  border: none;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: background .15s;
+}
+.sim-close:hover { background: rgba(255, 255, 255, .28); }
+
+/* ── Left accent panel ── */
+.sim-accent {
+  position: relative;
+  background: linear-gradient(160deg, #0B3D91 0%, #0B4F9C 50%, #1565C0 100%);
+  color: #fff;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.sim-shapes { position: absolute; inset: 0; pointer-events: none; }
+
+.sim-s {
+  position: absolute;
+  border-radius: 50%;
+  opacity: .08;
+  background: #fff;
+}
+.sim-s1 { width: 200px; height: 200px; top: -80px;   right: -80px; }
+.sim-s2 { width: 120px; height: 120px; bottom: 20px; left: -40px;  opacity: .05; }
+
+.sim-accent-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sim-logo {
+  width: 183px;
+  height: 49px;
+  opacity: .92;
+  background-color: #ffffffc4;
+  padding: 5px;
+}
+
+.sim-system {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #93C5FD;
+}
+
+.sim-name {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #DBEAFE;
+  line-height: 1.4;
+}
+
+.sim-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.sim-stats div    { display: flex; flex-direction: column; gap: 1px; }
+.sim-stats strong { font-size: 18px; font-weight: 800; color: #fff; }
+.sim-stats span   { font-size: 10px; color: #93C5FD; }
+
+/* ── Right form body ── */
+.sim-body {
+  padding: 28px 28px 24px;
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+/* Access notice banner */
+.sim-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  color: #C2410C;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+.sim-notice[hidden] { display: none; }
+
+.sim-title { font-size: 20px; font-weight: 800; color: #111827; margin: 0 0 4px; }
+.sim-sub   { font-size: 13px; color: #6B7280;   margin: 0 0 14px; }
+
+.sim-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 4px 10px;
+  margin-bottom: 16px;
+}
+
+/* ── Form groups ── */
+.sim-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.sim-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.sim-label svg { color: #9CA3AF; }
+
+.sim-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+  font-family: inherit;
+}
+.sim-input:focus   { border-color: #0B4F9C; box-shadow: 0 0 0 3px rgba(11, 79, 156, .1); }
+.sim-input.invalid { border-color: #DC2626; background: #FEF2F2; }
+
+.sim-err { font-size: 11px; color: #DC2626; min-height: 14px; }
+
+/* ── Password field ── */
+.sim-pw-wrap { position: relative; }
+.sim-pw-wrap .sim-input { padding-right: 38px; }
+
+.sim-pw-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9CA3AF;
+  display: flex;
+  padding: 4px;
+  border-radius: 4px;
+}
+.sim-pw-toggle:hover { color: #374151; }
+
+/* ── Remember / Forgot row ── */
+.sim-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sim-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+.sim-check input[type="checkbox"] { display: none; }
+
+.sim-checkmark {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.sim-check input:checked + .sim-checkmark {
+  background: #0B4F9C;
+  border-color: #0B4F9C;
+}
+.sim-check input:checked + .sim-checkmark::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.sim-link { color: #0B4F9C; font-size: 12px; font-weight: 600; text-decoration: none; }
+.sim-link:hover { text-decoration: underline; }
+
+/* ── Submit button ── */
+.sim-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  background: #0B4F9C;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(11, 79, 156, .25);
+  transition: background .15s, transform .1s, box-shadow .15s;
+}
+.sim-btn:hover    { background: #0A4489; box-shadow: 0 4px 14px rgba(11, 79, 156, .35); transform: translateY(-1px); }
+.sim-btn:active   { transform: none; }
+.sim-btn:disabled { opacity: .7; cursor: not-allowed; transform: none; }
+
+/* ── Divider ── */
+.sim-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: #9CA3AF;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sim-divider::before,
+.sim-divider::after { content: ''; flex: 1; height: 1px; background: #E5E7EB; }
+
+/* ── SSO buttons ── */
+.sim-sso-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.sim-sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sim-sso:hover { border-color: #0B4F9C; background: #F0F6FF; }
+
+.sim-switch { text-align: center; font-size: 12px; color: #6B7280; margin: 14px 0 0; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .sim-card { grid-template-columns: 1fr; }
+  .sim-accent { display: none; }
+  .sim-close { color: #374151; background: rgba(0, 0, 0, .06); }
+}

@@ -22,7 +22,7 @@
     </div>
     <div class="al-content">
       <div class="al-brand">
-        <img src="assets/img/logo.svg" alt="DepEd Logo" class="al-logo"/>
+        <img src="assets/img/logo.svg" alt="DepEd Logo" class="al-logos"/>
         <div>
           <p class="al-system">Department of Education</p>
           <p class="al-name">Learning Resource Management<br/>&amp; Development System</p>

@@ -31,9 +31,9 @@
   });
 
 
-     //SEARCH PAGE
+  // SEARCH PAGE
 
-  if (location.pathname.endsWith('search.html') || location.pathname.endsWith('search.php') ) {
+  if (location.pathname.endsWith('search.html') || location.pathname.endsWith('search.php')) {
 
     /* ── Extended dummy dataset ── */
     const DATA = [
@@ -91,26 +91,26 @@
       { title: 'LM – SHS Oral Communication', grade: '11', subject: 'SHS Core', type: 'LM', melc: 'EN11/12OC-Ia-1', quarter: 'Q1', lang: 'English', license: 'DepEd', sy: '2022-2023', qa: 'passed', downloads: 950 },
       { title: 'SLM – SHS Empowerment Technologies', grade: '12', subject: 'SHS Applied', type: 'SLM', melc: 'CS_ICT11-12-ICTPT-Ia-1', quarter: 'Q1', lang: 'English', license: 'DepEd', sy: '2023-2024', qa: 'review', downloads: 670 },
     ];
-    const SUBJECT_IMAGES = {
-  'English': 'assets/img/subjects/english.png',
-  'Filipino': 'assets/img/subjects/filipino.png',
-  'Mathematics': 'assets/img/subjects/math.png',
-  'Science': 'assets/img/subjects/science.png',
-  'Araling Panlipunan': 'assets/img/subjects/ap.png',
-  'MAPEH': 'assets/img/subjects/mapeh.png',
-  'EsP': 'assets/img/subjects/esp.png',
-  'EPP/TLE': 'assets/img/subjects/tle.png',
-  'TLE/TVL': 'assets/img/subjects/tle.png',
-  'MTB-MLE': 'assets/img/subjects/MTB MLE.png',
-  'SHS Core': 'assets/img/subjects/SHS EARTH SCIENCE.png',
-  'SHS Applied': 'assets/img/subjects/empowerment.png',
-  'SHS Specialized': 'assets/img/subjects/shs-specialized.png',
-};
 
-function getSubjectImage(subject) {
-  return SUBJECT_IMAGES[subject] || 'assets/img/subjects/default.jpg';
-}
-    
+    const SUBJECT_IMAGES = {
+      'English': 'assets/img/subjects/english.png',
+      'Filipino': 'assets/img/subjects/filipino.png',
+      'Mathematics': 'assets/img/subjects/math.png',
+      'Science': 'assets/img/subjects/science.png',
+      'Araling Panlipunan': 'assets/img/subjects/ap.png',
+      'MAPEH': 'assets/img/subjects/mapeh.png',
+      'EsP': 'assets/img/subjects/esp.png',
+      'EPP/TLE': 'assets/img/subjects/tle.png',
+      'TLE/TVL': 'assets/img/subjects/tle.png',
+      'MTB-MLE': 'assets/img/subjects/MTB MLE.png',
+      'SHS Core': 'assets/img/subjects/SHS EARTH SCIENCE.png',
+      'SHS Applied': 'assets/img/subjects/empowerment.png',
+      'SHS Specialized': 'assets/img/subjects/shs-specialized.png',
+    };
+
+    function getSubjectImage(subject) {
+      return SUBJECT_IMAGES[subject] || 'assets/img/subjects/default.jpg';
+    }
 
     /* ── Read all URL params ── */
     const params = new URLSearchParams(location.search);
@@ -130,7 +130,6 @@ function getSubjectImage(subject) {
     /* ── Inject missing filter controls into the existing filter bar ── */
     const filterBar = qs('.filters');
     if (filterBar) {
-      // Remove old static selects we'll replace/extend
       const existing = {
         grade: qs('[name="grade"]', filterBar),
         subject: qs('[name="subject"]', filterBar),
@@ -214,7 +213,6 @@ function getSubjectImage(subject) {
       );
       if (f.sort === 'downloads') results.sort((a, b) => b.downloads - a.downloads);
       else if (f.sort === 'title') results.sort((a, b) => a.title.localeCompare(b.title));
-      // newest: rely on data order (already roughly newest first by sy)
       return results;
     }
 
@@ -223,12 +221,6 @@ function getSubjectImage(subject) {
       const container = qs('#facet-sidebar');
       if (!container) return;
 
-      const count = (field, val) => DATA.filter(item => {
-        const base = applyFilters({ [field]: '' });
-        return base.includes(item) && item[field] === val;
-      }).length;
-
-      // For each facet group: field, label, values
       const groups = [
         { field: 'subject', label: 'Learning Area', values: [...new Set(DATA.map(d => d.subject))].sort() },
         { field: 'grade', label: 'Grade Level', values: ['Kinder', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] },
@@ -271,14 +263,13 @@ function getSubjectImage(subject) {
         btn.addEventListener('click', () => {
           const field = btn.dataset.field;
           const val = btn.dataset.val;
-          // Toggle
           if (activeFilters[field] === val) {
             activeFilters[field] = '';
           } else {
             activeFilters[field] = val;
           }
+        
           renderResults();
-          // Update URL
           const p = new URLSearchParams(activeFilters);
           history.replaceState(null, '', '?' + p.toString());
         });
@@ -289,6 +280,7 @@ function getSubjectImage(subject) {
         btn.addEventListener('click', () => {
           const field = btn.parentElement.dataset.field;
           activeFilters[field] = '';
+  
           renderResults();
           const p = new URLSearchParams(activeFilters);
           history.replaceState(null, '', '?' + p.toString());
@@ -296,65 +288,72 @@ function getSubjectImage(subject) {
       });
     }
 
+    /* ── Pagination state ── */
+
     /* ── Render results ── */
-    function renderResults() {
-      const results = applyFilters();
-      const list = qs('#results');
-      if (!list) return;
+/* ── Render results ── */
+function renderResults() {
+  const results = applyFilters();
+  const list = qs('#results');
+  if (!list) return;
 
-      const countEl = qs('#result-count');
-      if (countEl) countEl.textContent = `${results.length} resource${results.length !== 1 ? 's' : ''} found`;
+  const countEl = qs('#result-count');
+  if (countEl) countEl.textContent = `${results.length} resource${results.length !== 1 ? 's' : ''} found`;
 
-      if (results.length === 0) {
-        list.innerHTML = `<div class="empty-state">
-          <svg width="48" height="48" fill="none" stroke="#9CA3AF" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <p>No resources matched your filters.</p>
-          <button class="button ghost" id="clear-all">Clear all filters</button>
-        </div>`;
-        qs('#clear-all')?.addEventListener('click', () => {
-          Object.keys(activeFilters).forEach(k => { if (k !== 'sort') activeFilters[k] = ''; });
-          renderResults();
-          history.replaceState(null, '', '?');
-        });
-      } else {
-        list.innerHTML = results.map(r => `
-          <article class="result-card">
-            <div class="thumb-wrap">
-              <img src="${getSubjectImage(r.subject)}" alt="${r.subject} resource image" loading="lazy">
-              <span class="type-badge">${r.type}</span>
+  if (results.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="#9CA3AF" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <p>No resources matched your filters.</p>
+      <button class="button ghost" id="clear-all">Clear all filters</button>
+    </div>`;
+    qs('#clear-all')?.addEventListener('click', () => {
+      Object.keys(activeFilters).forEach(k => { if (k !== 'sort') activeFilters[k] = ''; });
+      renderResults();
+      history.replaceState(null, '', '?');
+    });
+  } else {
+    list.innerHTML = results.map(r => `
+      <article class="result-card">
+        <div class="thumb-wrap">
+          <img src="${getSubjectImage(r.subject)}" alt="${r.subject} resource image" loading="lazy">
+          <span class="type-badge">${r.type}</span>
+        </div>
+        <div class="meta">
+          <div class="tag-row">
+            <span class="tag">Grade ${r.grade}</span>
+            <span class="tag secondary">${r.quarter}</span>
+            <span class="tag secondary">${r.lang}</span>
+            <span class="tag secondary">${r.license}</span>
+          </div>
+          <h3 class="title">${r.title}</h3>
+          <div class="detail-row">
+            <span>${r.subject}</span><span class="sep">•</span>
+            <span>MELC: <code>${r.melc || '—'}</code></span><span class="sep">•</span>
+            <span>SY ${r.sy}</span>
+          </div>
+          <div class="card-footer">
+            <div>${r.qa === 'passed' ? '<span class="badge success">QA Passed</span>' : '<span class="badge warn">Under Review</span>'}</div>
+            <div class="dl-count">Downloads ⬇ ${r.downloads.toLocaleString()}</div>
+            <div class="actions">
+              <a href="resource.html" class="button ghost" aria-label="View ${r.title}">View</a>
+              <button class="button primary" aria-label="Download ${r.title}">Download</button>
             </div>
-            <div class="meta">
-              <div class="tag-row">
-                <span class="tag">Grade ${r.grade}</span>
-                <span class="tag secondary">${r.quarter}</span>
-                <span class="tag secondary">${r.lang}</span>
-                <span class="tag secondary">${r.license}</span>
-              </div>
-              <h3 class="title">${r.title}</h3>
-              <div class="detail-row">
-                <span>${r.subject}</span><span class="sep">•</span>
-                <span>MELC: <code>${r.melc || '—'}</code></span><span class="sep">•</span>
-                <span>SY ${r.sy}</span>
-              </div>
-              <div class="card-footer">
-                <div>${r.qa === 'passed' ? '<span class="badge success">QA Passed</span>' : '<span class="badge warn">Under Review</span>'}</div>
-                <div class="dl-count">Downloads ⬇ ${r.downloads.toLocaleString()}</div>
-                <div class="actions">
-                  <a href="resource.html" class="button ghost" aria-label="View ${r.title}">View</a>
-                  <button class="button primary" aria-label="Download ${r.title}">Download</button>
-                </div>
-              </div>
-            </div>
-          </article>`).join('');
-      }
+          </div>
+        </div>
+      </article>`).join('');
 
-      buildFacets(results);
-    }
+    // Scroll back to top of results when filters change
+    list.scrollTop = 0;
+  }
+
+  buildFacets(results);
+}
 
     /* ── Inject sidebar + result count into the DOM ── */
     const section = qs('section.section.container');
     if (section) {
       const h2 = section.querySelector('h2');
+
       // Add result count next to heading
       const countSpan = document.createElement('span');
       countSpan.id = 'result-count';
@@ -381,13 +380,6 @@ function getSubjectImage(subject) {
       wrapper.appendChild(sidebar);
       wrapper.appendChild(resultsEl);
     }
-
-    /* ── Inject facet styles ── */
-    const style = document.createElement('style');
-    // style.textContent = `
-
-    // `;
-    document.head.appendChild(style);
 
     /* ── Initial render ── */
     renderResults();
