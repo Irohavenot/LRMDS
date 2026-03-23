@@ -4,18 +4,22 @@ session_start();
 $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 ?>
 <link rel="stylesheet" href="assets/css/header.css"/>
+<link rel="stylesheet" href="assets/css/header_responsive.css"/>
 
 <header class="header" role="banner">
   <div class="container inner">
+
+    <!-- Brand -->
     <a class="brand" href="index.php">
       <img src="assets/img/logo.svg" alt="DepEd LRMDS Logo"/>
       <span class="title">LRMDS</span>
     </a>
 
+    <!-- Desktop nav (hidden ≤768px, replaced by drawer) -->
     <nav class="nav" aria-label="Main">
       <a href="index.php">Home</a>
       <a href="search.php">Resources</a>
-      <a href="submit.php"
+      <a href="#"
          class="nav-protected"
          data-protected="true"
          data-dest="submit.php">Develop</a>
@@ -30,26 +34,160 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
       <a href="news.php">News</a>
     </nav>
 
+    <!-- Desktop actions -->
     <div class="header-actions">
+      <!-- Search bar (hidden on mobile; use hero search instead) -->
       <div class="search-wrap" role="search">
         <input type="search" name="hdr-q" placeholder="Search resources…" aria-label="Search resources"/>
         <span class="icon">
           <img src="assets/icons/magnifying-glass.svg" alt="">
         </span>
       </div>
+
+      <!-- Submit button — text label hidden on tablet via .submit-label -->
       <a class="button ghost" href="#"
          data-protected="true"
          data-dest="submit.php">
-        <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">Submit
+        <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">
+        <span class="submit-label">Submit</span>
       </a>
+
       <?php if ($isSignedIn): ?>
         <a href="#" class="button primary" id="hdr-signout-btn">Sign Out</a>
       <?php else: ?>
         <a href="#" class="button primary" id="hdr-signin-btn">Sign In</a>
       <?php endif; ?>
+
+      <!-- Hamburger (shown ≤768px) -->
+      <button
+        class="nav-toggle"
+        id="nav-toggle"
+        aria-label="Open navigation menu"
+        aria-expanded="false"
+        aria-controls="nav-drawer">
+        <span class="bar bar-1" aria-hidden="true"></span>
+        <span class="bar bar-2" aria-hidden="true"></span>
+        <span class="bar bar-3" aria-hidden="true"></span>
+      </button>
     </div>
+
   </div>
 </header>
+
+
+<!-- ══════════════════════════════════════
+     MOBILE DRAWER NAV  (≤ 768px)
+     Slides in from the left
+══════════════════════════════════════ -->
+<div id="nav-overlay" class="nav-overlay" aria-hidden="true"></div>
+
+<nav id="nav-drawer" class="nav-drawer" aria-label="Mobile navigation" aria-hidden="true">
+
+  <!-- Drawer search -->
+  <div class="drawer-search" role="search">
+    <input type="search" name="mob-q" placeholder="Search resources…" aria-label="Search resources"/>
+    <span class="icon">
+      <img src="assets/icons/magnifying-glass.svg" alt="">
+    </span>
+  </div>
+
+  <!-- Drawer links (icon + label) -->
+  <div class="drawer-links">
+    <a href="index.php">
+      <img src="assets/icons/house.svg" alt=""> Home
+    </a>
+    <a href="search.php">
+      <img src="assets/icons/folders.svg" alt=""> Resources
+    </a>
+    <a href="submit.php"
+       class="nav-protected"
+       data-protected="true"
+       data-dest="submit.php">
+      <img src="assets/icons/chalkboard-teacher.svg" alt=""> Develop
+    </a>
+    <a href="#"
+       class="nav-protected"
+       data-protected="true"
+       data-dest="manage.php">
+      <img src="assets/icons/calendar.svg" alt=""> Manage
+    </a>
+    <a href="train-support.php"
+       class="nav-protected"
+       data-protected="true"
+       data-dest="train-support.php">
+      <img src="assets/icons/life-ring.svg" alt=""> Train &amp; Support
+    </a>
+    <a href="news.php">
+      <img src="assets/icons/megaphone.svg" alt=""> News
+    </a>
+  </div>
+
+  <div class="drawer-divider"></div>
+
+  <!-- Submit CTA inside drawer -->
+  <a class="drawer-cta"
+     href="#"
+     data-protected="true"
+     data-dest="submit.php">
+    <img src="assets/icons/upload.svg" alt=""> Submit a Resource
+  </a>
+
+</nav>
+
+
+<!-- ══════════════════════════════════════
+     MOBILE BOTTOM ICON NAV BAR  (≤ 640px)
+     Fixed to the bottom of the screen
+══════════════════════════════════════ -->
+<nav class="mobile-nav-bar" aria-label="Quick navigation">
+
+  <a class="mob-nav-item" href="index.php">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/house.svg" alt="">
+    </span>
+    <span>Home</span>
+  </a>
+
+  <a class="mob-nav-item" href="search.php">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/magnifying-glass.svg" alt="">
+    </span>
+    <span>Search</span>
+  </a>
+
+  <a class="mob-nav-item" href="#"
+     data-protected="true"
+     data-dest="submit.php">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/upload.svg" alt="">
+    </span>
+    <span>Submit</span>
+  </a>
+
+  <a class="mob-nav-item" href="news.php">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/megaphone.svg" alt="">
+    </span>
+    <span>News</span>
+  </a>
+
+  <?php if ($isSignedIn): ?>
+  <a class="mob-nav-item" href="#" id="mob-signout-btn">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/seal-check.svg" alt="">
+    </span>
+    <span>Account</span>
+  </a>
+  <?php else: ?>
+  <a class="mob-nav-item" href="#" id="mob-signin-btn">
+    <span class="mob-icon-wrap">
+      <img src="assets/icons/student.svg" alt="">
+    </span>
+    <span>Sign In</span>
+  </a>
+  <?php endif; ?>
+
+</nav>
 
 
 <!-- ══════════════════════════════════════
@@ -196,7 +334,7 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62Z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/>
             </svg>
             Google Workspace
           </button>
@@ -211,3 +349,4 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 <?php endif; ?>
 
 <script src="assets/js/header.js"></script>
+<script src="assets/js/header_mobile.js"></script>

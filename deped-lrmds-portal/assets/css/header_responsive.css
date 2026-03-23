@@ -1,0 +1,316 @@
+/* ================================
+   header.css — RESPONSIVE ADDITIONS
+   Mobile-first updates for the
+   DepEd LRMDS sticky header.
+
+   Breakpoints (mirrors styles.css):
+     ≤ 768px  → tablet / phablet
+     ≤ 640px  → mobile
+================================= */
+
+
+/* ────────────────────────────────
+   HAMBURGER BUTTON
+   Hidden on desktop, shown ≤768px
+──────────────────────────────────*/
+.nav-toggle {
+  display: none;               /* hidden by default (desktop) */
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+.nav-toggle:hover  { background: var(--bg-soft); border-color: #D1D5DB; }
+.nav-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Animated 3-bar → X */
+.nav-toggle .bar {
+  display: block;
+  position: absolute;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform .25s ease, opacity .2s ease, top .25s ease;
+}
+.nav-toggle { position: relative; }
+.nav-toggle .bar-1 { top: calc(50% - 6px); }
+.nav-toggle .bar-2 { top: calc(50% - 1px); }
+.nav-toggle .bar-3 { top: calc(50% + 4px); }
+
+/* Open state: morphs into × */
+.nav-toggle[aria-expanded="true"] .bar-1 {
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+.nav-toggle[aria-expanded="true"] .bar-2 { opacity: 0; }
+.nav-toggle[aria-expanded="true"] .bar-3 {
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+
+/* ────────────────────────────────
+   MOBILE ICON NAV (bottom icon bar)
+   Only shown ≤ 640px
+──────────────────────────────────*/
+.mobile-nav-bar {
+  display: none;               /* hidden by default */
+}
+
+@media (max-width: 640px) {
+  .mobile-nav-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    padding: 8px 4px env(safe-area-inset-bottom, 0);
+    justify-content: space-around;
+    align-items: flex-end;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .06);
+  }
+
+  .mob-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+    transition: color .15s, background .15s;
+    flex: 1;
+    max-width: 72px;
+  }
+  .mob-nav-item:hover,
+  .mob-nav-item.active {
+    color: var(--primary);
+  }
+  .mob-nav-item.active .mob-icon-wrap {
+    background: #EEF5FF;
+  }
+  .mob-icon-wrap {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: background .15s;
+  }
+  .mob-nav-item img  { width: 20px; height: 20px; }
+  .mob-nav-item span { line-height: 1; }
+
+  /* Push page content above bottom bar */
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0)); }
+}
+
+
+/* ────────────────────────────────
+   TABLET  (769px – 1024px)
+   Condense the header; hide nav text
+   labels but keep the desktop bar
+──────────────────────────────────*/
+@media (max-width: 1024px) {
+  /* Slightly tighter header gap */
+  .header .inner { gap: 12px; }
+
+  /* Shrink the search bar */
+  .search-wrap input[type="search"] { min-width: 180px; }
+
+  /* Hide the "Submit" button text label but keep the icon-only ghost button */
+  .header-actions .button.ghost .submit-label { display: none; }
+}
+
+
+/* ────────────────────────────────
+   DRAWER + OVERLAY
+   Hidden everywhere by default —
+   only mounted/shown inside the
+   ≤ 768px media query below
+──────────────────────────────────*/
+.nav-drawer,
+.nav-overlay {
+  display: none;
+}
+
+
+/* ────────────────────────────────
+   MOBILE  (≤ 768px)
+   Full mobile header treatment
+──────────────────────────────────*/
+@media (max-width: 768px) {
+  /* Header row: logo | hamburger */
+  .header .inner {
+    height: 60px;
+    gap: 8px;
+  }
+
+  /* Show hamburger */
+  .nav-toggle { display: flex; }
+
+  /* Enable drawer + overlay (hidden by default above) */
+  .nav-drawer {
+    display: block;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 998;
+    background: #fff;
+    padding: 16px;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    border-top: 1px solid var(--border);
+  }
+  .nav-overlay {
+    display: none; /* shown via .open class below */
+    position: fixed;
+    inset: 0;
+    top: 60px;
+    z-index: 997;
+    background: rgba(15, 23, 42, .4);
+    backdrop-filter: blur(2px);
+  }
+  .nav-overlay.open { display: block; }
+  .nav-drawer.open  { transform: translateX(0); }
+
+  /* Hide desktop nav (shown via drawer instead) */
+  .nav { display: none; }
+
+  /* Hide search bar in header on mobile (use hero search) */
+  .search-wrap { display: none; }
+
+  /* Keep only Sign In / Sign Out and tuck Submit away */
+  .header-actions .button.ghost { display: none; }
+  .header-actions { gap: 8px; }
+
+
+
+
+  /* Drawer nav links */
+  .nav-drawer .drawer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 20px;
+  }
+  .nav-drawer .drawer-links a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 15px;
+    transition: background .15s, color .15s;
+  }
+  .nav-drawer .drawer-links a:hover,
+  .nav-drawer .drawer-links a.active {
+    background: var(--bg-soft);
+    color: var(--primary);
+  }
+  .nav-drawer .drawer-links img {
+    width: 20px;
+    height: 20px;
+    opacity: .7;
+    flex-shrink: 0;
+  }
+
+  /* Drawer search bar */
+  .nav-drawer .drawer-search {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .nav-drawer .drawer-search input {
+    width: 100%;
+    padding: 11px 42px 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg-soft);
+    outline: none;
+  }
+  .nav-drawer .drawer-search input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(11, 79, 156, .1);
+  }
+  .nav-drawer .drawer-search .icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: .5;
+  }
+  .nav-drawer .drawer-search .icon img {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+
+  /* Drawer Submit button */
+  .nav-drawer .drawer-cta {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s;
+  }
+  .nav-drawer .drawer-cta:hover { background: #0A4489; }
+  .nav-drawer .drawer-cta img   { width: 16px; filter: brightness(0) invert(1); }
+
+  /* Divider inside drawer */
+  .nav-drawer .drawer-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+}
+
+
+/* ────────────────────────────────
+   SMALL MOBILE  (≤ 640px)
+   Fine-tune for phones
+──────────────────────────────────*/
+@media (max-width: 640px) {
+  .brand .title { font-size: 17px; }
+  .brand img    { height: 30px;    }
+
+  /* Sign In button: shrink to icon-only pill on very small screens */
+  #hdr-signin-btn,
+  #hdr-signout-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
