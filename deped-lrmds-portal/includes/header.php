@@ -1,5 +1,4 @@
 <?php
-// Prototype: treat as signed-out unless session says otherwise
 session_start();
 $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 ?>
@@ -19,18 +18,16 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <nav class="nav" aria-label="Main">
       <a href="index.php">Home</a>
       <a href="search.php">Resources</a>
-      <a href="#"
-         class="nav-protected"
-         data-protected="true"
-         data-dest="submit.php">Develop</a>
-      <a href="#"
-         class="nav-protected"
-         data-protected="true"
-         data-dest="manage.php">Manage</a>
-      <a href="train-support.php"
-         class="nav-protected"
-         data-protected="true"
-         data-dest="train-support.php">Train &amp; Support</a>
+      <?php if ($isSignedIn): ?>
+        <a href="submit.php">Develop</a>
+        <a href="manage.php">Manage</a>
+        <a href="train-support.php">Train &amp; Support</a>
+      <?php else: ?>
+        <a href="#"
+           class="nav-protected"
+           data-protected="true"
+           data-dest="train-support.php">Train &amp; Support</a>
+      <?php endif; ?>
       <a href="news.php">News</a>
     </nav>
 
@@ -44,13 +41,20 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
         </span>
       </div>
 
-      <!-- Submit button — text label hidden on tablet via .submit-label -->
-      <a class="button ghost" href="#"
-         data-protected="true"
-         data-dest="submit.php">
-        <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">
-        <span class="submit-label">Submit</span>
-      </a>
+      <!-- Submit button -->
+      <?php if ($isSignedIn): ?>
+        <a class="button ghost" href="submit.php">
+          <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">
+          <span class="submit-label">Submit</span>
+        </a>
+      <?php else: ?>
+        <a class="button ghost" href="#"
+           data-protected="true"
+           data-dest="submit.php">
+          <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">
+          <span class="submit-label">Submit</span>
+        </a>
+      <?php endif; ?>
 
       <?php if ($isSignedIn): ?>
         <a href="#" class="button primary" id="hdr-signout-btn">Sign Out</a>
@@ -77,7 +81,6 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 
 <!-- ══════════════════════════════════════
      MOBILE DRAWER NAV  (≤ 768px)
-     Slides in from the left
 ══════════════════════════════════════ -->
 <div id="nav-overlay" class="nav-overlay" aria-hidden="true"></div>
 
@@ -99,24 +102,24 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <a href="search.php">
       <img src="assets/icons/folders.svg" alt=""> Resources
     </a>
-    <a href="submit.php"
-       class="nav-protected"
-       data-protected="true"
-       data-dest="submit.php">
-      <img src="assets/icons/chalkboard-teacher.svg" alt=""> Develop
-    </a>
-    <a href="#"
-       class="nav-protected"
-       data-protected="true"
-       data-dest="manage.php">
-      <img src="assets/icons/calendar.svg" alt=""> Manage
-    </a>
-    <a href="train-support.php"
-       class="nav-protected"
-       data-protected="true"
-       data-dest="train-support.php">
-      <img src="assets/icons/life-ring.svg" alt=""> Train &amp; Support
-    </a>
+    <?php if ($isSignedIn): ?>
+      <a href="submit.php">
+        <img src="assets/icons/chalkboard-teacher.svg" alt=""> Develop
+      </a>
+      <a href="manage.php">
+        <img src="assets/icons/calendar.svg" alt=""> Manage
+      </a>
+      <a href="train-support.php">
+        <img src="assets/icons/life-ring.svg" alt=""> Train &amp; Support
+      </a>
+    <?php else: ?>
+      <a href="#"
+         class="nav-protected"
+         data-protected="true"
+         data-dest="train-support.php">
+        <img src="assets/icons/life-ring.svg" alt=""> Train &amp; Support
+      </a>
+    <?php endif; ?>
     <a href="news.php">
       <img src="assets/icons/megaphone.svg" alt=""> News
     </a>
@@ -125,19 +128,24 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
   <div class="drawer-divider"></div>
 
   <!-- Submit CTA inside drawer -->
-  <a class="drawer-cta"
-     href="#"
-     data-protected="true"
-     data-dest="submit.php">
-    <img src="assets/icons/upload.svg" alt=""> Submit a Resource
-  </a>
+  <?php if ($isSignedIn): ?>
+    <a class="drawer-cta" href="submit.php">
+      <img src="assets/icons/upload.svg" alt=""> Submit a Resource
+    </a>
+  <?php else: ?>
+    <a class="drawer-cta"
+       href="#"
+       data-protected="true"
+       data-dest="submit.php">
+      <img src="assets/icons/upload.svg" alt=""> Submit a Resource
+    </a>
+  <?php endif; ?>
 
 </nav>
 
 
 <!-- ══════════════════════════════════════
      MOBILE BOTTOM ICON NAV BAR  (≤ 640px)
-     Fixed to the bottom of the screen
 ══════════════════════════════════════ -->
 <nav class="mobile-nav-bar" aria-label="Quick navigation">
 
@@ -155,14 +163,23 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <span>Search</span>
   </a>
 
-  <a class="mob-nav-item" href="#"
-     data-protected="true"
-     data-dest="submit.php">
-    <span class="mob-icon-wrap">
-      <img src="assets/icons/upload.svg" alt="">
-    </span>
-    <span>Submit</span>
-  </a>
+  <?php if ($isSignedIn): ?>
+    <a class="mob-nav-item" href="submit.php">
+      <span class="mob-icon-wrap">
+        <img src="assets/icons/upload.svg" alt="">
+      </span>
+      <span>Submit</span>
+    </a>
+  <?php else: ?>
+    <a class="mob-nav-item" href="#"
+       data-protected="true"
+       data-dest="submit.php">
+      <span class="mob-icon-wrap">
+        <img src="assets/icons/upload.svg" alt="">
+      </span>
+      <span>Submit</span>
+    </a>
+  <?php endif; ?>
 
   <a class="mob-nav-item" href="news.php">
     <span class="mob-icon-wrap">
@@ -192,7 +209,6 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 
 <!-- ══════════════════════════════════════
      Sign-Out Confirmation Modal
-     (only rendered when signed in)
 ══════════════════════════════════════ -->
 <?php if ($isSignedIn): ?>
 <div id="signout-modal" class="sout-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="sout-title">
@@ -217,7 +233,6 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 
 <!-- ══════════════════════════════════════
      Sign-In Modal
-     (only rendered when signed out)
 ══════════════════════════════════════ -->
 <?php if (!$isSignedIn): ?>
 <div id="signin-modal" class="sim-backdrop" role="dialog" aria-modal="true"
@@ -334,7 +349,7 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62Z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 2.18 2.18 5.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/>
             </svg>
             Google Workspace
           </button>

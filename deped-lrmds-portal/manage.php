@@ -1,3 +1,10 @@
+<?php
+session_start();
+if (empty($_SESSION['user'])) {
+    header('Location: index.php?signin=1&dest=manage.php');
+    exit;
+}
+?>
 <!doctype html>
 <html lang="en">
 <head>

@@ -124,13 +124,13 @@
   <div class="grid">
     <div class="action"><img src="assets/icons/calendar.svg" alt=""/><div><div class="title">DLL / DLP</div><div class="desc">Daily lesson plans</div></div></div>
     <div class="action"><img src="assets/icons/file-text.svg" alt=""/><div><div class="title">Self-Learning Modules</div><div class="desc">Download SLMs</div></div></div>
-    <div class="action"><img src="assets/icons/chalkboard-teacher.svg" alt=""/><div><div class="title">Teacher’s Guides</div><div class="desc">TG/LM</div></div></div>
+    <div class="action"><img src="assets/icons/chalkboard-teacher.svg" alt=""/><div><div class="title">Teacher's Guides</div><div class="desc">TG/LM</div></div></div>
     <div class="action"><img src="assets/icons/clipboard-text.svg" alt=""/><div><div class="title">Assessment Banks</div><div class="desc">Formative & summative</div></div></div>
     <div class="action"><img src="assets/icons/play-circle.svg" alt=""/><div><div class="title">Video Lessons</div><div class="desc">Stream & download</div></div></div>
     <div class="action"><img src="assets/icons/globe.svg" alt=""/><div><div class="title">OER</div><div class="desc">Open resources</div></div></div>
     <div class="action"><img src="assets/icons/upload.svg" alt=""/><div><div class="title">Submit Resource</div><div class="desc">Upload & track</div></div></div>
     <div class="action"><img src="assets/icons/seal-check.svg" alt=""/><div><div class="title">QA Tools</div><div class="desc">Rubrics & templates</div></div></div>
-    <div class="action"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We’re here to help</div></div></div>
+    <div class="action"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We're here to help</div></div></div>
   </div>
 </section>
 
@@ -170,5 +170,20 @@
 <?php include 'includes/footer.php'; ?>
 
 <script src="assets/js/app.js"></script>
+
+<!-- Auto-open sign-in modal if redirected here from a protected page -->
+<script>
+  (function () {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('signin') === '1') {
+      const dest = params.get('dest') || '';
+      window.addEventListener('load', function () {
+        if (typeof window.openSignin === 'function') {
+          window.openSignin(dest);
+        }
+      });
+    }
+  })();
+</script>
 </body>
 </html>

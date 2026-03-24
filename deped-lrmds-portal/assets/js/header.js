@@ -35,6 +35,12 @@
     openSignout();
   });
 
+  // Mobile sign-out button
+  document.getElementById('mob-signout-btn')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    openSignout();
+  });
+
   // Cancel button closes modal
   soutCancel?.addEventListener('click', closeSignout);
 
@@ -108,16 +114,23 @@
     }
   }
 
-  // Open on protected nav links
+  // Open on protected nav links — use closest() so clicks on child icons/spans still work
   document.querySelectorAll('[data-protected="true"]').forEach(function (el) {
     el.addEventListener('click', function (e) {
       e.preventDefault();
-      openSignin(this.dataset.dest || '');
+      const link = e.target.closest('[data-protected="true"]');
+      openSignin(link ? (link.dataset.dest || '') : '');
     });
   });
 
   // Open on header Sign In button
   document.getElementById('hdr-signin-btn')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    openSignin('');
+  });
+
+  // Open on mobile Sign In button
+  document.getElementById('mob-signin-btn')?.addEventListener('click', function (e) {
     e.preventDefault();
     openSignin('');
   });
@@ -130,7 +143,7 @@
     if (e.target === signinModal) closeSignin();
   });
 
-  // Close on Escape (only if sign-out modal is not open)
+  // Close on Escape (only if sign-in modal is open)
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && signinModal && !signinModal.hidden) closeSignin();
   });
@@ -218,7 +231,7 @@
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.ok) {
-        // Session confirmed set — safe to redirect
+        // Session confirmed — safe to redirect
         window.location.href = dest;
       } else {
         btn.disabled = false;
@@ -252,5 +265,9 @@
       .catch(function () { window.location.href = dest; });
     });
   });
+
+
+  // Expose openSignin globally so index.php can auto-open it after a redirect
+  window.openSignin = openSignin;
 
 })();
