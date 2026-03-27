@@ -387,15 +387,24 @@
       })
       .then(data => {
         if (data.success) {
-          if (data.pending) {
-            const t = qs('#success-title');
-            const m = qs('#success-msg');
+          const t = qs('#success-title');
+          const m = qs('#success-msg');
+          if (data.requires_totp) {
+            if (t) t.textContent = 'Almost there!';
+            if (m) m.textContent =
+              'Your account is created. You will now be asked to set up ' +
+              'two-factor authentication — it only takes 2 minutes.';
+            showSuccess();
+            setTimeout(() => { window.location.href = data.redirect || 'totp_setup.php'; }, 2200);
+          } else if (data.pending) {
             if (t) t.textContent = 'Registration Submitted!';
             if (m) m.textContent =
               'Your account is pending administrator verification. ' +
               'You will receive an email once your role has been approved.';
+            showSuccess();
+          } else {
+            showSuccess();
           }
-          showSuccess();
         } else {
           resetSubmitBtn();
           if (data.errors) {

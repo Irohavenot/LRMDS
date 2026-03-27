@@ -1,0 +1,96 @@
+# TOTP (Two-Factor Authentication) Setup Guide
+# DepEd LRMDS – XAMPP
+
+## What you need to download (one-time)
+
+1. Go to: https://github.com/RobThree/TwoFactorAuth/releases
+2. Download the latest release ZIP
+3. Extract it — you'll find a folder called "lib" inside
+4. Copy the entire "lib" folder into your project root:
+
+   C:\xampp\htdocs\lrmds\
+     ├── lib\
+     │     └── TwoFactorAuth\
+     │           ├── TwoFactorAuth.php   ← must exist
+     │           └── (other files)
+     ├── register.php
+     ├── register_handler.php
+     ├── totp_setup.php
+     ├── totp_verify.php
+     └── signin.php
+
+   If the folder structure inside the ZIP looks different, just make sure
+   TwoFactorAuth.php ends up at:
+   lib/TwoFactorAuth/TwoFactorAuth.php
+
+---
+
+## Database update
+
+If you already ran the OLD setup_db.sql, run only this in phpMyAdmin → SQL:
+
+    ALTER TABLE users
+        ADD COLUMN meta         JSON        NULL     AFTER employee_id,
+        ADD COLUMN totp_secret  VARCHAR(64) NULL     AFTER meta,
+        ADD COLUMN totp_enabled TINYINT(1)  NOT NULL DEFAULT 0 AFTER totp_secret;
+
+If you are starting fresh, just run the full setup_db.sql as normal.
+
+---
+
+## Files to copy into your project
+
+From this delivery:
+  - register.php          → replaces your existing register.php
+  - register.js           → replaces assets/js/register.js
+  - register_handler.php  → replaces your existing register_handler.php
+  - totp_setup.php        → NEW file, place in project root
+  - totp_verify.php       → NEW file, place in project root
+  - setup_db.sql          → run in phpMyAdmin (see above)
+
+---
+
+## How it works after setup
+
+Registration flow (Teacher / School Head / Content Developer):
+  1. User fills in 3-step registration form
+  2. register_handler.php creates their account
+  3. JS detects requires_totp: true in the response
+  4. Shows "Almost there!" message, then redirects to totp_setup.php
+  5. totp_setup.php generates a QR code + secret key
+  6. User scans with Google Authenticator / Microsoft Authenticator / Authy
+  7. User enters the 6-digit code to confirm → redirected to signin.php
+
+Sign-in flow:
+  - signin.php (you still need to build this) should:
+    1. Check email + password with password_verify()
+    2. If role is teacher / school-head / developer:
+         $_SESSION['totp_pending_user_id'] = $user['id'];
+         header('Location: totp_verify.php');
+    3. Otherwise:
+         $_SESSION['user_id'] = $user['id'];
+         header('Location: dashboard.php');
+
+---
+
+## Testing with Google Authenticator
+
+1. Install Google Authenticator on your phone (iOS or Android)
+2. Register a new Teacher account at http://localhost/lrmds/register.php
+3. You will be redirected to totp_setup.php with a QR code
+4. Open Google Authenticator → tap + → Scan QR code
+5. Point camera at the QR code on screen
+6. Google Authenticator shows "DepEd LRMDS" with a 6-digit code
+7. Enter that code in the form → you're set up
+
+The same works with Microsoft Authenticator, Authy, or any TOTP app.
+
+---
+
+## Security notes for your presentation
+
+- The secret key is stored in the database (totp_secret column)
+- Each code is valid for 30 seconds only
+- After 5 wrong attempts, the account is locked for 5 minutes
+- The manual key shown on setup should be kept private (like a password)
+- In production, totp_secret should be encrypted at rest — out of scope for now

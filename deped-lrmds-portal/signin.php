@@ -1,3 +1,19 @@
+<?php
+session_start();
+
+// If already signed in, go straight to the homepage
+if (!empty($_SESSION['user'])) {
+    header('Location: index.php');
+    exit;
+}
+
+// Pick up flash message set by totp_setup.php after successful 2FA setup
+$flash = '';
+if (!empty($_SESSION['flash_success'])) {
+    $flash = htmlspecialchars($_SESSION['flash_success']);
+    unset($_SESSION['flash_success']);
+}
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 </head>
-<body class="auth-body">
+<body class="auth-body"<?= $flash ? ' data-flash="' . $flash . '"' : '' ?>>
 
 <div class="auth-layout">
 
@@ -53,7 +69,7 @@
     <div class="ar-inner">
 
       <div class="ar-mobile-brand">
-        <img src="../assets/img/logo.svg" alt="" width="32"/>
+        <img src="assets/img/logo.svg" alt="" width="32"/>
         <span>LRMDS</span>
       </div>
 
@@ -62,10 +78,18 @@
         <p>Sign in to your LRMDS account to access learning resources.</p>
       </div>
 
-      <div class="demo-pill" role="note">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
-        Prototype — any credentials will work
+      <!-- Flash success message (e.g. after completing TOTP setup) -->
+      <?php if ($flash): ?>
+      <div style="
+        background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;
+        font-size:13px;font-weight:600;border-radius:8px;
+        padding:10px 14px;margin-bottom:16px;
+        display:flex;align-items:center;gap:8px;
+        font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+        <?= $flash ?>
       </div>
+      <?php endif; ?>
 
       <form id="signin-form" novalidate autocomplete="on">
 
