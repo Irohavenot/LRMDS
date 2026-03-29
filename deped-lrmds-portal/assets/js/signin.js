@@ -150,12 +150,11 @@
   });
 
   /* ── SSO buttons (stubs — not implemented yet) ── */
-  qs('#btn-deped-sso')?.addEventListener('click', () => {
-    alert('DepEd SSO is not yet implemented in this prototype.');
-  });
-  qs('#btn-google')?.addEventListener('click', () => {
-    alert('Google Workspace login is not yet implemented in this prototype.');
-  });
+  /* ── SSO buttons ── */
+qs('#btn-deped-sso')?.addEventListener('click', () => {
+  alert('DepEd SSO is not yet implemented in this prototype.');
+});
+// Google is now handled by google_oauth.php — no stub needed here
 
   /* ── Flash message from register/TOTP flow ── */
   // totp_setup.php sets $_SESSION['flash_success'] on completion

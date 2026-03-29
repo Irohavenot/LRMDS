@@ -14,6 +14,7 @@ if (!empty($_SESSION['flash_success'])) {
     unset($_SESSION['flash_success']);
 }
 ?>
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -171,5 +172,11 @@ if (!empty($_SESSION['flash_success'])) {
 </div>
 
 <script src="assets/js/signin.js"></script>
+<script>
+  document.getElementById('btn-google').addEventListener('click', () => {
+    window.location.href = 'google_oauth.php';
+  });
+</script>
 </body>
+
 </html>
