@@ -4,44 +4,201 @@
 ================================= */
 
 
-/* ── Breadcrumb ── */
+/* ── Breadcrumb bar ── */
+.breadcrumb-bar {
+  padding-top: 20px;
+  padding-bottom: 12px;
+}
+
 .breadcrumb {
-  margin-bottom: 8px;
+  margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 .breadcrumb a {
   color: var(--muted);
   text-decoration: none;
+  transition: color .15s;
 }
 .breadcrumb a:hover { color: var(--primary); }
+.breadcrumb span:last-child {
+  color: var(--text);
+  font-weight: 600;
+  /* Truncate very long titles */
+  max-width: 38ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bc-sep { color: var(--border); font-size: 15px; }
+
+/* ── Full-bleed detail section ── */
+.detail-section {
+  padding-top: 0;
+  background: #F5F7FA;
+}
+
+/* Wide wrapper — more room than .container on large screens */
+.detail-wrap {
+  width: min(100%, 1560px);
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
 
 
-/* ── Detail layout ── */
+/* ── Detail layout: preview is dominant ── */
 .detail {
   display: grid;
-  grid-template-columns: 1fr 1.6fr;
+  grid-template-columns: 3fr 2fr;   /* 60 / 40 split */
   gap: 28px;
   align-items: start;
 }
 
 .detail .panel {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 16px;
   background: #fff;
   padding: 20px;
 }
 
 
-/* ── Thumbnail / preview panel ── */
-.resource-thumb {
+/* ══════════════════════════════════════════════════
+   PREVIEW PANEL
+══════════════════════════════════════════════════ */
+
+.panel-preview {
+  position: sticky;
+  top: 24px;
+  padding: 14px;
+  /* Elevated card feel */
+  box-shadow:
+    0 2px 4px rgba(0,0,0,.04),
+    0 8px 24px rgba(0,0,0,.08),
+    0 24px 48px rgba(0,0,0,.06);
+  border-color: transparent;
+  background: #fafafa;
+}
+
+/* Universal preview container */
+.preview-wrapper {
   width: 100%;
-  height: auto;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.07);
+  background: #e8eaed;
+  position: relative;
+  /* Subtle inner shadow so the doc looks embedded */
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.08);
+}
+
+/* ── PDF / Drive / PPTX / Docs embed ──
+   Height = viewport minus the sticky offset and some breathing room.
+   This makes it feel like a full-page reader. */
+.preview-doc {
+  height: calc(100dvh - 120px);
+  min-height: 600px;
+  max-height: 960px;
+}
+
+/* ── Video embed (landscape aspect) ── */
+.preview-video {
+  aspect-ratio: 16 / 9;
+}
+
+.preview-video-el {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+/* ── Image preview ── */
+.preview-image {
+  aspect-ratio: auto;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.preview-img {
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: 6px;
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,.1);
+}
+
+/* ── Audio placeholder ── */
+.preview-audio {
+  padding: 32px 20px;
+}
+
+.audio-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  padding-bottom: 20px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.audio-placeholder p {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.preview-audio-el {
+  width: 100%;
   border-radius: 8px;
-  border: 1px solid var(--border);
+}
+
+/* ── Generic file fallback ── */
+.preview-generic {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.generic-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--muted);
+  text-align: center;
+  padding: 32px;
+}
+
+.generic-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 260px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* The iframe shared by all embed types */
+.preview-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
   display: block;
 }
 
+
+/* ── Action buttons ── */
 .resource-actions {
   display: flex;
   gap: 10px;
@@ -49,75 +206,108 @@
   flex-wrap: wrap;
 }
 
+.button.small {
+  font-size: 12px;
+  padding: 6px 14px;
+}
 
-/* ── Resource title & tags ── */
-.resource-title-row {
+
+/* ── Utility links ── */
+.resource-utility {
   display: flex;
-  gap: 10px;
+  gap: 16px;
   flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.resource-utility a {
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  display: flex;
   align-items: center;
-  margin: 8px 0 14px;
+  gap: 5px;
+  transition: color .15s;
+}
+.resource-utility a:hover { color: var(--primary); }
+
+
+/* ══════════════════════════════════════════════════
+   METADATA PANEL
+══════════════════════════════════════════════════ */
+
+.panel-meta {
+  /* Scrolls independently on tall screens */
 }
 
 .resource-heading {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   color: var(--text);
-  line-height: 1.3;
+  line-height: 1.35;
+}
+
+.resource-title-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0 0 14px;
 }
 
 .resource-description {
   color: var(--muted);
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.75;
   margin: 0 0 20px;
 }
+
+
+/* ── Section headings inside panel ── */
+.panel h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin: 0 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.panel h3:first-of-type { border-top: none; padding-top: 0; }
 
 
 /* ── Metadata list ── */
 .meta-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 20px;
+  margin: 0 0 4px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
+  gap: 12px 16px;
 }
 
 .meta-list li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
-.meta-list .meta-key {
-  font-size: 11px;
+.meta-key {
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: .06em;
   color: var(--muted);
 }
 
-.meta-list .meta-val {
+.meta-val {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
-
-
-/* ── Section headings inside panel ── */
-.panel h3 {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  color: var(--muted);
-  margin: 0 0 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.panel h3:first-of-type { border-top: none; padding-top: 0; }
 
 
 /* ── Related resources list ── */
@@ -138,7 +328,7 @@
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   transition: background .15s, border-color .15s;
@@ -149,26 +339,32 @@
 }
 
 
-/* ── QA badge ── */
+/* ── QA / status badges ── */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11px;
   border-radius: 999px;
   padding: 4px 10px;
   border: 1px solid transparent;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: .02em;
 }
 .badge.success {
-  border-color: #C7F0DA;
-  background: #ECFDF5;
-  color: #047857;
+  border-color: #BBF7D0;
+  background: #F0FDF4;
+  color: #15803D;
 }
 .badge.warn {
   border-color: #FDE68A;
   background: #FFFBEB;
   color: #92400E;
+}
+.badge.danger {
+  border-color: #FECACA;
+  background: #FEF2F2;
+  color: #B91C1C;
 }
 
 
@@ -177,7 +373,7 @@
   display: inline-block;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
@@ -190,34 +386,49 @@
 }
 
 
-/* ── Report / cite links ── */
-.resource-utility {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.resource-utility a {
-  font-size: 12px;
-  color: var(--muted);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.resource-utility a:hover { color: var(--primary); }
+/* ══════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════ */
 
-
-/* ── Responsive ── */
-@media (max-width: 1024px) {
-  .detail { grid-template-columns: 1fr; }
+@media (max-width: 1200px) {
+  .detail {
+    grid-template-columns: 55fr 45fr;
+  }
 }
 
-@media (max-width: 640px) {
-  .resource-heading { font-size: 18px; }
+@media (max-width: 960px) {
+  .detail {
+    grid-template-columns: 1fr 1fr;
+  }
+  .preview-doc {
+    height: calc(100dvh - 160px);
+    min-height: 480px;
+  }
+}
+
+/* Stack panels on tablet and below */
+@media (max-width: 760px) {
+  .detail {
+    grid-template-columns: 1fr;
+  }
+  .panel-preview {
+    position: static;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+  .preview-doc {
+    height: 72dvh;
+    min-height: 400px;
+    max-height: 640px;
+  }
+}
+
+@media (max-width: 480px) {
+  .resource-heading { font-size: 17px; }
   .meta-list { grid-template-columns: 1fr; }
   .resource-actions { flex-direction: column; }
   .resource-actions .button { width: 100%; justify-content: center; }
+  .preview-doc {
+    height: 65dvh;
+    min-height: 320px;
+  }
 }

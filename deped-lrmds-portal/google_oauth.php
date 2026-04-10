@@ -13,7 +13,8 @@
  *      (change to your actual domain in production)
  *   6. Copy the Client ID and Client Secret into the constants below
  */
-
+require __DIR__ . '/env_loader.php';
+loadEnv(__DIR__ . '/.env');
 session_start();
 
 // ─────────────────────────────────────────────

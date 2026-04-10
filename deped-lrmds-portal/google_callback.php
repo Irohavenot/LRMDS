@@ -12,12 +12,14 @@
  *      → FOUND  : set session, go to index.php
  *      → NOT FOUND: store Google data in session, go to google_complete.php
  */
-
+require __DIR__ . '/env_loader.php';
+loadEnv(__DIR__ . '/.env');
 session_start();
 
 // // TEMPORARY DEBUG — remove after fixing
 // ini_set('display_errors', 1);
 // error_reporting(E_ALL);
+
 
 // ── Same constants as google_oauth.php ──────────────────────
 define('GOOGLE_CLIENT_ID',     getenv('GOOGLE_CLIENT_ID'));

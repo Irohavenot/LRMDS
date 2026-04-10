@@ -8,7 +8,6 @@
  * Session key: $_SESSION['google_pending']
  *   google_id, email, fname, lname, picture, expires_at
  */
-
 session_start();
 
 define('DB_HOST',    'localhost');

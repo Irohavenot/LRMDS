@@ -25,7 +25,7 @@ define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
 // Roles that must pass TOTP after password check
-define('TOTP_ROLES', ['teacher', 'school-head', 'developer']);
+define('TOTP_ROLES', ['teacher', 'school-head', 'developer', 'admin' ]);
 
 // Max failed attempts before lockout
 define('MAX_ATTEMPTS', 5);
