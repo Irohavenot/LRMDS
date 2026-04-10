@@ -122,15 +122,15 @@
 <section class="section container">
   <h2>Quick Actions</h2>
   <div class="grid">
-    <div class="action"><img src="assets/icons/calendar.svg" alt=""/><div><div class="title">DLL / DLP</div><div class="desc">Daily lesson plans</div></div></div>
-    <div class="action"><img src="assets/icons/file-text.svg" alt=""/><div><div class="title">Self-Learning Modules</div><div class="desc">Download SLMs</div></div></div>
-    <div class="action"><img src="assets/icons/chalkboard-teacher.svg" alt=""/><div><div class="title">Teacher's Guides</div><div class="desc">TG/LM</div></div></div>
-    <div class="action"><img src="assets/icons/clipboard-text.svg" alt=""/><div><div class="title">Assessment Banks</div><div class="desc">Formative & summative</div></div></div>
-    <div class="action"><img src="assets/icons/play-circle.svg" alt=""/><div><div class="title">Video Lessons</div><div class="desc">Stream & download</div></div></div>
-    <div class="action"><img src="assets/icons/globe.svg" alt=""/><div><div class="title">OER</div><div class="desc">Open resources</div></div></div>
-    <div class="action"><img src="assets/icons/upload.svg" alt=""/><div><div class="title">Submit Resource</div><div class="desc">Upload & track</div></div></div>
-    <div class="action"><img src="assets/icons/seal-check.svg" alt=""/><div><div class="title">QA Tools</div><div class="desc">Rubrics & templates</div></div></div>
-    <div class="action"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We're here to help</div></div></div>
+    <a class="action" href="search.php?type=DLL"><img src="assets/icons/calendar.svg" alt=""/><div><div class="title">DLL / DLP</div><div class="desc">Daily lesson plans</div></div></a>
+    <a class="action" href="search.php?type=SLM"><img src="assets/icons/file-text.svg" alt=""/><div><div class="title">Self-Learning Modules</div><div class="desc">Download SLMs</div></div></a>
+    <a class="action" href="search.php?type=TG"><img src="assets/icons/chalkboard-teacher.svg" alt=""/><div><div class="title">Teacher's Guides</div><div class="desc">TG/LM</div></div></a>
+    <a class="action" href="search.php?type=Assessment"><img src="assets/icons/clipboard-text.svg" alt=""/><div><div class="title">Assessment Banks</div><div class="desc">Formative & summative</div></div></a>
+    <a class="action" href="search.php?type=Video"><img src="assets/icons/play-circle.svg" alt=""/><div><div class="title">Video Lessons</div><div class="desc">Stream & download</div></div></a>
+    <a class="action" href="search.php?type=OER"><img src="assets/icons/globe.svg" alt=""/><div><div class="title">OER</div><div class="desc">Open resources</div></div></a>
+    <a class="action" href="submit.php"><img src="assets/icons/upload.svg" alt=""/><div><div class="title">Submit Resource</div><div class="desc">Upload & track</div></div></a>
+    <a class="action" href="qa-tools.php"><img src="assets/icons/seal-check.svg" alt=""/><div><div class="title">QA Tools</div><div class="desc">Rubrics & templates</div></div></a>
+    <a class="action" href="helpdesk.php"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We're here to help</div></div></a>
   </div>
 </section>
 
@@ -161,7 +161,7 @@
     <select id="division" name="division">
       <option>Cebu Province</option><option selected>Carcar City</option><option>Cebu City</option>
     </select>
-    <a href="search.php?region=VII&division=Carcar" class="button ghost btn-view-resources">
+    <a href="search.php?region=VII&division=Carcar" class="button ghost">
       <img src="assets/icons/map-pin.svg" alt="" style="vertical-align:middle;margin-right:6px">View Resources
     </a>
   </div>
