@@ -400,3 +400,33 @@ textarea { width: 100%; font-family: inherit; }
   .grid        { grid-template-columns: 1fr; }
   .footer .cols { grid-template-columns: 1fr 1fr; }
 }
+/* ================================
+   View Resources Button
+================================= */
+
+.btn-view-resources {
+  background: var(--primary);
+  color: #fff;
+  border: 1px solid var(--primary);
+  border-radius: 1px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: background .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+
+.btn-view-resources:hover {
+  background: var(--primary-600);
+  box-shadow: 0 2px 8px rgba(11, 79, 156, .25);
+}
+
+.btn-view-resources img {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1); /* makes icon white to match button */
+}

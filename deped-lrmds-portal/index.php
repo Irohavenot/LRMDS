@@ -161,7 +161,7 @@
     <select id="division" name="division">
       <option>Cebu Province</option><option selected>Carcar City</option><option>Cebu City</option>
     </select>
-    <a href="search.php?region=VII&division=Carcar" class="button ghost">
+    <a href="search.php?region=VII&division=Carcar" class="button ghost btn-view-resources">
       <img src="assets/icons/map-pin.svg" alt="" style="vertical-align:middle;margin-right:6px">View Resources
     </a>
   </div>

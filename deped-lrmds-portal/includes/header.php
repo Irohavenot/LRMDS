@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 ?>
 <link rel="stylesheet" href="assets/css/header.css"/>
