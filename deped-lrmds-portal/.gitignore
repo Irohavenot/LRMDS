@@ -1,4 +1,10 @@
+# Environment files
+.env
 *.env
+
+# Config (if it contains secrets)
 config.php
-/vendor
-/node_modules
+
+# Dependencies
+/vendor/
+/node_modules/

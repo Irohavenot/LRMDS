@@ -1,14 +1,17 @@
 /**
  * signin-modal.js
- * DepEd LRMDS – Sign In modal
+ * DepEd LRMDS – Sign In modal (header)
  *
- * Injects the modal markup into the page, then wires:
- *   • Every  a[href="signin.html"]  or  a[href="signin.php"]  → opens modal
- *   • The "Sign In" button in the header → opens modal
- *   • Overlay click / Escape key → closes modal
- *   • Full form validation + loading + success states
+ * Mirrors signin.js exactly:
+ *   • POSTs to signin_handler.php via fetch()
+ *   • Routes field-level errors (data.field === 'email' | 'password')
+ *   • Shows a general error banner for auth failures (wrong credentials, etc.)
+ *   • Follows data.redirect on success — handles TOTP redirect (totp_verify.php)
+ *     or regular dashboard redirect
+ *   • Shows "Cannot reach server" if fetch fails (XAMPP not running)
  *   • Password visibility toggle
- *   • SSO button stubs
+ *   • Overlay click / Escape key → close
+ *   • Resets all state on close
  */
 
 (function () {
@@ -20,12 +23,11 @@
 
       '<div class="signin-modal">',
 
-        /* Close button */
         '<button class="signin-close" id="signinClose" aria-label="Close sign in">',
           '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
         '</button>',
 
-        /* ── Left decorative panel ── */
+        /* Left decorative panel */
         '<div class="sm-left" aria-hidden="true">',
           '<div class="sm-brand">',
             '<img src="assets/img/logo.svg" alt="DepEd"/>',
@@ -44,7 +46,7 @@
           '</div>',
         '</div>',
 
-        /* ── Right form panel ── */
+        /* Right form panel */
         '<div class="sm-right">',
 
           '<div id="smFormArea">',
@@ -54,10 +56,8 @@
               '<p>Sign in to access your LRMDS account.</p>',
             '</div>',
 
-            '<div class="sm-demo-pill">',
-              '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>',
-              'Prototype — any credentials will work',
-            '</div>',
+            /* General error banner — hidden until a non-field error arrives */
+            '<div class="sm-general-err" id="smGeneralErr" role="alert" style="display:none"></div>',
 
             '<form id="smForm" novalidate autocomplete="on">',
 
@@ -119,19 +119,19 @@
                 '</button>',
               '</div>',
 
-              '<p class="sm-register">Don\'t have an account? <a class="sm-link" href="register.html">Register here</a></p>',
+              '<p class="sm-register">Don\'t have an account? <a class="sm-link" href="register.php">Register here</a></p>',
 
             '</form>',
 
           '</div>',
 
-          /* Success state (hidden until sign-in succeeds) */
+          /* Success state */
           '<div class="sm-success" id="smSuccess">',
             '<div class="sm-success-icon">',
               '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
             '</div>',
             '<h3>Signed in!</h3>',
-            '<p>Redirecting you to your dashboard…</p>',
+            '<p id="smSuccessMsg">Redirecting you to your dashboard…</p>',
           '</div>',
 
         '</div>',
@@ -144,28 +144,31 @@
   document.body.insertAdjacentHTML('beforeend', MODAL_HTML);
 
   /* ─── 2. Cache elements ──────────────────────────────────── */
-  var overlay   = document.getElementById('signinOverlay');
-  var closeBtn  = document.getElementById('signinClose');
-  var form      = document.getElementById('smForm');
-  var formArea  = document.getElementById('smFormArea');
-  var successEl = document.getElementById('smSuccess');
-  var emailEl   = document.getElementById('smEmail');
-  var pwEl      = document.getElementById('smPassword');
-  var pwToggle  = document.getElementById('smPwToggle');
-  var submitBtn = document.getElementById('smSubmitBtn');
+  var overlay    = document.getElementById('signinOverlay');
+  var closeBtn   = document.getElementById('signinClose');
+  var form       = document.getElementById('smForm');
+  var formArea   = document.getElementById('smFormArea');
+  var successEl  = document.getElementById('smSuccess');
+  var successMsg = document.getElementById('smSuccessMsg');
+  var emailEl    = document.getElementById('smEmail');
+  var pwEl       = document.getElementById('smPassword');
+  var pwToggle   = document.getElementById('smPwToggle');
+  var submitBtn  = document.getElementById('smSubmitBtn');
+  var generalErr = document.getElementById('smGeneralErr');
 
   /* ─── 3. Open / close helpers ────────────────────────────── */
-  function openModal() {
+  function openModal(noticeTxt) {
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
-    // Focus email after animation
+    if (noticeTxt) {
+      showGeneralError(noticeTxt);
+    }
     setTimeout(function () { emailEl && emailEl.focus(); }, 260);
   }
 
   function closeModal() {
     overlay.classList.remove('open');
     document.body.style.overflow = '';
-    // Reset form after transition
     setTimeout(resetForm, 250);
   }
 
@@ -176,39 +179,40 @@
     [emailEl, pwEl].forEach(function (el) {
       if (el) { el.classList.remove('invalid', 'valid'); }
     });
-    clearError(emailEl, 'smEmailErr');
-    clearError(pwEl, 'smPwErr');
+    clearFieldError(emailEl, 'smEmailErr');
+    clearFieldError(pwEl, 'smPwErr');
+    hideGeneralError();
     resetBtn();
   }
 
   /* ─── 4. Wire trigger links / buttons ───────────────────── */
-  function interceptSignInLinks() {
-    // Intercept all <a href="signin.html"> and <a href="signin.php">
-    document.querySelectorAll('a[href="signin.html"], a[href="signin.php"]').forEach(function (a) {
-      a.addEventListener('click', function (e) {
-        e.preventDefault();
-        openModal();
-      });
-    });
-  }
-
-  // Run once DOM ready (already is, we're at end of body) and again after
-  // any dynamic header injection
-  interceptSignInLinks();
-
-  // Also catch clicks on .button.primary text "Sign In" that may not be <a> tags
+  // Handle both plain signin links and protected-page links
   document.addEventListener('click', function (e) {
     var t = e.target.closest('a, button');
     if (!t) return;
 
-    // anchor pointing to signin
+    // <a href="signin.html|signin.php">
     if (t.tagName === 'A' && /signin\.(html|php)$/i.test(t.getAttribute('href') || '')) {
       e.preventDefault();
       openModal();
       return;
     }
 
-    // header "Sign In" button (text match fallback)
+    // data-protected links (nav items that require login)
+    if (t.dataset && t.dataset.protected === 'true') {
+      e.preventDefault();
+      openModal('Sign in to access this page.');
+      return;
+    }
+
+    // Header "Sign In" button by id
+    if (t.id === 'hdr-signin-btn' || t.id === 'mob-signin-btn') {
+      e.preventDefault();
+      openModal();
+      return;
+    }
+
+    // Fallback: any "Sign In" text link inside .header
     if (t.tagName === 'A' && (t.textContent || '').trim() === 'Sign In' && t.closest('.header')) {
       e.preventDefault();
       openModal();
@@ -236,7 +240,7 @@
   });
 
   /* ─── 7. Validation helpers ──────────────────────────────── */
-  function setError(inputEl, errId, msg) {
+  function setFieldError(inputEl, errId, msg) {
     inputEl.classList.add('invalid');
     inputEl.classList.remove('valid');
     var err = document.getElementById(errId);
@@ -244,7 +248,7 @@
     return false;
   }
 
-  function clearError(inputEl, errId) {
+  function clearFieldError(inputEl, errId) {
     if (inputEl) {
       inputEl.classList.remove('invalid');
       inputEl.classList.add('valid');
@@ -253,16 +257,26 @@
     if (err) err.textContent = '';
   }
 
+  function showGeneralError(msg) {
+    generalErr.textContent = msg;
+    generalErr.style.display = 'block';
+  }
+
+  function hideGeneralError() {
+    generalErr.style.display = 'none';
+    generalErr.textContent = '';
+  }
+
   function validateEmail() {
     var val = emailEl.value.trim();
-    if (!val) return setError(emailEl, 'smEmailErr', 'Email or Employee ID is required.');
-    clearError(emailEl, 'smEmailErr');
+    if (!val) return setFieldError(emailEl, 'smEmailErr', 'Email or Employee ID is required.');
+    clearFieldError(emailEl, 'smEmailErr');
     return true;
   }
 
   function validatePassword() {
-    if (!pwEl.value) return setError(pwEl, 'smPwErr', 'Password is required.');
-    clearError(pwEl, 'smPwErr');
+    if (!pwEl.value) return setFieldError(pwEl, 'smPwErr', 'Password is required.');
+    clearFieldError(pwEl, 'smPwErr');
     return true;
   }
 
@@ -270,9 +284,11 @@
   pwEl    && pwEl.addEventListener('blur', validatePassword);
   emailEl && emailEl.addEventListener('input', function () {
     if (emailEl.classList.contains('invalid')) validateEmail();
+    hideGeneralError();
   });
   pwEl && pwEl.addEventListener('input', function () {
     if (pwEl.classList.contains('invalid')) validatePassword();
+    hideGeneralError();
   });
 
   /* ─── 8. Button loading state ────────────────────────────── */
@@ -290,39 +306,81 @@
     submitBtn.querySelector('.sm-btn-spin').style.display  = 'none';
   }
 
-  /* ─── 9. Form submit ─────────────────────────────────────── */
+  /* ─── 9. Form submit — real fetch to signin_handler.php ─── */
   form && form.addEventListener('submit', function (e) {
     e.preventDefault();
+    hideGeneralError();
 
-    // Validate both fields (use bitwise & so both run)
+    // Client-side presence check first (fast feedback before network round-trip)
     var ok = validateEmail() & validatePassword();
     if (!ok) return;
 
     setLoading();
 
-    // Simulate async authentication (1.4 s)
-    setTimeout(function () {
-      // Show success state
-      formArea.style.display = 'none';
-      successEl.classList.add('show');
+    var fd = new FormData();
+    fd.append('email',    emailEl.value.trim());
+    fd.append('password', pwEl.value);
 
-      // Close modal + optionally redirect after 2 s
-      setTimeout(function () {
-        closeModal();
-        // In a real app you'd do: window.location.href = 'dashboard.html';
-      }, 2000);
-    }, 1400);
+    fetch('signin_handler.php', { method: 'POST', body: fd })
+      .then(function (r) {
+        if (!r.ok) throw new Error('Server error ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (data.ok) {
+          // ── Success ──────────────────────────────────────────
+          // Check if the handler wants a redirect (e.g. totp_verify.php for
+          // TOTP-enabled accounts, or dashboard.php / index.php for normal users)
+          var dest = data.redirect || 'index.php';
+          var isTOTP = /totp/i.test(dest);
+
+          if (isTOTP) {
+            // TOTP required → redirect immediately without the success animation
+            // (the TOTP page is its own full-page flow — no point showing a modal
+            // success state that will be replaced in half a second anyway)
+            submitBtn.querySelector('.sm-btn-label').textContent = 'Redirecting…';
+            setTimeout(function () {
+              window.location.href = dest;
+            }, 400);
+          } else {
+            // Normal success → show success panel, then redirect
+            formArea.style.display = 'none';
+            successMsg.textContent = 'Redirecting you to your dashboard…';
+            successEl.classList.add('show');
+            setTimeout(function () {
+              window.location.href = dest;
+            }, 1800);
+          }
+        } else {
+          // ── Server-side auth failure ──────────────────────────
+          resetBtn();
+
+          if (data.field === 'email') {
+            setFieldError(emailEl, 'smEmailErr', data.msg);
+          } else if (data.field === 'password') {
+            setFieldError(pwEl, 'smPwErr', data.msg);
+          } else {
+            // General error (e.g. "Invalid credentials", account locked, etc.)
+            showGeneralError(data.msg);
+          }
+        }
+      })
+      .catch(function () {
+        resetBtn();
+        showGeneralError('Cannot reach the server. Make sure XAMPP (Apache + MySQL) is running.');
+      });
   });
 
-  /* ─── 10. SSO stubs ──────────────────────────────────────── */
-  document.getElementById('smBtnDepedSSO') &&
-    document.getElementById('smBtnDepedSSO').addEventListener('click', function () {
-      alert('DepEd SSO would open here in a real implementation.');
-    });
+  /* ─── 10. SSO buttons ────────────────────────────────────── */
+  var depedBtn = document.getElementById('smBtnDepedSSO');
+  depedBtn && depedBtn.addEventListener('click', function () {
+    alert('DepEd SSO is not yet implemented in this prototype.');
+  });
 
-  document.getElementById('smBtnGoogle') &&
-    document.getElementById('smBtnGoogle').addEventListener('click', function () {
-      alert('Google Workspace OAuth would open here in a real implementation.');
-    });
+  var googleBtn = document.getElementById('smBtnGoogle');
+  googleBtn && googleBtn.addEventListener('click', function () {
+    // Mirror signin.php: Google routes through google_oauth.php
+    window.location.href = 'google_oauth.php';
+  });
 
 })();
