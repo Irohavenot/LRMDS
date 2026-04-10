@@ -288,8 +288,17 @@ textarea { width: 100%; font-family: inherit; }
   display: flex;
   gap: 12px;
   align-items: center;
+  text-decoration: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.grid .action:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(11, 79, 156, .1);
 }
 .grid .action .title { font-weight: 700; }
+.grid .action .desc  { font-size: 13px; color: var(--muted); }
 
 
 /* ================================
