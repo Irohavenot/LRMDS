@@ -285,7 +285,7 @@
   <h2 class="section-title">Printable guides for every task.</h2>
   <p class="section-sub">Download PDF manuals you can keep on hand or share with colleagues.</p>
 
-  <div class="grid" style="grid-template-columns: repeat(3,1fr);">
+  <div class="grid" style="grid-template-columns: repeat(2,1fr);">
 
     <div class="action" style="cursor:pointer;">
       <img src="assets/icons/file-text.svg" alt="" style="width:32px;height:32px;flex-shrink:0"/>
