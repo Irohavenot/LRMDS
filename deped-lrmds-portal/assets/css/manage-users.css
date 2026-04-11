@@ -559,3 +559,119 @@
   .vm-body      { grid-template-columns: 1fr; }
   .um-modal-view { max-width: 100%; border-radius: 0; }
 }
+/* ════════════════════════════════════════════════════════
+   ADDITIONS TO manage-users.css
+   Paste this block at the bottom of your existing manage-users.css
+════════════════════════════════════════════════════════ */
+
+/* ── Role-Change Confirmation Modal ── */
+.rcm-modal {
+  max-width: 420px;
+  text-align: left;
+}
+
+.rcm-icon-wrap {
+  width: 52px; height: 52px;
+  background: #FFFBEB;
+  border: 1.5px solid #FDE68A;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.rcm-who {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.rcm-who strong { color: var(--text); }
+
+/* From → To role display */
+.rcm-arrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rcm-role-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .02em;
+}
+
+/* Impact notices */
+.rcm-impact { margin-bottom: 16px; }
+
+.rcm-impact-warn,
+.rcm-impact-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.rcm-impact-warn {
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  color: #78350F;
+}
+.rcm-impact-warn svg { stroke: #92400E; flex-shrink: 0; margin-top: 1px; }
+
+.rcm-impact-info {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1E3A5F;
+}
+.rcm-impact-info svg { stroke: #2563EB; flex-shrink: 0; margin-top: 1px; }
+
+.rcm-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin: 0 0 20px;
+}
+
+/* ── Edit Drawer: role hint variants ── */
+.eu-hint-warn {
+  color: #92400E !important;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-weight: 600;
+}
+
+.eu-hint-info {
+  color: #1E3A5F !important;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-weight: 600;
+}
+
+/* ── View Modal: improved body grid ── */
+/* The vm-body already has grid-template-columns: 1fr 1fr
+   These additions make the section headers span full width
+   and improve section spacing. */
+.vm-body > div[style*="grid-column"] {
+  /* section header rows */
+  align-items: center;
+}
+
+/* Activity section in view modal */
+.vm-body .vm-field-val[data-highlight="last-login"] {
+  color: var(--blue);
+  font-weight: 700;
+}

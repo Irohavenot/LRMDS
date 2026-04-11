@@ -567,6 +567,44 @@ function approvable_labels(string $role): string {
   </div>
 </div>
 
+<!-- ══ ROLE-CHANGE CONFIRMATION MODAL ══ -->
+<div class="um-modal-overlay" id="role-change-modal">
+  <div class="um-modal rcm-modal">
+
+    <div class="rcm-icon-wrap">
+      <svg width="22" height="22" fill="none" stroke="#92400E" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+
+    <div class="um-modal-title" style="text-align:center">Confirm Role Change</div>
+
+    <p class="rcm-who">You are changing the role of <strong id="rcm-user-name">—</strong>:</p>
+
+    <div class="rcm-arrow-row">
+      <span class="rcm-role-badge" id="rcm-from-badge">—</span>
+      <svg width="20" height="20" fill="none" stroke="#6B7280" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+      <span class="rcm-role-badge" id="rcm-to-badge">—</span>
+    </div>
+
+    <div id="rcm-impact"></div>
+
+    <p class="rcm-note">This action takes effect immediately. Are you sure you want to proceed?</p>
+
+    <div class="um-modal-actions">
+      <button class="btn btn-ghost" onclick="rcmClose(true)">Cancel</button>
+      <button class="btn btn-primary" id="rcm-confirm-btn" onclick="rcmConfirm()" style="background:#C62828;border-color:#C62828">
+        Yes, Change Role
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- ══ VIEW USER MODAL ══ -->
 <div class="um-modal-overlay" id="view-modal">
   <div class="um-modal um-modal-view">
@@ -634,6 +672,7 @@ function approvable_labels(string $role): string {
             <?php endif; ?>
             <option value="guest">Guest</option>
           </select>
+          <div class="eu-hint" id="eu-role-hint"></div>
         </div>
         <div class="eu-field">
           <label class="eu-label" for="eu-status">Status</label>
@@ -715,3 +754,5 @@ function approvable_labels(string $role): string {
 <script src="assets/js/manage.js"></script>
 </body>
 </html>
+//console.log(CURRENT_USER_ROLE)
+//console.log(canEditUser({role:'teacher'}))// For testing role permissions in the console

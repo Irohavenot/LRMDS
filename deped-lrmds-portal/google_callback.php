@@ -145,15 +145,12 @@ if ($user) {
     if (in_array($user['role'], TOTP_ROLES, true)) {
 
         if (!$user['totp_enabled'] || !$user['totp_secret']) {
-            // Role needs TOTP but it was never set up — send to setup
-            // We store user_id in session; totp_setup.php will read it
-            // NOTE: totp_setup.php normally expects pending_registration,
-            // so we route via a lightweight bridge key instead.
+            // Role needs TOTP but it was never set up (e.g. role was upgraded
+            // via manage.php after the user already existed as a guest).
+            // Store user_id so totp_setup.php can pick it up via the upgrade path.
             $_SESSION['totp_setup_user_id'] = $user['id'];
-            fail(
-                'Your account requires two-factor authentication to be configured. ' .
-                'Please sign in with your password to complete TOTP setup.'
-            );
+            header('Location: totp_setup.php');
+            exit;
         }
 
         // TOTP enabled — hold in pending session, redirect to verify page

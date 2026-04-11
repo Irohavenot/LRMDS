@@ -51,9 +51,12 @@ const ROLE_LABELS = {
   guest:        'Guest',
 };
 
+// Roles that require TOTP — must mirror users_handler.php / signin_handler.php
+const TOTP_ROLES    = ['teacher', 'school-head', 'developer', 'admin'];
+const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
+
 /* ════════════════════════════
    ROLE-BASED ACCESS HELPER
-   ── CURRENT_USER_ROLE is injected by manage.php ──
 ════════════════════════════ */
 function canEditUser(u) {
   if (typeof CURRENT_USER_ROLE === 'undefined') return false;
@@ -372,7 +375,9 @@ function umUserRow(u) {
   }[u.status] || escHtml(u.status);
 
   const totp = u.totp_enabled
-    ? `<span style="color:var(--green);font-weight:700;font-size:12px">✓ On</span>`
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;color:var(--green);font-weight:700;font-size:12px">
+         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>On
+       </span>`
     : `<span style="color:var(--muted);font-size:12px">Off</span>`;
 
   const statusBtn = u.status === 'active'
@@ -381,14 +386,15 @@ function umUserRow(u) {
     ? `<button class="btn-reactivate" onclick="umReactivate(${u.id}, '${name.replace(/'/g,"\\'")}')">Reactivate</button>`
     : '';
 
+  // Role select — clicking triggers the confirmation modal, not an immediate save
   const roleSelect = `
-    <select class="role-select-inline" onchange="umChangeRole(${u.id}, this.value, this)">
+    <select class="role-select-inline" data-user-id="${u.id}" data-user-name="${escHtml(name)}" data-current-role="${escHtml(u.role)}"
+            onchange="rcmOpen(this, ${u.id}, '${name.replace(/'/g,"\\'")}', '${u.role}', this.value)">
       ${['teacher','learner','parent','school-head','developer','admin','guest'].map(r =>
         `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABELS[r] || r}</option>`
       ).join('')}
     </select>`;
 
-  /* ── Only render Edit button if the logged-in user has permission ── */
   const editBtn = canEditUser(u)
     ? `<button class="tbl-btn primary" onclick="euOpen(${u.id})">Edit</button>`
     : '';
@@ -483,7 +489,7 @@ async function confirmReject() {
   } catch (e) { closeRejectModal(); umToast('Server error.', 'error'); btn.disabled = false; }
 }
 
-/* ── Suspend / reactivate / change role ── */
+/* ── Suspend / reactivate ── */
 async function umSuspend(id, name) {
   if (!confirm(`Suspend ${name}'s account?`)) return;
   const fd = new FormData(); fd.append('action','suspend'); fd.append('id',id);
@@ -499,14 +505,104 @@ async function umReactivate(id, name) {
   else umToast(d.msg,'error');
 }
 
-async function umChangeRole(id, newRole, selectEl) {
-  const fd = new FormData(); fd.append('action','change_role'); fd.append('id',id); fd.append('role',newRole);
-  const d = await (await fetch('users_handler.php',{method:'POST',body:fd})).json();
-  if (d.ok) umToast(d.msg,'success');
-  else { umToast(d.msg,'error'); umLoadUsers(); }
+/* ════════════════════════════
+   ROLE-CHANGE CONFIRMATION MODAL
+════════════════════════════ */
+let rcmPending = null; // { id, name, oldRole, newRole, selectEl }
+
+function rcmOpen(selectEl, id, name, oldRole, newRole) {
+  // If user picked the same role somehow (shouldn't happen but guard it)
+  if (oldRole === newRole) return;
+
+  // Store pending change — revert the select visually until confirmed
+  selectEl.value = oldRole;
+  rcmPending = { id, name, oldRole, newRole, selectEl };
+
+  const oldLabel = ROLE_LABELS[oldRole] || oldRole;
+  const newLabel = ROLE_LABELS[newRole] || newRole;
+
+  // Build the impact note
+  const downgradingTotp = TOTP_ROLES.includes(oldRole) && NO_TOTP_ROLES.includes(newRole);
+  const upgradingTotp   = NO_TOTP_ROLES.includes(oldRole) && TOTP_ROLES.includes(newRole);
+
+  let impactHtml = '';
+  if (downgradingTotp) {
+    impactHtml = `
+      <div class="rcm-impact rcm-impact-warn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span><strong>2FA will be cleared.</strong> This role does not require Two-Factor Authentication.
+        The user's authenticator secret will be wiped automatically.</span>
+      </div>`;
+  } else if (upgradingTotp) {
+    impactHtml = `
+      <div class="rcm-impact rcm-impact-info">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span><strong>2FA will be required.</strong> This role requires Two-Factor Authentication.
+        The user will be prompted to set up their authenticator on next login.</span>
+      </div>`;
+  }
+
+  document.getElementById('rcm-from-badge').textContent  = oldLabel;
+  document.getElementById('rcm-to-badge').textContent    = newLabel;
+  document.getElementById('rcm-from-badge').style.background = ROLE_COLORS[oldRole] || '#64748B';
+  document.getElementById('rcm-to-badge').style.background   = ROLE_COLORS[newRole] || '#64748B';
+  document.getElementById('rcm-user-name').textContent   = name;
+  document.getElementById('rcm-impact').innerHTML         = impactHtml;
+
+  document.getElementById('rcm-confirm-btn').disabled    = false;
+  document.getElementById('rcm-confirm-btn').textContent = 'Yes, Change Role';
+
+  document.getElementById('role-change-modal').classList.add('open');
 }
 
-/* Close reject modal on overlay click */
+function rcmClose(revert = true) {
+  document.getElementById('role-change-modal').classList.remove('open');
+  // If admin hit Cancel, restore the select to the old value
+  if (revert && rcmPending) {
+    rcmPending.selectEl.value = rcmPending.oldRole;
+  }
+  rcmPending = null;
+}
+
+async function rcmConfirm() {
+  if (!rcmPending) return;
+  const { id, name, newRole, selectEl } = rcmPending;
+  const btn = document.getElementById('rcm-confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:eu-spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving…';
+
+  const fd = new FormData();
+  fd.append('action', 'change_role');
+  fd.append('id', id);
+  fd.append('role', newRole);
+
+  try {
+    const d = await (await fetch('users_handler.php', { method:'POST', body:fd })).json();
+    rcmClose(false); // Don't revert — the change either went through or we'll reload anyway
+    if (d.ok) {
+      // Update the select to show the new role
+      selectEl.value = newRole;
+      selectEl.dataset.currentRole = newRole;
+      umToast(d.msg || `Role updated to ${ROLE_LABELS[newRole] || newRole}.`, 'success');
+      // Reload to reflect any TOTP column changes
+      umLoadUsers();
+      umLoadStats();
+    } else {
+      selectEl.value = selectEl.dataset.currentRole || selectEl.value;
+      umToast(d.msg || 'Could not update role.', 'error');
+    }
+  } catch (e) {
+    rcmClose(false);
+    selectEl.value = selectEl.dataset.currentRole || selectEl.value;
+    umToast('Network error. Please try again.', 'error');
+  }
+}
+
+document.getElementById('role-change-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) rcmClose(true);
+});
+
+/* ── Close reject modal on overlay click ── */
 document.getElementById('reject-modal')?.addEventListener('click', function(e) {
   if (e.target === this) closeRejectModal();
 });
@@ -521,8 +617,9 @@ async function vmOpen(id) {
   document.getElementById('vm-name').textContent   = 'Loading…';
   document.getElementById('vm-email').textContent  = '';
   document.getElementById('vm-badges').innerHTML   = '';
-  document.getElementById('vm-body').innerHTML     = '<div style="padding:24px;text-align:center;color:var(--muted)">Loading…</div>';
-  document.getElementById('vm-avatar').textContent = '…';
+  document.getElementById('vm-body').innerHTML     = '<div style="padding:32px;text-align:center;color:var(--muted)"><svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation:eu-spin 1s linear infinite;margin:0 auto 8px;display:block"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Loading profile…</div>';
+  document.getElementById('vm-avatar').textContent = '?';
+  document.getElementById('vm-avatar').style.background = '#94A3B8';
   document.getElementById('view-modal').classList.add('open');
 
   try {
@@ -542,46 +639,93 @@ function vmPopulate(u) {
   const name     = (u.first_name + ' ' + u.last_name).trim();
   const initials = ((u.first_name[0]||'')+(u.last_name[0]||'')).toUpperCase();
   const color    = ROLE_COLORS[u.role] || '#64748B';
+  const totpOn   = !!parseInt(u.totp_enabled);
 
-  document.getElementById('vm-avatar').textContent         = initials;
-  document.getElementById('vm-avatar').style.background    = color;
-  document.getElementById('vm-name').textContent           = name;
-  document.getElementById('vm-email').textContent          = u.email;
+  document.getElementById('vm-avatar').textContent      = initials;
+  document.getElementById('vm-avatar').style.background = color;
+  document.getElementById('vm-name').textContent        = name;
+  document.getElementById('vm-email').textContent       = u.email;
 
-  const statusColors = { active:'chip-green', pending:'chip-yellow', suspended:'chip-red' };
+  const statusMeta = {
+    active:    { cls:'chip-green',  label:'Active' },
+    pending:   { cls:'chip-yellow', label:'Pending' },
+    suspended: { cls:'chip-red',    label:'Suspended' },
+  }[u.status] || { cls:'chip-gray', label: u.status };
+
   document.getElementById('vm-badges').innerHTML = `
-    <span class="chip ${statusColors[u.status]||'chip-gray'}">${u.status.charAt(0).toUpperCase()+u.status.slice(1)}</span>
-    <span class="chip chip-blue">${escHtml(ROLE_LABELS[u.role]||u.role)}</span>
-    ${u.totp_enabled ? '<span class="chip chip-green">2FA On</span>' : '<span class="chip chip-gray">No 2FA</span>'}
+    <span class="chip ${statusMeta.cls}">${statusMeta.label}</span>
+    <span class="chip chip-blue" style="background:${color}20;color:${color};border:1px solid ${color}40">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
+    ${totpOn
+      ? `<span class="chip chip-green" style="display:inline-flex;align-items:center;gap:4px">
+           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>2FA Active
+         </span>`
+      : `<span class="chip chip-gray">No 2FA</span>`
+    }
   `;
 
-  const row = (label, val, mono = false) => `
-    <div>
+  // Helper builders
+  const field = (label, val, mono = false, fullWidth = false) => `
+    <div ${fullWidth ? 'style="grid-column:1/-1"' : ''}>
       <div class="vm-field-label">${label}</div>
       <div class="vm-field-val ${mono ? 'mono' : ''}">${escHtml(String(val || '—'))}</div>
     </div>`;
 
+  const sectionHeader = (title, icon) => `
+    <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">
+      <svg width="13" height="13" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24">${icon}</svg>
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">${title}</span>
+    </div>`;
+
+  const totpBlock = totpOn
+    ? `<div style="grid-column:1/-1">
+         <div class="vm-field-label">Two-Factor Auth</div>
+         <div style="display:inline-flex;align-items:center;gap:6px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:6px;padding:5px 10px;margin-top:2px">
+           <svg width="13" height="13" fill="none" stroke="#047857" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+           <span style="font-size:12px;font-weight:700;color:#047857">Enabled — user is protected with 2FA</span>
+         </div>
+       </div>`
+    : `<div style="grid-column:1/-1">
+         <div class="vm-field-label">Two-Factor Auth</div>
+         <div style="display:inline-flex;align-items:center;gap:6px;background:#F9FAFB;border:1px solid var(--border);border-radius:6px;padding:5px 10px;margin-top:2px">
+           <svg width="13" height="13" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+           <span style="font-size:12px;font-weight:600;color:var(--muted)">Not set up${TOTP_ROLES.includes(u.role) ? ' — will be required on next login' : ''}</span>
+         </div>
+       </div>`;
+
   document.getElementById('vm-body').innerHTML = `
-    ${row('First Name',    u.first_name)}
-    ${row('Last Name',     u.last_name)}
-    ${row('Email',         u.email,      true)}
-    ${row('Employee ID',   u.employee_id || '—', true)}
-    <hr class="vm-divider"/>
-    ${row('Region',        u.region || '—')}
-    ${row('Division',      u.division || '—')}
-    ${row('Role',          ROLE_LABELS[u.role] || u.role)}
-    ${row('Status',        u.status.charAt(0).toUpperCase() + u.status.slice(1))}
-    <hr class="vm-divider"/>
-    ${row('Two-Factor Auth', u.totp_enabled ? 'Enabled' : 'Not set up')}
-    ${row('Joined',        u.created_at_human)}
-    ${row('Last Login',    u.last_login_human)}
+    ${sectionHeader('Identity', '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>')}
+    ${field('First Name', u.first_name)}
+    ${field('Last Name',  u.last_name)}
+    ${field('Email Address', u.email, true, true)}
+    ${field('Employee / School ID', u.employee_id || '—', true)}
+
+    ${sectionHeader('Organization', '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>')}
+    ${field('Region',   u.region   || '—')}
+    ${field('Division', u.division || '—')}
+
+    ${sectionHeader('Access', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>')}
+    <div>
+      <div class="vm-field-label">Role</div>
+      <div style="display:inline-flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+        <span class="vm-field-val">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
+      </div>
+    </div>
+    <div>
+      <div class="vm-field-label">Status</div>
+      <span class="chip ${statusMeta.cls}" style="margin-top:2px;display:inline-flex">${statusMeta.label}</span>
+    </div>
+    ${totpBlock}
+
+    ${sectionHeader('Activity', '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
+    ${field('Joined',      u.created_at_human)}
+    ${field('Last Login',  u.last_login_human)}
   `;
 
-  // Store for the "Edit" button
-  document.getElementById('vm-edit-btn').dataset.userId = u.id;
-
-  /* ── Show/hide "Edit This User" button based on permissions ── */
-  document.getElementById('vm-edit-btn').style.display = canEditUser(u) ? '' : 'none';
+  // Store user id on the edit button + show/hide based on permissions
+  const editBtn = document.getElementById('vm-edit-btn');
+  editBtn.dataset.userId = u.id;
+  editBtn.style.display = canEditUser(u) ? '' : 'none';
 }
 
 function closeViewModal() {
@@ -605,7 +749,6 @@ document.getElementById('view-modal')?.addEventListener('click', function(e) {
 let euCurrentUser = null;
 
 async function euOpen(id) {
-  // Open drawer immediately in loading state
   document.getElementById('eu-overlay').classList.add('open');
   document.getElementById('eu-error').style.display   = 'none';
   document.getElementById('eu-title').textContent     = 'Loading…';
@@ -646,30 +789,50 @@ function euPopulate(u) {
   document.getElementById('eu-new-password').value = '';
   document.getElementById('eu-error').style.display = 'none';
 
+  // Update TOTP hint
   const totpEnabled = !!parseInt(u.totp_enabled);
   document.getElementById('eu-totp-hint').textContent = totpEnabled
-    ? '✓ Enabled — user needs a code at every sign-in'
-    : '✗ Not set up — no 2FA protection';
+    ? '✓ Enabled — user must verify a code at every sign-in'
+    : '✗ Not set up — account has no 2FA protection';
   const totpBtn = document.getElementById('eu-totp-btn');
   totpBtn.style.display = totpEnabled ? '' : 'none';
   totpBtn.disabled      = false;
   totpBtn.textContent   = 'Disable 2FA';
 
-  /* ── Restrict school-head: lock Role field, hide sensitive security actions ── */
-  const roleField   = document.getElementById('eu-role');
-  const totpRow     = document.getElementById('eu-totp-row');
+  // Update role-change hint dynamically when the role select changes
+  const roleSelect = document.getElementById('eu-role');
+  const roleHintEl = document.getElementById('eu-role-hint');
+  const updateRoleHint = () => {
+    const newRole = roleSelect.value;
+    const oldRole = u.role;
+    if (newRole === oldRole) {
+      roleHintEl.textContent = '';
+      roleHintEl.className = 'eu-hint';
+    } else if (TOTP_ROLES.includes(oldRole) && NO_TOTP_ROLES.includes(newRole)) {
+      roleHintEl.textContent = '⚠ Saving will clear this user\'s 2FA secret.';
+      roleHintEl.className = 'eu-hint eu-hint-warn';
+    } else if (NO_TOTP_ROLES.includes(oldRole) && TOTP_ROLES.includes(newRole)) {
+      roleHintEl.textContent = '🔒 This role requires 2FA. User will enroll on next login.';
+      roleHintEl.className = 'eu-hint eu-hint-info';
+    } else {
+      roleHintEl.textContent = '';
+      roleHintEl.className = 'eu-hint';
+    }
+  };
+  roleSelect.addEventListener('change', updateRoleHint);
+  updateRoleHint(); // run once on populate
+
+  /* Restrict school-head: lock Role, hide sensitive actions */
+  const totpRow      = document.getElementById('eu-totp-row');
   const newPassField = document.getElementById('eu-new-password');
 
   if (CURRENT_USER_ROLE === 'school-head') {
-    // Lock role — school-head cannot promote/demote a teacher
-    roleField.disabled = true;
-    // Hide 2FA disable and password reset — sensitive admin-only actions
-    totpRow.style.display      = 'none';
+    roleSelect.disabled = true;
+    totpRow.style.display = 'none';
     newPassField.closest('.eu-field').style.display = 'none';
   } else {
-    // Restore for admin (in case drawer was previously opened as school-head)
-    roleField.disabled = false;
-    totpRow.style.display      = '';
+    roleSelect.disabled = false;
+    totpRow.style.display = '';
     newPassField.closest('.eu-field').style.display = '';
   }
 }
@@ -730,7 +893,7 @@ async function euSave() {
 
 async function euDisableTotp() {
   if (!euCurrentUser) return;
-  if (!confirm('Disable two-factor authentication for this user?')) return;
+  if (!confirm('Disable two-factor authentication for this user?\n\nThey will need to re-enroll on their next login.')) return;
   const btn = document.getElementById('eu-totp-btn');
   btn.disabled = true; btn.textContent = 'Disabling…';
 
@@ -764,6 +927,10 @@ async function euSendPasswordReset() {
 
 function euCloseDrawer() {
   document.getElementById('eu-overlay').classList.remove('open');
+  // Remove the dynamic change listener to avoid stacking on re-open
+  const roleSelect = document.getElementById('eu-role');
+  const fresh = roleSelect.cloneNode(true);
+  roleSelect.parentNode.replaceChild(fresh, roleSelect);
   euCurrentUser = null;
 }
 
@@ -782,9 +949,10 @@ document.getElementById('eu-overlay')?.addEventListener('click', function(e) {
 /* Escape key closes whichever layer is open */
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('eu-overlay').classList.contains('open')) { euCloseDrawer(); return; }
-  if (document.getElementById('view-modal').classList.contains('open'))  { closeViewModal(); return; }
-  if (document.getElementById('reject-modal').classList.contains('open')) { closeRejectModal(); }
+  if (document.getElementById('role-change-modal').classList.contains('open')) { rcmClose(true); return; }
+  if (document.getElementById('eu-overlay').classList.contains('open'))         { euCloseDrawer(); return; }
+  if (document.getElementById('view-modal').classList.contains('open'))          { closeViewModal(); return; }
+  if (document.getElementById('reject-modal').classList.contains('open'))        { closeRejectModal(); }
 });
 
 /* ════════════════════════════

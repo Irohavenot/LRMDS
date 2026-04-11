@@ -48,18 +48,77 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
-/* ── Guard: must have pending registration in session ── */
-if (empty($_SESSION['pending_registration'])) {
+/* ── Guard: two valid entry points ─────────────────────────────
+ *
+ *  Path A  — new registration
+ *            register_handler.php sets $_SESSION['pending_registration']
+ *
+ *  Path B  — existing user whose role was upgraded via manage.php and
+ *            now needs to enrol TOTP for the first time.
+ *            google_callback.php (or signin_handler.php) sets
+ *            $_SESSION['totp_setup_user_id'].
+ * ──────────────────────────────────────────────────────────── */
+
+$entry_mode = '';  // 'registration' | 'upgrade'
+$reg        = [];  // populated below for both paths
+
+if (!empty($_SESSION['pending_registration'])) {
+
+    // ── Path A: brand-new registration ───────────────────────
+    $entry_mode = 'registration';
+    $reg        = $_SESSION['pending_registration'];
+
+    if (time() > ($reg['expires_at'] ?? 0)) {
+        unset($_SESSION['pending_registration']);
+        header('Location: register.php?expired=1');
+        exit;
+    }
+
+} elseif (!empty($_SESSION['totp_setup_user_id'])) {
+
+    // ── Path B: role-upgrade TOTP enrolment ──────────────────
+    $entry_mode = 'upgrade';
+
+    // We need the DB to build the $reg array the page uses
+    try {
+        $pdo_guard = new PDO(
+            sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET),
+            DB_USER, DB_PASS,
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]
+        );
+    } catch (PDOException $e) {
+        error_log('LRMDS totp_setup guard DB: ' . $e->getMessage());
+        die('Database error. Make sure XAMPP MySQL is running.');
+    }
+
+    $u_guard = $pdo_guard->prepare(
+        'SELECT id, email, first_name, last_name, role, status FROM users WHERE id = ? LIMIT 1'
+    );
+    $u_guard->execute([(int) $_SESSION['totp_setup_user_id']]);
+    $u_row = $u_guard->fetch();
+
+    if (!$u_row) {
+        // User no longer exists — bail cleanly
+        unset($_SESSION['totp_setup_user_id']);
+        header('Location: signin.php');
+        exit;
+    }
+
+    // Shape $reg so the rest of the page works without changes
+    $reg = [
+        'email'  => $u_row['email'],
+        'fname'  => $u_row['first_name'],
+        'lname'  => $u_row['last_name'],
+        'role'   => $u_row['role'],
+        'status' => $u_row['status'],
+    ];
+
+} else {
     header('Location: register.php');
-    exit;
-}
-
-$reg = $_SESSION['pending_registration'];
-
-// Check the 30-minute expiry
-if (time() > ($reg['expires_at'] ?? 0)) {
-    unset($_SESSION['pending_registration']);
-    header('Location: register.php?expired=1');
     exit;
 }
 
@@ -84,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!$tfa->verifyCode($secret, $code)) {
         $error = 'Incorrect code. Make sure your phone clock is accurate and try again.';
     } else {
-        /* ✅ Code correct — now create the account in the DB */
+        /* ✅ Code correct — now save TOTP to the DB */
         try {
             $pdo = new PDO(
                 sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET),
@@ -101,8 +160,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             goto render_page;
         }
 
-        // Final duplicate email check (edge case: someone registered same email
-        // in the 30-minute window while this session was open)
+        /* ── Path B: existing user — just save the TOTP secret ── */
+        if ($entry_mode === 'upgrade') {
+            try {
+                $pdo->prepare('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?')
+                    ->execute([$secret, (int) $_SESSION['totp_setup_user_id']]);
+            } catch (PDOException $e) {
+                error_log('LRMDS totp_setup upgrade: ' . $e->getMessage());
+                $error = 'Could not save your 2FA settings. Please try again.';
+                goto render_page;
+            }
+
+            // Sign the user in now — they've proven identity with TOTP
+            $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
+                ->execute([(int) $_SESSION['totp_setup_user_id']]);
+
+            $_SESSION['user_id']   = $u_row['id'];
+            $_SESSION['user_role'] = $u_row['role'];
+            $_SESSION['user_name'] = $u_row['first_name'];
+            $_SESSION['user']      = $u_row['email'];
+
+            unset($_SESSION['totp_setup_user_id'], $_SESSION['pending_totp_secret']);
+
+            $_SESSION['flash_success'] = 'Two-factor authentication is now active on your account. Welcome!';
+            header('Location: index.php');
+            exit;
+        }
+
+        /* ── Path A: new registration — INSERT the account ── */
+
+        // Final duplicate email check (edge case: same email registered during the 30-min window)
         $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
         $dup->execute([$reg['email']]);
         if ($dup->fetch()) {
@@ -263,6 +350,15 @@ $first_name = htmlspecialchars($reg['fname']);
   <h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px">
     Almost done, <?= $first_name ?>!
   </h1>
+  <?php if ($entry_mode === 'upgrade'): ?>
+  <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
+    Your role has been updated to <strong><?= htmlspecialchars($role_label) ?></strong>,
+    which requires two-factor authentication. Set it up below to complete sign-in.
+  </p>
+  <p style="font-size:13px;color:#9CA3AF;margin:0">
+    You only need to do this once. Future sign-ins will just ask for your code.
+  </p>
+  <?php else: ?>
   <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
     As a <strong><?= htmlspecialchars($role_label) ?></strong>, your account requires two-factor authentication
     before it can be created. This protects access to sensitive resources.
@@ -270,6 +366,7 @@ $first_name = htmlspecialchars($reg['fname']);
   <p style="font-size:13px;color:#9CA3AF;margin:0">
     Your account will only be saved once you complete this step.
   </p>
+  <?php endif; ?>
 
   <div class="totp-card">
     <p class="section-title">Works with any of these apps</p>
@@ -330,15 +427,17 @@ $first_name = htmlspecialchars($reg['fname']);
     />
 
     <button type="submit" class="rf-btn rf-btn-primary" style="width:100%;margin-top:14px;justify-content:center">
-      Confirm &amp; Create Account
+      <?= $entry_mode === 'upgrade' ? 'Confirm &amp; Activate 2FA' : 'Confirm &amp; Create Account' ?>
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </button>
   </form>
 
+  <?php if ($entry_mode !== 'upgrade'): ?>
   <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px">
     Want to use a different email?
     <a href="register.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">Go back to registration</a>
   </p>
+  <?php endif; ?>
 
 </div>
 <script>

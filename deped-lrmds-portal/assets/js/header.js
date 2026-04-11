@@ -220,7 +220,7 @@
 
     const dest = destIn.value || 'index.php';
 
-    fetch('signin_action.php', {
+    fetch('signin_handler.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -231,8 +231,10 @@
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.ok) {
-        // Session confirmed — safe to redirect
-        window.location.href = dest;
+        // If signin_handler wants a TOTP page, honour that redirect.
+        // Otherwise go to the originally intended destination.
+        const isTOTP = /totp/i.test(data.redirect || '');
+        window.location.href = isTOTP ? data.redirect : dest;
       } else {
         btn.disabled = false;
         btn.innerHTML =
@@ -240,8 +242,22 @@
           '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">' +
             '<path d="M5 12h14M12 5l7 7-7 7"/>' +
           '</svg>';
-        const err = document.getElementById('sim-email-err');
-        if (err) err.textContent = 'Sign in failed. Please try again.';
+        // Route error to the correct field or a general message
+        if (data.field === 'email') {
+          const err = document.getElementById('sim-email-err');
+          const el  = document.getElementById('sim-email');
+          if (el)  el.classList.add('invalid');
+          if (err) err.textContent = data.msg || 'Invalid email or Employee ID.';
+        } else if (data.field === 'password') {
+          const err = document.getElementById('sim-pw-err');
+          const el  = document.getElementById('sim-password');
+          if (el)  el.classList.add('invalid');
+          if (err) err.textContent = data.msg || 'Incorrect password.';
+        } else {
+          // General error (locked, suspended, pending, etc.)
+          const err = document.getElementById('sim-email-err');
+          if (err) err.textContent = data.msg || 'Sign in failed. Please try again.';
+        }
       }
     })
     .catch(function () {
@@ -256,7 +272,7 @@
   document.querySelectorAll('.sim-sso').forEach(function (btn) {
     btn.addEventListener('click', function () {
       const dest = destIn ? (destIn.value || 'index.php') : 'index.php';
-      fetch('signin_action.php', {
+      fetch('signin_handler.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email: 'sso@deped.gov.ph', password: 'sso' }),
@@ -270,4 +286,4 @@
   // Expose openSignin globally so index.php can auto-open it after a redirect
   window.openSignin = openSignin;
 
-})();
+})(); 

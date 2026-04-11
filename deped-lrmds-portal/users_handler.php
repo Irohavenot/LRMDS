@@ -14,9 +14,9 @@
  *   reject           – delete a pending user
  *   suspend          – set status = suspended
  *   reactivate       – set status = active
- *   change_role      – change role
- *   edit_user        – full profile edit (role-gated)
- *   disable_totp     – wipe TOTP secret
+ *   change_role      – change role (auto-clears TOTP if downgrading to non-2FA role)
+ *   edit_user        – full profile edit (role-gated, auto-clears TOTP if needed)
+ *   disable_totp     – wipe TOTP secret manually
  *   send_password_reset – stub / mail trigger
  */
 
@@ -56,6 +56,10 @@ try {
     exit;
 }
 
+/* ── Roles that require TOTP (must mirror signin_handler.php) ── */
+const TOTP_ROLES    = ['teacher', 'school-head', 'developer', 'admin'];
+const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
+
 /* ── Helpers ── */
 function human_time(string $dt): string {
     if (!$dt) return 'Never';
@@ -73,6 +77,20 @@ function json_ok(mixed $data, int $count = 0): void {
 function json_err(string $msg, int $code = 200): void {
     http_response_code($code);
     echo json_encode(['ok' => false, 'msg' => $msg]);
+}
+
+/**
+ * If the new role does NOT require TOTP, wipe the secret so the user
+ * isn't blocked by a stale 2FA enrollment on their next login.
+ * Returns true if TOTP was cleared, false otherwise.
+ */
+function maybe_clear_totp(PDO $pdo, int $userId, string $newRole): bool {
+    if (in_array($newRole, NO_TOTP_ROLES, true)) {
+        $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?")
+            ->execute([$userId]);
+        return true;
+    }
+    return false;
 }
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
@@ -216,8 +234,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $allowed = ['teacher','learner','parent','school-head','developer','admin','guest'];
         $role    = $_POST['role'] ?? '';
         if (!in_array($role, $allowed, true)) { json_err('Invalid role.'); exit; }
+
+        // Fetch old role so we can detect a downgrade
+        $old = $pdo->prepare('SELECT role, totp_enabled FROM users WHERE id = ? LIMIT 1');
+        $old->execute([$id]);
+        $oldUser = $old->fetch();
+
         $pdo->prepare("UPDATE users SET role = ? WHERE id = ?")->execute([$role, $id]);
-        echo json_encode(['ok' => true, 'msg' => "Role updated to {$role}."]);
+
+        // Auto-clear TOTP if new role doesn't require it
+        $totpCleared = maybe_clear_totp($pdo, $id, $role);
+
+        $msg = "Role updated to {$role}.";
+        if ($totpCleared && $oldUser && $oldUser['totp_enabled']) {
+            $msg .= ' 2FA has been automatically cleared.';
+        } elseif (in_array($role, TOTP_ROLES, true) && $oldUser && !in_array($oldUser['role'], TOTP_ROLES, true)) {
+            $msg .= ' This role requires 2FA — the user will be prompted to enroll on next login.';
+        }
+
+        echo json_encode(['ok' => true, 'msg' => $msg, 'totp_cleared' => $totpCleared]);
         exit;
     }
 
@@ -225,9 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'edit_user') {
         if (!$id) { json_err('Invalid ID.'); exit; }
 
-        /* ── Role-based permission check ──
-           Fetch the target user's CURRENT role from the DB before trusting POST data.
-           This prevents a bypass where someone sends a crafted POST request.        */
+        /* ── Role-based permission check ── */
         $targetStmt = $pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
         $targetStmt->execute([$id]);
         $targetUser = $targetStmt->fetch();
@@ -236,17 +269,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $canEdit = false;
         if ($myRole === 'admin') {
-            // Admin can edit anyone
             $canEdit = true;
         } elseif ($myRole === 'school-head' && $targetUser['role'] === 'teacher') {
-            // School-head can only edit teachers
             $canEdit = true;
         }
 
         if (!$canEdit) {
             json_err('You do not have permission to edit this user.'); exit;
         }
-        /* ── End permission check ── */
 
         $fname    = trim($_POST['first_name']  ?? '');
         $lname    = trim($_POST['last_name']   ?? '');
@@ -258,7 +288,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emp_id   = trim($_POST['employee_id'] ?? '');
         $new_pass = $_POST['new_password']     ?? '';
 
-        // Validate inputs
         if (!$fname || !$lname)  { json_err('First and last name are required.'); exit; }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { json_err('Enter a valid email address.'); exit; }
 
@@ -267,24 +296,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role,   $allowed_roles,    true)) { json_err('Invalid role.'); exit; }
         if (!in_array($status, $allowed_statuses, true)) { json_err('Invalid status.'); exit; }
 
-        // school-head must not be able to change a teacher's role
         if ($myRole === 'school-head' && $role !== 'teacher') {
             json_err('You are only allowed to keep this user as a Teacher.'); exit;
         }
 
         if ($new_pass && strlen($new_pass) < 8) { json_err('Password must be at least 8 characters.'); exit; }
 
-        // Duplicate email check (exclude self)
         $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
         $dup->execute([$email, $id]);
         if ($dup->fetch()) { json_err('That email is already used by another account.'); exit; }
 
-        // Prevent admin from suspending their own account
         if ((int)$id === (int)($_SESSION['user_id'] ?? 0) && $status === 'suspended') {
             json_err('You cannot suspend your own account.'); exit;
         }
 
-        // Build update query
         if ($new_pass) {
             $hash = password_hash($new_pass, PASSWORD_BCRYPT);
             $pdo->prepare("
@@ -304,13 +329,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ")->execute([$fname, $lname, $email, $role, $status, $region, $division ?: null, $emp_id ?: null, $id]);
         }
 
-        echo json_encode(['ok' => true, 'msg' => "{$fname} {$lname}'s profile updated."]);
+        // Auto-clear TOTP if role was changed to a non-2FA role
+        $totpCleared = maybe_clear_totp($pdo, $id, $role);
+
+        $msg = "{$fname} {$lname}'s profile updated.";
+        if ($totpCleared) {
+            $msg .= ' 2FA was automatically cleared because this role does not require it.';
+        } elseif (in_array($role, TOTP_ROLES, true) && !in_array($targetUser['role'], TOTP_ROLES, true)) {
+            $msg .= ' This role requires 2FA — the user will be prompted to enroll on next login.';
+        }
+
+        echo json_encode(['ok' => true, 'msg' => $msg, 'totp_cleared' => $totpCleared]);
         exit;
     }
 
     /* ── disable_totp ── */
     if ($action === 'disable_totp') {
-        // Only admin can disable 2FA
         if ($myRole !== 'admin') { json_err('Only admins can disable 2FA.'); exit; }
         if (!$id) { json_err('Invalid ID.'); exit; }
         $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?")
@@ -321,7 +355,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* ── send_password_reset ── */
     if ($action === 'send_password_reset') {
-        // Only admin can trigger password resets
         if ($myRole !== 'admin') { json_err('Only admins can send password reset emails.'); exit; }
         if (!$id) { json_err('Invalid ID.'); exit; }
 
@@ -331,14 +364,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$user) { json_err('User not found.'); exit; }
 
-        /**
-         * TODO: integrate with your mailer (PHPMailer / SMTP).
-         * For now this is a stub that always succeeds.
-         *
-         * Real implementation would:
-         *   1. Generate a signed token, store in a password_resets table
-         *   2. Email the user a link: reset_password.php?token=...
-         */
         error_log("LRMDS: Password reset requested for user #{$id} ({$user['email']}) by admin #{$_SESSION['user_id']}");
 
         echo json_encode([
