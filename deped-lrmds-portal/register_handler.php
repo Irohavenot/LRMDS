@@ -94,7 +94,7 @@ if ($stmt->fetch()) {
 }
 
 /* ── Status & password hash ── */
-$staff_roles   = ['school-head', 'developer'];
+$staff_roles   = ['teacher', 'school-head', 'developer'];
 $status        = in_array($role, $staff_roles, true) ? 'pending' : 'active';
 $password_hash = password_hash($password, PASSWORD_BCRYPT);
 

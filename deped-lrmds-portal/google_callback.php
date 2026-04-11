@@ -34,7 +34,7 @@ define('DB_PASS',    '');
 define('DB_CHARSET', 'utf8mb4');
 
 // Roles that require TOTP — must match signin_handler.php
-define('TOTP_ROLES', ['teacher', 'school-head', 'developer']);
+define('TOTP_ROLES', ['teacher', 'school-head', 'developer', 'admin']);
 
 /* ── Helper: redirect with an error flash ─────────────────── */
 function fail(string $msg): never {

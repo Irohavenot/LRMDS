@@ -25,8 +25,8 @@
         <button class="tab-btn" role="tab" aria-selected="false" data-cat="announcement">
           <img src="assets/icons/megaphone.svg" alt=""> System Announcements
         </button>
-        <button class="tab-btn" role="tab" aria-selected="false" data-cat="release">
-          <img src="assets/icons/seal-check.svg" alt=""> Release Notes
+        <button class="tab-btn" role="tab" aria-selected="false" data-cat="memo">
+          <img src="assets/icons/seal-check.svg" alt=""> Memorandums
         </button>
         <button class="tab-btn" role="tab" aria-selected="false" data-cat="program">
           <img src="assets/icons/globe.svg" alt=""> Program Updates

@@ -64,18 +64,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? OR google_id = ? LIMIT 1');
         $dup->execute([$gp['email'], $gp['google_id']]);
         if ($existing = $dup->fetch()) {
-            // Account appeared while they were on this page — just log them in
-            unset($_SESSION['google_pending']);
-            $user = $pdo->prepare('SELECT id, first_name, email, role FROM users WHERE id = ? LIMIT 1');
-            $user->execute([$existing['id']]);
-            $u = $user->fetch();
-            $_SESSION['user_id']   = $u['id'];
-            $_SESSION['user_role'] = $u['role'];
-            $_SESSION['user_name'] = $u['first_name'];
-            $_SESSION['user']      = $u['email'];
-            header('Location: index.php');
-            exit;
+    unset($_SESSION['google_pending']);
+
+    // Fetch full user row — need status + TOTP fields
+    $uStmt = $pdo->prepare('
+        SELECT id, first_name, email, role, status, totp_enabled, totp_secret
+        FROM users WHERE id = ? LIMIT 1
+    ');
+    $uStmt->execute([$existing['id']]);
+    $u = $uStmt->fetch();
+
+    // Status checks
+    if ($u['status'] === 'suspended') {
+        header('Location: signin.php?err=suspended'); exit;
+    }
+    if ($u['status'] === 'pending') {
+        header('Location: signin.php?err=pending'); exit;
+    }
+
+    // TOTP check — must match signin_handler.php and google_callback.php
+    $totpRoles = ['teacher', 'school-head', 'developer', 'admin'];
+    if (in_array($u['role'], $totpRoles, true)) {
+        if (!$u['totp_enabled'] || !$u['totp_secret']) {
+            $_SESSION['totp_setup_user_id'] = $u['id'];
+            header('Location: totp_setup.php'); exit;
         }
+        $_SESSION['totp_pending_user_id'] = $u['id'];
+        header('Location: totp_verify.php'); exit;
+    }
+
+    // No TOTP needed
+    $_SESSION['user_id']   = $u['id'];
+    $_SESSION['user_role'] = $u['role'];
+    $_SESSION['user_name'] = $u['first_name'];
+    $_SESSION['user']      = $u['email'];
+    header('Location: index.php');
+    exit;
+}
 
         try {
             $stmt = $pdo->prepare('

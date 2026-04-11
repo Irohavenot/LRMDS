@@ -3,6 +3,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
+$userRole   = $_SESSION['user_role'] ?? '';
+
+// Roles that can see "Develop" (submit resources)
+$canDevelop = $isSignedIn && in_array($userRole, ['teacher','school-head','partner','developer','admin'], true);
+
+// Roles that can see "Manage"
+$canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','developer','admin'], true);
 ?>
 <link rel="stylesheet" href="assets/css/header.css"/>
 <link rel="stylesheet" href="assets/css/header_responsive.css"/>
@@ -21,9 +28,13 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <nav class="nav" aria-label="Main">
       <a href="index.php">Home</a>
       <a href="search.php">Resources</a>
-      <?php if ($isSignedIn): ?>
+      <?php if ($canDevelop): ?>
         <a href="submit.php">Develop</a>
+      <?php endif; ?>
+      <?php if ($canManage): ?>
         <a href="manage.php">Manage</a>
+      <?php endif; ?>
+      <?php if ($isSignedIn): ?>
         <a href="train-support.php">Train &amp; Support</a>
       <?php else: ?>
         <a href="#"
@@ -43,12 +54,12 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
         </span>
       </div>
 
-      <?php if ($isSignedIn): ?>
+      <?php if ($canDevelop): ?>
         <a class="button ghost" href="submit.php">
           <img src="assets/icons/upload.svg" alt="" style="vertical-align:middle;margin-right:6px">
           <span class="submit-label">Submit</span>
         </a>
-      <?php else: ?>
+      <?php elseif (!$isSignedIn): ?>
         <a class="button ghost" href="#"
            data-protected="true"
            data-dest="submit.php">
@@ -100,13 +111,17 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <a href="search.php">
       <img src="assets/icons/folders.svg" alt=""> Resources
     </a>
-    <?php if ($isSignedIn): ?>
+    <?php if ($canDevelop): ?>
       <a href="submit.php">
         <img src="assets/icons/chalkboard-teacher.svg" alt=""> Develop
       </a>
+    <?php endif; ?>
+    <?php if ($canManage): ?>
       <a href="manage.php">
         <img src="assets/icons/calendar.svg" alt=""> Manage
       </a>
+    <?php endif; ?>
+    <?php if ($isSignedIn): ?>
       <a href="train-support.php">
         <img src="assets/icons/life-ring.svg" alt=""> Train &amp; Support
       </a>
@@ -125,11 +140,11 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 
   <div class="drawer-divider"></div>
 
-  <?php if ($isSignedIn): ?>
+  <?php if ($canDevelop): ?>
     <a class="drawer-cta" href="submit.php">
       <img src="assets/icons/upload.svg" alt=""> Submit a Resource
     </a>
-  <?php else: ?>
+  <?php elseif (!$isSignedIn): ?>
     <a class="drawer-cta"
        href="#"
        data-protected="true"
@@ -156,12 +171,12 @@ $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
     <span>Search</span>
   </a>
 
-  <?php if ($isSignedIn): ?>
+  <?php if ($canDevelop): ?>
     <a class="mob-nav-item" href="submit.php">
       <span class="mob-icon-wrap"><img src="assets/icons/upload.svg" alt=""></span>
       <span>Submit</span>
     </a>
-  <?php else: ?>
+  <?php elseif (!$isSignedIn): ?>
     <a class="mob-nav-item" href="#"
        data-protected="true"
        data-dest="submit.php">

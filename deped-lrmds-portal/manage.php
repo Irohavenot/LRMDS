@@ -4,6 +4,27 @@ if (empty($_SESSION['user'])) {
     header('Location: index.php?signin=1&dest=manage.php');
     exit;
 }
+
+$actor_role = $_SESSION['user_role'] ?? 'guest';
+$actor_name = htmlspecialchars($_SESSION['user_name'] ?? 'User');
+$actor_init = strtoupper(substr($_SESSION['user_name'] ?? 'U', 0, 2));
+
+// Roles that can access manage.php at all
+$manage_roles = ['admin', 'developer', 'school-head'];
+if (!in_array($actor_role, $manage_roles)) {
+    header('Location: index.php');
+    exit;
+}
+
+// What this role can approve
+function approvable_labels(string $role): string {
+    return match($role) {
+        'admin'       => 'Teachers, School Heads, Developers, Admins',
+        'developer'   => 'School Heads & Developers',
+        'school-head' => 'Teachers',
+        default       => 'None',
+    };
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -13,10 +34,134 @@ if (empty($_SESSION['user'])) {
   <title>Manage — DepEd LRMDS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="assets/css/manage.css"/>
   <link rel="stylesheet" href="assets/css/manage-users.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Online stats KPI cards ── */
+    .online-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .online-kpi {
+      background: #fff;
+      border: 1.5px solid var(--border, #E5E7EB);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .online-kpi-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .online-kpi-icon.green { background: #ECFDF5; }
+    .online-kpi-icon.blue  { background: #EFF6FF; }
+    .online-kpi-val {
+      font-size: 28px; font-weight: 700; line-height: 1;
+      font-family: 'DM Mono', monospace;
+    }
+    .online-kpi-val.green { color: #059669; }
+    .online-kpi-val.blue  { color: #2563EB; }
+    .online-kpi-label { font-size: 12px; color: #6B7280; margin-top: 3px; font-weight: 500; }
+    .online-dot {
+      width: 8px; height: 8px; background: #10B981;
+      border-radius: 50%; display: inline-block;
+      box-shadow: 0 0 0 3px rgba(16,185,129,.2);
+      animation: pulse-dot 2s ease-in-out infinite;
+      margin-right: 4px;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(16,185,129,.2); }
+      50%       { box-shadow: 0 0 0 6px rgba(16,185,129,.05); }
+    }
+
+    /* ── Hierarchy notice banner ── */
+    .hierarchy-notice {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #FFFBEB; border: 1.5px solid #FDE68A;
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; color: #78350F;
+      margin-bottom: 16px;
+    }
+    .hierarchy-notice strong { color: #92400E; }
+
+    /* ── Applicant cards ── */
+    .applicant-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px;
+      padding: 4px 0 8px;
+    }
+    .app-card {
+      background: #fff;
+      border: 1.5px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 16px;
+      position: relative;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .app-card:hover { border-color: #93C5FD; box-shadow: 0 2px 12px rgba(59,130,246,.1); }
+    .app-card-head {
+      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;
+    }
+    .app-avatar {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(135deg, #0B4F9C, #3B82F6);
+      color: #fff; font-weight: 700; font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .app-name  { font-weight: 700; font-size: 14px; color: #111827; }
+    .app-email { font-size: 12px; color: #6B7280; margin-top: 2px; word-break: break-all; }
+    .app-meta  {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-bottom: 12px; font-size: 12px;
+    }
+    .app-meta-item {
+      background: #F3F4F6; border-radius: 6px;
+      padding: 3px 8px; color: #374151; font-weight: 500;
+    }
+    .app-meta-item.totp-ok  { background: #ECFDF5; color: #065F46; }
+    .app-meta-item.totp-no  { background: #FEF2F2; color: #991B1B; }
+    .app-meta-item.role-badge {
+      background: #EFF6FF; color: #1D4ED8; font-weight: 700; text-transform: capitalize;
+    }
+    .app-date { font-size: 11px; color: #9CA3AF; margin-bottom: 12px; }
+    .app-actions { display: flex; gap: 8px; }
+    .btn-approve {
+      flex: 1; padding: 8px 12px; border: none; border-radius: 8px;
+      background: #0B4F9C; color: #fff; font-weight: 600; font-size: 13px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: background .15s;
+    }
+    .btn-approve:hover { background: #1D4ED8; }
+    .btn-reject-card {
+      padding: 8px 12px; border: 1.5px solid #FECACA; border-radius: 8px;
+      background: #fff; color: #DC2626; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: background .15s;
+    }
+    .btn-reject-card:hover { background: #FEF2F2; }
+    .btn-view-card {
+      padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px;
+      background: #fff; color: #374151; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: background .15s;
+    }
+    .btn-view-card:hover { background: #F9FAFB; }
+
+    /* empty state */
+    .um-empty {
+      text-align: center; padding: 48px 24px; color: #9CA3AF;
+    }
+    .um-empty svg { margin-bottom: 12px; opacity: .35; }
+    .um-empty p   { font-size: 14px; margin: 0; }
+  </style>
 </head>
 <body>
 <div class="shell">
@@ -80,10 +225,10 @@ if (empty($_SESSION['user'])) {
 
     <div class="sidebar-footer">
       <div class="user-chip">
-        <div class="user-avatar"><?= strtoupper(substr($_SESSION['user_name'] ?? 'U', 0, 2)) ?></div>
+        <div class="user-avatar"><?= $actor_init ?></div>
         <div>
-          <div class="user-name"><?= htmlspecialchars($_SESSION['user_name'] ?? 'User') ?></div>
-          <div class="user-role"><?= htmlspecialchars($_SESSION['user_role'] ?? '') ?></div>
+          <div class="user-name"><?= $actor_name ?></div>
+          <div class="user-role"><?= htmlspecialchars($actor_role) ?></div>
         </div>
       </div>
     </div>
@@ -113,6 +258,28 @@ if (empty($_SESSION['user'])) {
 
       <!-- ══ DASHBOARD ══ -->
       <div id="panel-dashboard">
+        <!-- Online stats KPIs -->
+        <div class="online-kpi-row">
+          <div class="online-kpi">
+            <div class="online-kpi-icon green">
+              <svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online">—</span></div>
+              <div class="online-kpi-label">Users Online Now (5 min)</div>
+            </div>
+          </div>
+          <div class="online-kpi">
+            <div class="online-kpi-icon blue">
+              <svg width="22" height="22" fill="none" stroke="#2563EB" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val blue" id="kpi-today">—</div>
+              <div class="online-kpi-label">Logins Today</div>
+            </div>
+          </div>
+        </div>
+
         <div class="kpi-grid">
           <div class="kpi-card blue">
             <div class="kpi-top"><span class="kpi-label">Total Resources</span><div class="kpi-icon blue"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div></div>
@@ -204,6 +371,28 @@ if (empty($_SESSION['user'])) {
 
       <!-- ══ ANALYTICS ══ -->
       <div id="panel-analytics" style="display:none">
+        <!-- Online stats in analytics too -->
+        <div class="online-kpi-row" style="margin-bottom:16px">
+          <div class="online-kpi">
+            <div class="online-kpi-icon green">
+              <svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online-2">—</span></div>
+              <div class="online-kpi-label">Users Online Now (5 min)</div>
+            </div>
+          </div>
+          <div class="online-kpi">
+            <div class="online-kpi-icon blue">
+              <svg width="22" height="22" fill="none" stroke="#2563EB" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val blue" id="kpi-today-2">—</div>
+              <div class="online-kpi-label">Logins Today</div>
+            </div>
+          </div>
+        </div>
+
         <div class="kpi-grid" style="margin-bottom:0">
           <div class="kpi-card blue"><div class="kpi-top"><span class="kpi-label">Search Success Rate</span><div class="kpi-icon blue"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div></div><div class="kpi-value">73.2%</div><div class="kpi-delta up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>+3.1% vs last month</div></div>
           <div class="kpi-card red"><div class="kpi-top"><span class="kpi-label">Zero-Result Queries</span><div class="kpi-icon red"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg></div></div><div class="kpi-value">418</div><div class="kpi-delta down"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>Top gap: "SLM Grade 2 MTB"</div></div>
@@ -253,10 +442,22 @@ if (empty($_SESSION['user'])) {
       <!-- ══ USER MANAGEMENT ══ -->
       <div id="panel-users" style="display:none">
 
+        <!-- Hierarchy notice -->
+        <div class="hierarchy-notice">
+          <svg width="18" height="18" fill="none" stroke="#92400E" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <strong>Your approval scope (<?= htmlspecialchars($actor_role) ?>):</strong>
+            You can review and approve: <?= approvable_labels($actor_role) ?>.
+            <?php if ($actor_role === 'school-head'): ?>
+              Approvals are scoped to your division only.
+            <?php endif; ?>
+          </div>
+        </div>
+
         <div class="um-stats-bar">
           <div class="um-stat"><div class="um-stat-val" id="stat-total">—</div><div class="um-stat-label">Total Users</div></div>
           <div class="um-stat"><div class="um-stat-val um-val-green" id="stat-active">—</div><div class="um-stat-label">Active</div></div>
-          <div class="um-stat"><div class="um-stat-val um-val-yellow" id="stat-pending">—</div><div class="um-stat-label">Pending</div></div>
+          <div class="um-stat"><div class="um-stat-val um-val-yellow" id="stat-pending">—</div><div class="um-stat-label">Pending (Your Queue)</div></div>
           <div class="um-stat"><div class="um-stat-val um-val-red" id="stat-suspended">—</div><div class="um-stat-label">Suspended</div></div>
           <div class="um-stat"><div class="um-stat-val um-val-muted" id="stat-guest">—</div><div class="um-stat-label">Guests</div></div>
         </div>
@@ -286,15 +487,22 @@ if (empty($_SESSION['user'])) {
               </button>
             </div>
 
-            <!-- Pending -->
+            <!-- Pending Applications -->
             <div class="um-section active" id="um-section-pending">
               <div class="um-filter-bar">
                 <input type="search" id="pending-search" placeholder="Search by name, email, or ID…" oninput="umLoadPending()"/>
                 <select id="pending-role-filter" onchange="umLoadPending()">
                   <option value="">All Roles</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="school-head">School Head</option>
-                  <option value="developer">Content Developer</option>
+                  <?php if (in_array($actor_role, ['admin'])): ?>
+                    <option value="teacher">Teacher</option>
+                    <option value="school-head">School Head</option>
+                    <option value="developer">Content Developer</option>
+                  <?php elseif ($actor_role === 'developer'): ?>
+                    <option value="school-head">School Head</option>
+                    <option value="developer">Content Developer</option>
+                  <?php elseif ($actor_role === 'school-head'): ?>
+                    <option value="teacher">Teacher</option>
+                  <?php endif; ?>
                 </select>
                 <span class="um-result-count" id="pending-result-count"></span>
               </div>
@@ -308,12 +516,16 @@ if (empty($_SESSION['user'])) {
                 <select id="users-role-filter" onchange="umLoadUsers()">
                   <option value="">All Roles</option>
                   <option value="teacher">Teacher</option>
-                  <option value="learner">Learner</option>
-                  <option value="parent">Parent</option>
-                  <option value="school-head">School Head</option>
-                  <option value="developer">Developer</option>
-                  <option value="admin">Admin</option>
-                  <option value="guest">Guest</option>
+                  <?php if (in_array($actor_role, ['admin', 'developer'])): ?>
+                    <option value="learner">Learner</option>
+                    <option value="parent">Parent</option>
+                    <option value="school-head">School Head</option>
+                    <option value="developer">Developer</option>
+                    <option value="guest">Guest</option>
+                  <?php endif; ?>
+                  <?php if ($actor_role === 'admin'): ?>
+                    <option value="admin">Admin</option>
+                  <?php endif; ?>
                 </select>
                 <select id="users-status-filter" onchange="umLoadUsers()">
                   <option value="">All Status</option>
@@ -343,8 +555,8 @@ if (empty($_SESSION['user'])) {
 <div class="um-modal-overlay" id="reject-modal">
   <div class="um-modal">
     <div class="um-modal-title">Reject Application</div>
-    <div class="um-modal-body">This will permanently delete the pending registration. The applicant will need to register again.<br><br>Reason (optional):</div>
-    <textarea id="reject-reason" placeholder="e.g. Invalid employee ID, incomplete requirements…"></textarea>
+    <div class="um-modal-body">This will permanently delete the pending registration. The applicant will need to register again.<br><br>Reason (optional — not shown to applicant, logged internally):</div>
+    <textarea id="reject-reason" placeholder="e.g. Invalid employee ID, unverifiable credentials…"></textarea>
     <div class="um-modal-actions">
       <button class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
       <button class="btn-reject" id="reject-confirm-btn" onclick="confirmReject()">
@@ -383,7 +595,6 @@ if (empty($_SESSION['user'])) {
 <!-- ══ EDIT USER DRAWER ══ -->
 <div class="eu-overlay" id="eu-overlay">
   <div class="eu-drawer" id="eu-drawer" role="dialog" aria-modal="true" aria-label="Edit User">
-
     <div class="eu-header">
       <div class="eu-header-left">
         <div class="eu-avatar" id="eu-avatar">AB</div>
@@ -396,10 +607,8 @@ if (empty($_SESSION['user'])) {
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-
     <div class="eu-body">
       <div class="eu-error" id="eu-error" style="display:none"></div>
-
       <div class="eu-section-label">Personal Information</div>
       <div class="eu-row-2">
         <div class="eu-field"><label class="eu-label" for="eu-fname">First Name</label><input class="eu-input" id="eu-fname" type="text" placeholder="First name"/></div>
@@ -410,7 +619,6 @@ if (empty($_SESSION['user'])) {
         <input class="eu-input" id="eu-email" type="email" placeholder="user@example.com"/>
         <div class="eu-hint">Changing this updates the sign-in email.</div>
       </div>
-
       <div class="eu-section-label" style="margin-top:20px">Role &amp; Status</div>
       <div class="eu-row-2">
         <div class="eu-field">
@@ -421,7 +629,9 @@ if (empty($_SESSION['user'])) {
             <option value="parent">Parent</option>
             <option value="school-head">School Head</option>
             <option value="developer">Content Developer</option>
-            <option value="admin">Admin</option>
+            <?php if ($actor_role === 'admin'): ?>
+              <option value="admin">Admin</option>
+            <?php endif; ?>
             <option value="guest">Guest</option>
           </select>
         </div>
@@ -434,14 +644,12 @@ if (empty($_SESSION['user'])) {
           </select>
         </div>
       </div>
-
       <div class="eu-section-label" style="margin-top:20px">Organization</div>
       <div class="eu-field"><label class="eu-label" for="eu-region">Region</label><input class="eu-input" id="eu-region" type="text" placeholder="e.g. Region VII"/></div>
       <div class="eu-row-2">
         <div class="eu-field"><label class="eu-label" for="eu-division">Division</label><input class="eu-input" id="eu-division" type="text" placeholder="e.g. Carcar City Division"/></div>
         <div class="eu-field"><label class="eu-label" for="eu-employee-id">Employee / School ID</label><input class="eu-input" id="eu-employee-id" type="text" placeholder="e.g. 10042"/></div>
       </div>
-
       <div class="eu-section-label" style="margin-top:20px">Security</div>
       <div class="eu-security-row" id="eu-totp-row">
         <div>
@@ -462,7 +670,6 @@ if (empty($_SESSION['user'])) {
         <input class="eu-input" id="eu-new-password" type="password" placeholder="Min. 8 characters" autocomplete="new-password"/>
       </div>
     </div>
-
     <div class="eu-footer">
       <button class="btn btn-ghost" onclick="euCloseDrawer()">Cancel</button>
       <button class="btn btn-primary" id="eu-save-btn" onclick="euSave()">
@@ -470,7 +677,6 @@ if (empty($_SESSION['user'])) {
         Save Changes
       </button>
     </div>
-
   </div>
 </div>
 
@@ -479,8 +685,32 @@ if (empty($_SESSION['user'])) {
   <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" id="toast-icon"><path d="M20 6 9 17l-5-5"/></svg>
   <span id="um-toast-msg"></span>
 </div>
+
 <script>
-  const CURRENT_USER_ROLE = <?= json_encode($_SESSION['user_role'] ?? 'guest') ?>;
+  const CURRENT_USER_ROLE = <?= json_encode($actor_role) ?>;
+
+  /* ── Online stats polling ── */
+  function fetchOnlineStats() {
+    const fd = new FormData();
+    fd.append('action', 'online_stats');
+    fetch('user_api.php', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        const fmt = n => n.toLocaleString();
+        ['kpi-online','kpi-online-2'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = fmt(d.online);
+        });
+        ['kpi-today','kpi-today-2'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = fmt(d.today);
+        });
+      })
+      .catch(() => {});
+  }
+  fetchOnlineStats();
+  setInterval(fetchOnlineStats, 60000); // refresh every minute
 </script>
 <script src="assets/js/manage.js"></script>
 </body>
