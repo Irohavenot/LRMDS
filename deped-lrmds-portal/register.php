@@ -68,6 +68,44 @@
       text-transform: uppercase; letter-spacing: .05em;
       margin: 20px 0 8px;
     }
+
+    /* -- Review panel -- */
+    .rv-section {
+      border: 1.5px solid #E5E7EB; border-radius: 12px;
+      overflow: hidden; margin-bottom: 16px; background: #fff;
+    }
+    .rv-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: #F8FAFC;
+      border-bottom: 1.5px solid #E5E7EB;
+    }
+    .rv-section-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: #374151;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .rv-edit-btn {
+      font-size: 12px; font-weight: 700; color: #0B4F9C;
+      background: none; border: none; cursor: pointer;
+      padding: 2px 6px; border-radius: 4px; font-family: inherit;
+      text-decoration: underline; text-underline-offset: 2px;
+      transition: color .15s;
+    }
+    .rv-edit-btn:hover { color: #0A4489; }
+    .rv-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: 12px; padding: 9px 16px;
+      border-bottom: 1px solid #F3F4F6; font-size: 13.5px;
+    }
+    .rv-row:last-child { border-bottom: none; }
+    .rv-label { color: #6B7280; font-weight: 500; flex-shrink: 0; }
+    .rv-value { color: #111827; font-weight: 600; text-align: right; word-break: break-word; }
+    .rv-optional { display: none; }
+    .rv-optional.show { display: flex; }
+    .rv-confirm-wrap {
+      background: #FFFBEB; border: 1.5px solid #FDE68A;
+      border-radius: 12px; padding: 14px 16px; margin-bottom: 4px;
+    }
   </style>
 </head>
 <body class="reg-body">
@@ -120,6 +158,8 @@
         <div class="rp-step" data-step="1"><span class="rp-num">2</span><span class="rp-label">Profile</span></div>
         <div class="rp-line"></div>
         <div class="rp-step" data-step="2"><span class="rp-num">3</span><span class="rp-label">Account</span></div>
+        <div class="rp-line"></div>
+        <div class="rp-step" data-step="3"><span class="rp-num">4</span><span class="rp-label">Review</span></div>
       </div>
 
       <!-- ══════════════════════════════
@@ -507,6 +547,83 @@
 
         <div class="rf-nav">
           <button type="button" class="rf-btn rf-btn-ghost" id="reg-back-2">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+          <button type="button" class="rf-btn rf-btn-primary" id="reg-next-2">
+            Review Details
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           STEP 3 - REVIEW AND CONFIRM
+      ══════════════════════════════ -->
+      <div class="reg-panel" id="reg-panel-3" hidden>
+        <div class="rp-header">
+          <h1>Review your details</h1>
+          <p>Please check everything carefully before submitting. Use the edit buttons to go back and make changes.</p>
+        </div>
+
+        <div class="rv-section">
+          <div class="rv-section-header">
+            <span class="rv-section-title">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Role
+            </span>
+            <button type="button" class="rv-edit-btn" data-goto="0">Edit</button>
+          </div>
+          <div class="rv-row"><span class="rv-label">Account Type</span><span class="rv-value" id="rv-role">-</span></div>
+        </div>
+
+        <div class="rv-section">
+          <div class="rv-section-header">
+            <span class="rv-section-title">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+              Profile
+            </span>
+            <button type="button" class="rv-edit-btn" data-goto="1">Edit</button>
+          </div>
+          <div class="rv-row"><span class="rv-label">Full Name</span><span class="rv-value" id="rv-name">-</span></div>
+          <div class="rv-row"><span class="rv-label">Region</span><span class="rv-value" id="rv-region">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-division"><span class="rv-label">Division</span><span class="rv-value" id="rv-division">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-employee-id"><span class="rv-label">Employee ID</span><span class="rv-value" id="rv-employee-id">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-grade-level"><span class="rv-label">Grade Level</span><span class="rv-value" id="rv-grade-level">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-subjects"><span class="rv-label">Subjects</span><span class="rv-value" id="rv-subjects">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-school-name"><span class="rv-label">School / Office</span><span class="rv-value" id="rv-school-name">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-lrn"><span class="rv-label">LRN</span><span class="rv-value" id="rv-lrn">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-child-grade"><span class="rv-label">Child's Grade</span><span class="rv-value" id="rv-child-grade">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-child-school"><span class="rv-label">Child's School</span><span class="rv-value" id="rv-child-school">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-position"><span class="rv-label">Position</span><span class="rv-value" id="rv-position">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-affiliation"><span class="rv-label">Affiliation</span><span class="rv-value" id="rv-affiliation">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-dev-position"><span class="rv-label">Designation</span><span class="rv-value" id="rv-dev-position">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-dev-types"><span class="rv-label">Resource Types</span><span class="rv-value" id="rv-dev-types">-</span></div>
+        </div>
+
+        <div class="rv-section">
+          <div class="rv-section-header">
+            <span class="rv-section-title">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Account
+            </span>
+            <button type="button" class="rv-edit-btn" data-goto="2">Edit</button>
+          </div>
+          <div class="rv-row"><span class="rv-label">Email Address</span><span class="rv-value" id="rv-email">-</span></div>
+          <div class="rv-row"><span class="rv-label">Password</span><span class="rv-value">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</span></div>
+        </div>
+
+        <div class="rv-confirm-wrap">
+          <label class="rf-check-label" id="rv-confirm-label">
+            <input type="checkbox" id="rv-confirm"/>
+            <span class="rf-checkmark"></span>
+            I confirm that all the details above are accurate and belong to me.
+          </label>
+          <span class="rf-error" id="rv-confirm-err" role="alert"></span>
+        </div>
+
+        <div class="rf-nav">
+          <button type="button" class="rf-btn rf-btn-ghost" id="reg-back-3">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Back
           </button>

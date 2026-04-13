@@ -7,7 +7,7 @@
 
   let currentStep = 0;
   let selectedRole = '';
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
 
   const panels   = qsa('.reg-panel:not(#reg-panel-success)');
   const success  = qs('#reg-panel-success');
@@ -299,6 +299,8 @@
   }
 
   qs('#reg-back-2')?.addEventListener('click', () => goTo(1));
+  qs('#reg-next-2')?.addEventListener('click', () => { if (validateStep2()) { buildReviewPanel(); goTo(3); } });
+  qs('#reg-back-3')?.addEventListener('click', () => goTo(2));
 
   ['reg-email','reg-pw','reg-pw2'].forEach(id => {
     qs('#' + id)?.addEventListener('input', () => {
@@ -364,6 +366,130 @@
     return fd;
   }
 
+
+  /* ════════════════════════════════════
+     BUILD REVIEW PANEL
+     Populates all rv-value spans and
+     shows/hides optional rows
+  ════════════════════════════════════ */
+  const GRADE_LABELS = {
+    kinder:'Kindergarten',g1:'Grade 1',g2:'Grade 2',g3:'Grade 3',g4:'Grade 4',
+    g5:'Grade 5',g6:'Grade 6',g7:'Grade 7',g8:'Grade 8',g9:'Grade 9',g10:'Grade 10',
+    g11:'Grade 11 (SHS)',g12:'Grade 12 (SHS)',multi:'Multiple / Advisory',
+  };
+  const POSITION_LABELS = {
+    'principal-1':'Principal I','principal-2':'Principal II','principal-3':'Principal III',
+    'principal-4':'Principal IV','head-teacher-1':'Head Teacher I','head-teacher-2':'Head Teacher II',
+    'head-teacher-3':'Head Teacher III','head-teacher-4':'Head Teacher IV','head-teacher-5':'Head Teacher V',
+    'head-teacher-6':'Head Teacher VI',eps:'Education Program Supervisor (EPS)',
+    'chief-eps':'Chief EPS / Curriculum',asds:'ASDS / SDS','other-admin':'Other Administrative',
+  };
+  const DEV_POSITION_LABELS = {
+    'teacher-dev':'Teacher / Content Author','eps-dev':'Education Program Supervisor',
+    'curriculum-writer':'Curriculum Writer','illustrator':'Illustrator / Graphic Artist',
+    'instructional-designer':'Instructional Designer','ict-coordinator':'ICT Coordinator',
+    'partner-org':'Partner Organization Representative','other':'Other',
+  };
+  const SUBJECT_LABELS = {
+    english:'English',filipino:'Filipino',math:'Mathematics',science:'Science',
+    ap:'Araling Panlipunan',mapeh:'MAPEH',esp:'EsP',tle:'EPP / TLE / TVL','shs':'SHS Core / Applied',
+  };
+  const DEV_TYPE_LABELS = {
+    slm:'SLMs',dll:'DLL / DLP','tg-lm':'TG / LM',assessment:'Assessments',
+    video:'Video Lessons',interactive:'Interactive / SCORM',
+  };
+
+  function setRV(id, value) {
+    const el = qs('#' + id);
+    if (el) el.textContent = value || '—';
+  }
+  function showRVRow(rowId, value) {
+    const row = qs('#' + rowId);
+    if (!row) return;
+    if (value) { row.classList.add('show'); }
+    else        { row.classList.remove('show'); }
+  }
+
+  function buildReviewPanel() {
+    // Role
+    setRV('rv-role', ROLE_LABELS[selectedRole] || selectedRole);
+
+    // Profile - common
+    const fname = (qs('#reg-fname')?.value || '').trim();
+    const lname = (qs('#reg-lname')?.value || '').trim();
+    setRV('rv-name', [fname, lname].filter(Boolean).join(' '));
+    setRV('rv-region', qs('#reg-region')?.value || '');
+
+    const division = (qs('#reg-division')?.value || '').trim();
+    setRV('rv-division', division);
+    showRVRow('rv-row-division', division);
+
+    // Hide all optional rows first
+    ['rv-row-employee-id','rv-row-grade-level','rv-row-subjects','rv-row-school-name',
+     'rv-row-lrn','rv-row-child-grade','rv-row-child-school','rv-row-position',
+     'rv-row-affiliation','rv-row-dev-position','rv-row-dev-types'].forEach(id => {
+      qs('#' + id)?.classList.remove('show');
+    });
+
+    // Role-specific
+    if (selectedRole === 'teacher') {
+      const empId = (qs('#reg-employee-id')?.value || '').trim();
+      const grade = qs('#reg-grade-level')?.value;
+      const subs  = [...document.querySelectorAll('input[name="subjects[]"]:checked')]
+                    .map(c => SUBJECT_LABELS[c.value] || c.value).join(', ');
+      if (empId) { setRV('rv-employee-id', empId); showRVRow('rv-row-employee-id', empId); }
+      if (grade) { setRV('rv-grade-level', GRADE_LABELS[grade] || grade); showRVRow('rv-row-grade-level', grade); }
+      if (subs)  { setRV('rv-subjects', subs); showRVRow('rv-row-subjects', subs); }
+    }
+    if (selectedRole === 'learner') {
+      const grade  = qs('#reg-learner-grade')?.value;
+      const school = (qs('#reg-learner-school')?.value || '').trim();
+      const lrn    = (qs('#reg-learner-lrn')?.value || '').trim();
+      if (grade)  { setRV('rv-grade-level', GRADE_LABELS[grade] || grade); showRVRow('rv-row-grade-level', grade); }
+      if (school) { setRV('rv-school-name', school); showRVRow('rv-row-school-name', school); }
+      if (lrn)    { setRV('rv-lrn', lrn); showRVRow('rv-row-lrn', lrn); }
+    }
+    if (selectedRole === 'parent') {
+      const grade  = qs('#reg-child-grade')?.value;
+      const school = (qs('#reg-child-school')?.value || '').trim();
+      if (grade)  { setRV('rv-child-grade', GRADE_LABELS[grade] || grade); showRVRow('rv-row-child-grade', grade); }
+      if (school) { setRV('rv-child-school', school); showRVRow('rv-row-child-school', school); }
+    }
+    if (selectedRole === 'school-head') {
+      const empId    = (qs('#reg-employee-id-sh')?.value || '').trim();
+      const position = qs('#reg-position')?.value;
+      const school   = (qs('#reg-sh-school')?.value || '').trim();
+      if (empId)    { setRV('rv-employee-id', empId); showRVRow('rv-row-employee-id', empId); }
+      if (position) { setRV('rv-position', POSITION_LABELS[position] || position); showRVRow('rv-row-position', position); }
+      if (school)   { setRV('rv-school-name', school); showRVRow('rv-row-school-name', school); }
+    }
+    if (selectedRole === 'developer') {
+      const affil    = (qs('#reg-affiliation')?.value || '').trim();
+      const devPos   = qs('#reg-dev-position')?.value;
+      const empId    = (qs('#reg-employee-id-dev')?.value || '').trim();
+      const devTypes = [...document.querySelectorAll('input[name="dev_types[]"]:checked')]
+                       .map(c => DEV_TYPE_LABELS[c.value] || c.value).join(', ');
+      if (affil)    { setRV('rv-affiliation', affil); showRVRow('rv-row-affiliation', affil); }
+      if (devPos)   { setRV('rv-dev-position', DEV_POSITION_LABELS[devPos] || devPos); showRVRow('rv-row-dev-position', devPos); }
+      if (empId)    { setRV('rv-employee-id', empId); showRVRow('rv-row-employee-id', empId); }
+      if (devTypes) { setRV('rv-dev-types', devTypes); showRVRow('rv-row-dev-types', devTypes); }
+    }
+
+    // Account
+    setRV('rv-email', (qs('#reg-email')?.value || '').trim());
+
+    // Edit buttons jump back to the right step
+    qsa('.rv-edit-btn').forEach(btn => {
+      btn.onclick = () => goTo(parseInt(btn.dataset.goto, 10));
+    });
+
+    // Reset confirm checkbox
+    const cb = qs('#rv-confirm');
+    if (cb) cb.checked = false;
+    qs('#rv-confirm-label')?.classList.remove('error-label');
+    qs('#rv-confirm-err') && (qs('#rv-confirm-err').textContent = '');
+  }
+
   /* ════════════════════════════════════
      SUBMIT  →  register_handler.php
   ════════════════════════════════════ */
@@ -373,7 +499,18 @@
   const sBtnSpin  = submitBtn?.querySelector('.btn-spin');
 
   submitBtn?.addEventListener('click', () => {
-    if (!validateStep2()) return;
+    // Validate the confirm checkbox on review panel
+    const confirmCb    = qs('#rv-confirm');
+    const confirmLabel = qs('#rv-confirm-label');
+    const confirmErr   = qs('#rv-confirm-err');
+    if (!confirmCb?.checked) {
+      confirmLabel?.classList.add('error-label');
+      if (confirmErr) confirmErr.textContent = 'Please confirm your details are correct before submitting.';
+      return;
+    }
+    confirmLabel?.classList.remove('error-label');
+    if (confirmErr) confirmErr.textContent = '';
+
 
     sBtnLabel.textContent   = 'Creating account…';
     sBtnArrow.style.display = 'none';
@@ -415,6 +552,10 @@
             };
             Object.entries(data.errors).forEach(([field, msg]) => {
               if (idMap[field]) err(idMap[field], msg);
+              // If the error is on the email (e.g. duplicate), surface it on the review panel
+              if (field === 'email') {
+                err('reg-submit-err', 'Email error: ' + msg + ' — click Edit on Account to change it.');
+              }
               if (['fname','lname','region'].includes(field)) goTo(1);
               if (field === 'role') goTo(0);
             });
