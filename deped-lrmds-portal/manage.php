@@ -750,9 +750,9 @@ function approvable_labels(string $role): string {
   }
   fetchOnlineStats();
   setInterval(fetchOnlineStats, 60000); // refresh every minute
+  //console.log(CURRENT_USER_ROLE)
+//console.log(canEditUser({role:'teacher'}))// For testing role permissions in the console
 </script>
 <script src="assets/js/manage.js"></script>
 </body>
 </html>
-//console.log(CURRENT_USER_ROLE)
-//console.log(canEditUser({role:'teacher'}))// For testing role permissions in the console

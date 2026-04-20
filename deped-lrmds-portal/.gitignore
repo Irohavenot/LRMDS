@@ -1,10 +1,23 @@
-# Environment files
+# ── Secrets — NEVER commit these ─────────────────────────
 .env
 *.env
 
-# Config (if it contains secrets)
+# ── Config with secrets ───────────────────────────────────
 config.php
 
-# Dependencies
+# ── Composer dependencies ─────────────────────────────────
+# Teammates run `composer install` after pulling to regenerate
 /vendor/
 /node_modules/
+
+# ── OS / editor junk ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── XAMPP / PHP logs ──────────────────────────────────────
+*.log
+error_log

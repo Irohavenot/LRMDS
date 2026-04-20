@@ -18,7 +18,7 @@
   // General error banner (sits below the button — we'll inject it if absent)
   let generalErr = qs('#signin-general-err');
   if (!generalErr && form) {
-    generalErr = document.createElement('p');
+    generalErr = document.createElement('div');
     generalErr.id = 'signin-general-err';
     generalErr.style.cssText =
       'margin:10px 0 0;font-size:13px;color:#B91C1C;text-align:center;' +
@@ -52,11 +52,11 @@
     if (el) el.textContent = '';
   }
 
-  function showGeneralError(msg) {
+function showGeneralError(msg) {
     if (!generalErr) return;
-    generalErr.textContent = msg;
+    generalErr.innerHTML = msg;  // ← changed
     generalErr.style.display = 'block';
-  }
+}
 
   function hideGeneralError() {
     if (!generalErr) return;

@@ -257,10 +257,11 @@
     if (err) err.textContent = '';
   }
 
-  function showGeneralError(msg) {
-    generalErr.textContent = msg;
+function showGeneralError(msg) {
+    if (!generalErr) return;
+    generalErr.innerHTML = msg;  // ← changed
     generalErr.style.display = 'block';
-  }
+}
 
   function hideGeneralError() {
     generalErr.style.display = 'none';

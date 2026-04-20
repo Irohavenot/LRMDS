@@ -13,6 +13,20 @@ if (!empty($_SESSION['flash_success'])) {
     $flash = htmlspecialchars($_SESSION['flash_success']);
     unset($_SESSION['flash_success']);
 }
+
+// Error messages passed via query string (e.g. from google_complete.php)
+$err_param = $_GET['err'] ?? '';
+$err_banner = '';
+if ($err_param === 'email_pending') {
+    $resend_url = htmlspecialchars(urldecode($_GET['resend'] ?? 'resend_verification.php'));
+    $err_banner = 'Please verify your email address before signing in. '
+                . 'Check your inbox for the verification link, or '
+                . '<a href="' . $resend_url . '" style="color:#0B4F9C;font-weight:700;">request a new one</a>.';
+} elseif ($err_param === 'suspended') {
+    $err_banner = 'Your account has been suspended. Please contact the LRMDS helpdesk.';
+} elseif ($err_param === 'pending') {
+    $err_banner = 'Your account is pending administrator verification. You will be notified once approved.';
+}
 ?>
 
 <!doctype html>
@@ -89,6 +103,17 @@ if (!empty($_SESSION['flash_success'])) {
         font-family:'Plus Jakarta Sans',system-ui,sans-serif">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
         <?= $flash ?>
+      </div>
+      <?php endif; ?>
+
+      <!-- Error banner from Google OAuth redirect (e.g. email_pending, suspended) -->
+      <?php if ($err_banner): ?>
+      <div style="
+        background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;
+        font-size:13px;border-radius:8px;
+        padding:10px 14px;margin-bottom:16px;
+        font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+        <?= $err_banner /* already escaped / built safely above */ ?>
       </div>
       <?php endif; ?>
 

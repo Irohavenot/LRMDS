@@ -521,7 +521,7 @@ body {
    SHARED SECTION STYLES
    ============================================================ */
 
-.ts-section { padding: 52px 0; }
+.ts-section { padding: 52px 10px; }
 .ts-section + .ts-section { border-top: 1px solid var(--ts-border); }
 .ts-section.bg-sky { background: var(--ts-sky); }
 

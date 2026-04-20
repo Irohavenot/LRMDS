@@ -123,6 +123,20 @@ if (!$user || !password_verify($password, $user['password_hash'])) {
 unset($_SESSION[$attempt_key], $_SESSION[$lockout_key]);
 
 // ── Check account status ──────────────────────────────────────
+if ($user['status'] === 'email_pending') {
+    // Account exists but email not yet verified — block sign-in and show resend link
+    $resend_url = 'resend_verification.php?email=' . urlencode($user['email']);
+    echo json_encode([
+        'ok'    => false,
+        'field' => 'general',
+        'msg'   => 'Please verify your email address before signing in. '
+                 . 'Check your inbox for the verification link, or '
+                 . '<a href="' . htmlspecialchars($resend_url) . '" '
+                 . 'style="color:#0B4F9C;font-weight:700;">request a new one</a>.',
+    ]);
+    exit;
+}
+
 if ($user['status'] === 'pending') {
     echo json_encode([
         'ok'    => false,

@@ -1,0 +1,24 @@
+Footer: 
+Ang redirects sa mga links didto 
+
+Train and Support: 
+Kani rang Duha ang paganahon sa:
+*Ang HelpDesk paganahon 
+*Ang Open Feedback form kay dapat mu redirect sa CSM link sa QR sa office
+*(Ang Comments ug kaya)
+
+Register Page: 
+Auto Capslock for first letter of Names
+Atleast Strong Password Dapat
+Bug nga Dili muregister basta dili huwaton mugawas ang qr sa teacher-developer (tangtangon dapat ang go to sign in para ma redirect jud ang user sa 2FA)
+
+
+Wala pay Profile Page
+
+
+Manage Page: 
+Online Users kay dili mao 
+Most Graphs kay prototype pa kay wa paman puy resources. 
+Edit Button not working yet.
+
+

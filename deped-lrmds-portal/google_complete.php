@@ -75,6 +75,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $u = $uStmt->fetch();
 
     // Status checks
+    if ($u['status'] === 'email_pending') {
+        // Registered via email/password but never verified — block Google sign-in too
+        $resend = 'resend_verification.php?email=' . urlencode($u['email']);
+        header('Location: signin.php?err=email_pending&resend=' . urlencode($resend));
+        exit;
+    }
     if ($u['status'] === 'suspended') {
         header('Location: signin.php?err=suspended'); exit;
     }

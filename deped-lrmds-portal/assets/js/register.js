@@ -533,6 +533,9 @@
               'two-factor authentication — it only takes 2 minutes.';
             showSuccess();
             setTimeout(() => { window.location.href = data.redirect || 'totp_setup.php'; }, 2200);
+          } else if (data.requires_verify) {
+            // Learner / parent — must verify email before signing in
+            window.location.href = data.redirect || 'registration_pending.php';
           } else if (data.pending) {
             if (t) t.textContent = 'Registration Submitted!';
             if (m) m.textContent =
