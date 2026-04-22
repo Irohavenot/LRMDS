@@ -25,9 +25,28 @@ session_start();
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
-/* ── Auth guard: admin OR school-head allowed through ── */
+/* ── Auth guard: resolve role from session, with DB fallback for TOTP-login users ── */
 $myRole = $_SESSION['user_role'] ?? '';
-if (!in_array($myRole, ['admin', 'school-head'], true)) {
+
+// TOTP-authenticated users (admin, teacher, school-head, developer) have their full
+// session written by totp_verify.php. If user_role is still empty but user_id exists,
+// fetch the role directly from the DB so TOTP users aren't locked out.
+if ($myRole === '' && !empty($_SESSION['user_id'])) {
+    // DB connection must happen first — reuse the block below, so we do a quick inline fetch.
+    $tmpDsn = "mysql:host=localhost;dbname=lrmds;charset=utf8mb4";
+    try {
+        $tmpPdo  = new PDO($tmpDsn, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+        $tmpStmt = $tmpPdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+        $tmpStmt->execute([(int)$_SESSION['user_id']]);
+        $tmpRow  = $tmpStmt->fetch();
+        if ($tmpRow) {
+            $myRole = $tmpRow['role'];
+            $_SESSION['user_role'] = $myRole; // repair session for future requests
+        }
+    } catch (Exception $e) { /* fall through to 403 */ }
+}
+
+if (!in_array($myRole, ['admin', 'school-head', 'developer'], true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'msg' => 'Forbidden.']);
     exit;

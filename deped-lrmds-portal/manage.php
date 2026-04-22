@@ -70,6 +70,7 @@ function approvable_labels(string $role): string {
     .online-kpi-val.green { color: #059669; }
     .online-kpi-val.blue  { color: #2563EB; }
     .online-kpi-label { font-size: 12px; color: #6B7280; margin-top: 3px; font-weight: 500; }
+    .online-kpi-guest { font-size: 11px; color: #9CA3AF; margin-top: 2px; font-weight: 400; }
     .online-dot {
       width: 8px; height: 8px; background: #10B981;
       border-radius: 50%; display: inline-block;
@@ -267,6 +268,7 @@ function approvable_labels(string $role): string {
             <div>
               <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online">—</span></div>
               <div class="online-kpi-label">Users Online Now (5 min)</div>
+              <div class="online-kpi-guest" id="kpi-online-guest">— guests</div>
             </div>
           </div>
           <div class="online-kpi">
@@ -380,6 +382,7 @@ function approvable_labels(string $role): string {
             <div>
               <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online-2">—</span></div>
               <div class="online-kpi-label">Users Online Now (5 min)</div>
+              <div class="online-kpi-guest" id="kpi-online-guest-2">— guests</div>
             </div>
           </div>
           <div class="online-kpi">
@@ -726,32 +729,10 @@ function approvable_labels(string $role): string {
 </div>
 
 <script>
+  // Expose current role to manage.js (used for permission checks)
   const CURRENT_USER_ROLE = <?= json_encode($actor_role) ?>;
-
-  /* ── Online stats polling ── */
-  function fetchOnlineStats() {
-    const fd = new FormData();
-    fd.append('action', 'online_stats');
-    fetch('user_api.php', { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(d => {
-        if (!d.ok) return;
-        const fmt = n => n.toLocaleString();
-        ['kpi-online','kpi-online-2'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.textContent = fmt(d.online);
-        });
-        ['kpi-today','kpi-today-2'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.textContent = fmt(d.today);
-        });
-      })
-      .catch(() => {});
-  }
-  fetchOnlineStats();
-  setInterval(fetchOnlineStats, 60000); // refresh every minute
-  //console.log(CURRENT_USER_ROLE)
-//console.log(canEditUser({role:'teacher'}))// For testing role permissions in the console
+  //console.log(CURRENT_USER_ROLE);
+  //console.log(canEditUser({role:'teacher'})); // permission test
 </script>
 <script src="assets/js/manage.js"></script>
 </body>

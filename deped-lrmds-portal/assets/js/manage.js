@@ -249,29 +249,65 @@ function umSwitchTab(tab) {
 }
 
 /* ── Stats ── */
-async function umLoadStats() {
-  try {
-    const r = await fetch('users_handler.php?action=list_users');
-    const d = await r.json();
-    if (!d.ok) return;
-    const users     = d.data;
-    const total     = users.length;
-    const active    = users.filter(u => u.status === 'active').length;
-    const pending   = users.filter(u => u.status === 'pending').length;
-    const suspended = users.filter(u => u.status === 'suspended').length;
-    const guests    = users.filter(u => u.role   === 'guest').length;
 
-    document.getElementById('stat-total').textContent     = total;
-    document.getElementById('stat-active').textContent    = active;
-    document.getElementById('stat-pending').textContent   = pending;
-    document.getElementById('stat-suspended').textContent = suspended;
-    document.getElementById('stat-guest').textContent     = guests;
+/**
+ * Apply a stats payload (from site_stats.php) to the DOM.
+ * Called both on first load (umLoadStats) and on every 60s poll (fetchOnlineStats).
+ */
+function umUpdateStats(d) {
+  const fmt = n => (n ?? 0).toLocaleString();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // KPI cards — online/today (both dashboard + analytics panel copies)
+  ['kpi-online', 'kpi-online-2'].forEach(id => set(id, fmt(d.online_auth ?? d.online ?? 0)));
+  ['kpi-today',  'kpi-today-2' ].forEach(id => set(id, fmt(d.today ?? d.logins_today ?? 0)));
+
+  // Guest sub-labels
+  ['kpi-online-guest', 'kpi-online-guest-2'].forEach(id => {
+    const g = d.online_guest ?? 0;
+    set(id, fmt(g) + ' guest' + (g !== 1 ? 's' : ''));
+  });
+
+  // User summary cards (only present when site_stats returns user counts)
+  if (d.users_total !== undefined) {
+    set('stat-total',     fmt(d.users_total));
+    set('stat-active',    fmt(d.users_active));
+    set('stat-pending',   fmt(d.users_pending));
+    set('stat-suspended', fmt(d.users_suspended));
+    set('stat-guest',     fmt(d.users_guests));
 
     const navBadge = document.getElementById('pending-nav-badge');
-    navBadge.textContent   = pending;
-    navBadge.style.display = pending > 0 ? '' : 'none';
+    if (navBadge) {
+      navBadge.textContent   = d.users_pending;
+      navBadge.style.display = d.users_pending > 0 ? '' : 'none';
+    }
+  }
+}
+
+async function umLoadStats() {
+  try {
+    const fd = new FormData();
+    fd.append('action', 'online_stats');
+    const r = await fetch('site_stats.php', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.ok) umUpdateStats(d);
   } catch (e) { /* silent */ }
 }
+
+/* ── Online stats polling (owned here, not in manage.php inline script) ── */
+(function startOnlinePolling() {
+  async function fetchOnlineStats() {
+    try {
+      const fd = new FormData();
+      fd.append('action', 'online_stats');
+      const r = await fetch('site_stats.php', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (d.ok) umUpdateStats(d);
+    } catch (e) { /* silent */ }
+  }
+  fetchOnlineStats();                          // immediate first call
+  setInterval(fetchOnlineStats, 60_000);       // then every 60s
+}());
 
 /* ── Pending list ── */
 async function umLoadPending() {
