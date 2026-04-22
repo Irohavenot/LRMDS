@@ -14,6 +14,7 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
 <link rel="stylesheet" href="assets/css/header.css"/>
 <link rel="stylesheet" href="assets/css/header_responsive.css"/>
 <link rel="stylesheet" href="assets/css/signin-modal.css"/>
+<link rel="stylesheet" href="assets/css/profile_panel.css"/>
 
 <header class="header" role="banner">
   <div class="container inner">
@@ -68,8 +69,18 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
         </a>
       <?php endif; ?>
 
-      <?php if ($isSignedIn): ?>
-        <a href="#" class="button primary" id="hdr-signout-btn">Sign Out</a>
+      <?php if ($isSignedIn):
+        $hdr_initials = strtoupper(
+          substr($_SESSION['user_name'] ?? $_SESSION['user'] ?? 'U', 0, 1) .
+          (isset($_SESSION['user_last']) ? substr($_SESSION['user_last'], 0, 1) : '')
+        );
+      ?>
+        <!-- Hidden sign-out btn kept for JS sign-out modal wiring -->
+        <button style="display:none" id="hdr-signout-btn" aria-hidden="true"></button>
+        <a href="#" class="hdr-avatar-btn" id="hdr-account-btn" aria-label="Open profile">
+          <span class="hdr-avatar-mini" aria-hidden="true"><?= $hdr_initials ?></span>
+          <span><?= htmlspecialchars($_SESSION['user_name'] ?? 'Account') ?></span>
+        </a>
       <?php else: ?>
         <a href="#" class="button primary" id="hdr-signin-btn">Sign In</a>
       <?php endif; ?>
@@ -190,10 +201,15 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
     <span>News</span>
   </a>
 
-  <?php if ($isSignedIn): ?>
-    <a class="mob-nav-item" href="#" id="mob-signout-btn">
-      <span class="mob-icon-wrap"><img src="assets/icons/seal-check.svg" alt=""></span>
-      <span>Account</span>
+  <?php if ($isSignedIn):
+    $mob_initials = strtoupper(
+      substr($_SESSION['user_name'] ?? $_SESSION['user'] ?? 'U', 0, 1) .
+      (isset($_SESSION['user_last']) ? substr($_SESSION['user_last'], 0, 1) : '')
+    );
+  ?>
+    <a class="mob-nav-item" href="#" id="mob-account-btn">
+      <span class="mob-icon-wrap"><span class="mob-avatar-mini" aria-hidden="true"><?= $mob_initials ?></span></span>
+      <span>Profile</span>
     </a>
   <?php else: ?>
     <a class="mob-nav-item" href="#" id="mob-signin-btn">
@@ -237,4 +253,7 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
 <script src="assets/js/header_mobile.js"></script>
 <?php if (!$isSignedIn): ?>
 <script src="assets/js/signin-modal.js"></script>
+<?php else: ?>
+<?php include_once 'profile_panel.php'; ?>
+<script src="assets/js/profile_panel.js"></script>
 <?php endif; ?>

@@ -21,6 +21,39 @@ Online Users kay dili mao
 Most Graphs kay prototype pa kay wa paman puy resources. 
 Edit Button not working yet.
 
+
+
+Here's the SQL to insert a new admin account — just fill in your details:
+sqlINSERT INTO `users` (
+  `email`, `password_hash`, `first_name`, `last_name`,
+  `role`, `status`, `region`, `division`, `employee_id`,
+  `totp_enabled`, `created_at`
+) VALUES (
+  'your_email@example.com',
+  '$2y$10$REPLACE_WITH_BCRYPT_HASH',
+  'FirstName',
+  'LastName',
+  'admin',
+  'active',
+  'Region VII',   -- e.g. Region VI, Region VII, NCR
+  NULL,           -- admins typically leave this NULL
+  NULL,           -- optional
+  0,              -- 0 = TOTP not yet enrolled
+  NOW()
+);
+
+For the password hash, run this in any PHP file (e.g. a temp hash.php):
+php<?php echo password_hash('YourPasswordHere', PASSWORD_BCRYPT); ?>
+Copy the output and paste it in place of $2y$10$REPLACE_WITH_BCRYPT_HASH.
+
+After running the INSERT, the full flow based on your code will be:
+
+Sign in at signin.php with the email + password
+signin_handler.php sees role = 'admin' and totp_enabled = 0, so it redirects to totp_setup.php
+Once TOTP setup completes, totp_enabled flips to 1 and future logins will go through totp_verify.php
+
+Alternatively, you can use admin_totp_enroll.php to enroll TOTP directly from localhost before the first login — just set totp_enabled = 0 in the INSERT and let the enrollment script handle the rest.
+
 E pareha lang sa Browsing Grade:
 By Learning Area
 By resource Type
