@@ -147,6 +147,55 @@
     </div>
   </div>
 </section>
+<section class="section container" aria-label="Site statistics">
+  <h2>Site Activity</h2>
+  <div class="site-stats-row">
+ 
+    <div class="site-stat-card">
+      <div class="site-stat-icon site-stat-icon--blue">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="site-stat-body">
+        <div class="site-stat-value" data-stat="online">—</div>
+        <div class="site-stat-label">Currently Online</div>
+      </div>
+      <span class="site-stat-pulse" aria-hidden="true"></span>
+    </div>
+ 
+    <div class="site-stat-card">
+      <div class="site-stat-icon site-stat-icon--green">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+      </div>
+      <div class="site-stat-body">
+        <div class="site-stat-value" data-stat="logins-today">—</div>
+        <div class="site-stat-label">Logins Today</div>
+      </div>
+    </div>
+ 
+    <div class="site-stat-card">
+      <div class="site-stat-icon site-stat-icon--yellow">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 3v18h18"/>
+          <polyline points="18 9 13 14 9 10 3 16"/>
+        </svg>
+      </div>
+      <div class="site-stat-body">
+        <div class="site-stat-value" data-stat="total-visits">—</div>
+        <div class="site-stat-label">Total Visits</div>
+      </div>
+    </div>
+ 
+  </div>
+</section>
 
 <section class="section container" aria-label="Regions & Divisions selector">
   <h2>Regions & Divisions</h2>
@@ -161,8 +210,8 @@
     <select id="division" name="division">
       <option>Cebu Province</option><option selected>Carcar City</option><option>Cebu City</option>
     </select>
-    <a href="search.php?region=VII&division=Carcar" class="button ghost">
-      <img src="assets/icons/map-pin.svg" alt="" style="vertical-align:middle;margin-right:6px">View Resources
+    <a href="search.php?region=VII&division=Carcar" class="button primary" id="region-view-btn">
+      <img src="assets/icons/map-pin.svg" alt="" style="vertical-align:middle;margin-right:6px;filter:brightness(0) invert(1)">View Resources
     </a>
   </div>
 </section>
@@ -170,6 +219,23 @@
 <?php include 'includes/footer.php'; ?>
 
 <script src="assets/js/app.js"></script>
+<script src="assets/js/site-stats.js"></script>
+
+<!-- Update "View Resources" link when region/division dropdowns change -->
+<script>
+  (function () {
+    const regionSel   = document.getElementById('region');
+    const divisionSel = document.getElementById('division');
+    const viewBtn     = document.getElementById('region-view-btn');
+    function updateLink() {
+      if (!viewBtn) return;
+      viewBtn.href = 'search.php?region=' + encodeURIComponent(regionSel.value)
+                   + '&division='         + encodeURIComponent(divisionSel.value);
+    }
+    regionSel?.addEventListener('change', updateLink);
+    divisionSel?.addEventListener('change', updateLink);
+  })();
+</script>
 
 <!-- Auto-open sign-in modal if redirected here from a protected page -->
 <script>
