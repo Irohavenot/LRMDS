@@ -54,4 +54,67 @@ Once TOTP setup completes, totp_enabled flips to 1 and future logins will go thr
 
 Alternatively, you can use admin_totp_enroll.php to enroll TOTP directly from localhost before the first login — just set totp_enabled = 0 in the INSERT and let the enrollment script handle the rest.
 
+E pareha lang sa Browsing Grade:
+By Learning Area
+By resource Type
+E leave lang ang by MELCs
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+I LAB U AYRESH

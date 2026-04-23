@@ -55,14 +55,14 @@
             <div class="desc">Kindergarten to SHS</div>
           </div>
         </a>
-        <a class="tile" href="search.php?subject=English">
+        <a class="tile" href="browse-subject.php">
           <span class="icon"><img src="assets/icons/book-open.svg" alt=""></span>
           <div>
             <div class="label">By Learning Area</div>
             <div class="desc">English, Science, Math, Filipino…</div>
           </div>
         </a>
-        <a class="tile" href="search.php?type=SLM">
+        <a class="tile" href="browse-type.php">
           <span class="icon"><img src="assets/icons/folders.svg" alt=""></span>
           <div>
             <div class="label">By Resource Type</div>
@@ -130,7 +130,7 @@
     <a class="action" href="search.php?type=OER"><img src="assets/icons/globe.svg" alt=""/><div><div class="title">OER</div><div class="desc">Open resources</div></div></a>
     <a class="action" href="submit.php"><img src="assets/icons/upload.svg" alt=""/><div><div class="title">Submit Resource</div><div class="desc">Upload & track</div></div></a>
     <a class="action" href="qa-tools.php"><img src="assets/icons/seal-check.svg" alt=""/><div><div class="title">QA Tools</div><div class="desc">Rubrics & templates</div></div></a>
-    <a class="action" href="helpdesk.php"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We're here to help</div></div></a>
+    <a class="action" href="train-support.php#helpdesk"><img src="assets/icons/life-ring.svg" alt=""/><div><div class="title">Helpdesk</div><div class="desc">We're here to help</div></div></a>
   </div>
 </section>
 
