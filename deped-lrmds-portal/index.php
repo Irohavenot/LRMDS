@@ -55,14 +55,14 @@
             <div class="desc">Kindergarten to SHS</div>
           </div>
         </a>
-        <a class="tile" href="search.php?subject=English">
+        <a class="tile" href="browse-subject.php">
           <span class="icon"><img src="assets/icons/book-open.svg" alt=""></span>
           <div>
             <div class="label">By Learning Area</div>
             <div class="desc">English, Science, Math, Filipino…</div>
           </div>
         </a>
-        <a class="tile" href="search.php?type=SLM">
+        <a class="tile" href="browse-type.php">
           <span class="icon"><img src="assets/icons/folders.svg" alt=""></span>
           <div>
             <div class="label">By Resource Type</div>
