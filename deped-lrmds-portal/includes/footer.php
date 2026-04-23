@@ -16,9 +16,9 @@
       <div>
         <h4>Support</h4>
         <ul>
-          <li><a href="#">Helpdesk</a></li>
-          <li><a href="#">Guides</a></li>
-          <li><a href="#">FAQs</a></li>
+          <li><a href="train-support.php#helpdesk">Helpdesk</a></li>
+          <li><a href="train-support.php#guides">Guides</a></li>
+          <li><a href="train-support.php#faq">FAQs</a></li>
         </ul>
       </div>
       <div>
