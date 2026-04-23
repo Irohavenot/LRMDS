@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  const API              = 'site_stats.php';
+  const API = '/lrmds/deped-lrmds-portal/site_stats.php';
   const HEARTBEAT_MS     = 30_000;   // 30 seconds
   const STATS_REFRESH_MS = 60_000;   // 60 seconds
 
@@ -23,7 +23,7 @@
   function sendHeartbeat() {
     const fd = new FormData();
     fd.append('action', 'heartbeat');
-    return fetch(API, { method: 'POST', body: fd })
+    return fetch(API, { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(r => r.json())
       .then(d => {
         if (d.ok) console.debug('[LRMDS stats] heartbeat OK, sid:', d.sid);
@@ -34,7 +34,7 @@
 
   /* ── Fetch and display stats ───────────────────────────────*/
   function fetchStats() {
-    return fetch(API + '?action=get_stats&_=' + Date.now())
+    return fetch(API + '?action=get_stats&_=' + Date.now(), { credentials: 'same-origin' })
       .then(r => {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();

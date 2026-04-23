@@ -39,6 +39,10 @@ function db(): PDO {
         SS_USER, SS_PASS,
         [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]
     );
+    // Sync MySQL timezone to PHP so date comparisons are consistent
+    $offset = (new DateTimeZone(date_default_timezone_get()))->getOffset(new DateTime()) / 3600;
+    $sign   = $offset >= 0 ? '+' : '-';
+    $pdo->exec("SET time_zone = '{$sign}" . abs($offset) . ":00'");
     return $pdo;
 }
 
@@ -177,6 +181,15 @@ if ($action === 'debug') {
     echo "\nuser_sessions:\n";
     foreach($p->query("SELECT user_id,last_seen FROM user_sessions ORDER BY last_seen DESC LIMIT 10")->fetchAll() as $r)
         echo "  uid=".$r['user_id']."  ".$r['last_seen']."\n";
+
+    echo "\n--- Clock check ---\n";
+    echo "  PHP  NOW : ".date('Y-m-d H:i:s')."\n";
+    echo "  MySQL NOW: ".$p->query("SELECT NOW()")->fetchColumn()."\n";
+    echo "  MySQL TZ : ".$p->query("SELECT @@session.time_zone")->fetchColumn()."\n\n";
+
+    echo "--- Raw user_sessions rows vs MySQL NOW ---\n";
+    foreach($p->query("SELECT user_id, last_seen, TIMESTAMPDIFF(SECOND, last_seen, NOW()) AS age_sec FROM user_sessions ORDER BY last_seen DESC LIMIT 5")->fetchAll() as $r)
+        echo "  uid=".$r['user_id']."  last_seen=".$r['last_seen']."  age=".($r['age_sec'])."s\n";
 
     echo "\n--- Online counts (user_sessions, ".ONLINE_SEC."s window) ---\n";
     $a = (int)$p->query("SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE last_seen >= DATE_SUB(NOW(), INTERVAL ".ONLINE_SEC." SECOND)")->fetchColumn();

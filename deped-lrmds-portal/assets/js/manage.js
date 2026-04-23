@@ -288,7 +288,7 @@ async function umLoadStats() {
   try {
     const fd = new FormData();
     fd.append('action', 'online_stats');
-    const r = await fetch('site_stats.php', { method: 'POST', body: fd });
+    const r = await fetch('site_stats.php', { method: 'POST', body: fd, credentials: 'same-origin' });const r = await fetch('site_stats.php', { method: 'POST', body: fd });
     const d = await r.json();
     if (d.ok) umUpdateStats(d);
   } catch (e) { /* silent */ }
@@ -300,7 +300,7 @@ async function umLoadStats() {
     try {
       const fd = new FormData();
       fd.append('action', 'online_stats');
-      const r = await fetch('site_stats.php', { method: 'POST', body: fd });
+      const r = await fetch('site_stats.php', { method: 'POST', body: fd, credentials: 'same-origin' });
       const d = await r.json();
       if (d.ok) umUpdateStats(d);
     } catch (e) { /* silent */ }
