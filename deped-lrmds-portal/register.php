@@ -106,6 +106,24 @@
       background: #FFFBEB; border: 1.5px solid #FDE68A;
       border-radius: 12px; padding: 14px 16px; margin-bottom: 4px;
     }
+
+    /* ── Auto-capitalize name inputs ── */
+    #reg-fname, #reg-lname {
+      text-transform: capitalize;
+    }
+
+    /* ── Password requirement checklist ── */
+    .pw-reqs {
+      margin: 8px 0 4px; padding: 0; list-style: none;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;
+    }
+    .pw-reqs li {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #9CA3AF; transition: color .2s;
+    }
+    .pw-reqs li .req-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    .pw-reqs li.met { color: #059669; }
+    .pw-reqs li.unmet { color: #EF4444; }
   </style>
 </head>
 <body class="reg-body">
@@ -243,7 +261,7 @@
           </div>
           <div class="rf-group" id="rfg-lname">
             <label class="rf-label" for="reg-lname">Last Name <span class="rf-req">*</span></label>
-            <input class="rf-input" type="text" id="reg-lname" name="lname" placeholder="dela Cruz" autocomplete="family-name" required/>
+            <input class="rf-input" type="text" id="reg-lname" name="lname" placeholder="Dela Cruz" autocomplete="family-name" required/>
             <span class="rf-error" id="reg-lname-err" role="alert"></span>
           </div>
         </div>
@@ -516,6 +534,28 @@
             <div class="pws-bar"><div class="pws-fill" id="pws-fill"></div></div>
             <span class="pws-label" id="pws-label"></span>
           </div>
+          <ul class="pw-reqs" id="pw-reqs" aria-label="Password requirements">
+            <li id="req-length" class="unmet">
+              <svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              At least 8 characters
+            </li>
+            <li id="req-upper" class="unmet">
+              <svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              One uppercase letter (A–Z)
+            </li>
+            <li id="req-lower" class="unmet">
+              <svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              One lowercase letter (a–z)
+            </li>
+            <li id="req-number" class="unmet">
+              <svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              One number (0–9)
+            </li>
+            <li id="req-special" class="unmet">
+              <svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              One special character (!@#$…)
+            </li>
+          </ul>
           <span class="rf-error" id="reg-pw-err" role="alert"></span>
         </div>
 
@@ -703,5 +743,85 @@
 </div>
 
 <script src="assets/js/register.js"></script>
+<script>
+/* ── Auto-capitalize: first letter of each word in name fields ── */
+(function () {
+  function toTitleCase(str) {
+    return str.replace(/\b\w/g, function (ch) { return ch.toUpperCase(); });
+  }
+
+  ['reg-fname', 'reg-lname'].forEach(function (id) {
+    var input = document.getElementById(id);
+    if (!input) return;
+
+    /* Fix on every input event so it feels live */
+    input.addEventListener('input', function () {
+      var pos = this.selectionStart;
+      var fixed = toTitleCase(this.value);
+      if (fixed !== this.value) {
+        this.value = fixed;
+        /* Restore cursor position */
+        this.setSelectionRange(pos, pos);
+      }
+    });
+
+    /* Also fix on blur (handles paste etc.) */
+    input.addEventListener('blur', function () {
+      this.value = toTitleCase(this.value);
+    });
+  });
+})();
+
+/* ── Strong password requirement checker ── */
+(function () {
+  var pwInput   = document.getElementById('reg-pw');
+  if (!pwInput) return;
+
+  var CHECK_SVG = '<svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+  var WARN_SVG  = '<svg class="req-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
+
+  var rules = [
+    { id: 'req-length',  test: function (v) { return v.length >= 8; } },
+    { id: 'req-upper',   test: function (v) { return /[A-Z]/.test(v); } },
+    { id: 'req-lower',   test: function (v) { return /[a-z]/.test(v); } },
+    { id: 'req-number',  test: function (v) { return /[0-9]/.test(v); } },
+    { id: 'req-special', test: function (v) { return /[^A-Za-z0-9]/.test(v); } },
+  ];
+
+  function updateReqs(val) {
+    var metCount = 0;
+    rules.forEach(function (rule) {
+      var el   = document.getElementById(rule.id);
+      if (!el) return;
+      var pass = rule.test(val);
+      if (pass) metCount++;
+      el.className = pass ? 'met' : (val.length > 0 ? 'unmet' : '');
+      el.innerHTML = (pass ? CHECK_SVG : WARN_SVG) + el.textContent.trim();
+    });
+    return metCount;
+  }
+
+  pwInput.addEventListener('input', function () {
+    updateReqs(this.value);
+  });
+
+  /* Override the Continue/Review button to enforce strong password */
+  var nextBtn = document.getElementById('reg-next-2');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function (e) {
+      var val = pwInput.value;
+      var unmet = rules.filter(function (r) { return !r.test(val); });
+      if (unmet.length > 0) {
+        e.stopImmediatePropagation();
+        var errEl = document.getElementById('reg-pw-err');
+        if (errEl) {
+          errEl.textContent = 'Your password must meet all the requirements listed above.';
+        }
+        pwInput.focus();
+      }
+    }, true); /* capture phase — runs before register.js handlers */
+  }
+})();
+</script>
 </body>
 </html>
