@@ -260,14 +260,14 @@ function approvable_labels(string $role): string {
       <!-- ══ DASHBOARD ══ -->
       <div id="panel-dashboard">
         <!-- Online stats KPIs -->
-        <div class="online-kpi-row">
+        <div class="online-kpi-row" style="grid-template-columns:repeat(3,1fr)">
           <div class="online-kpi">
             <div class="online-kpi-icon green">
               <svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div>
               <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online">—</span></div>
-              <div class="online-kpi-label">Users Online Now (5 min)</div>
+              <div class="online-kpi-label">Registered Online</div>
               <div class="online-kpi-guest" id="kpi-online-guest">— guests</div>
             </div>
           </div>
@@ -278,6 +278,15 @@ function approvable_labels(string $role): string {
             <div>
               <div class="online-kpi-val blue" id="kpi-today">—</div>
               <div class="online-kpi-label">Logins Today</div>
+            </div>
+          </div>
+          <div class="online-kpi">
+            <div class="online-kpi-icon" style="background:#FFF7ED">
+              <svg width="22" height="22" fill="none" stroke="#D97706" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="18 9 13 14 9 10 3 16"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val" style="color:#D97706" id="kpi-visits">—</div>
+              <div class="online-kpi-label">Total Visits</div>
             </div>
           </div>
         </div>
@@ -374,14 +383,14 @@ function approvable_labels(string $role): string {
       <!-- ══ ANALYTICS ══ -->
       <div id="panel-analytics" style="display:none">
         <!-- Online stats in analytics too -->
-        <div class="online-kpi-row" style="margin-bottom:16px">
+        <div class="online-kpi-row" style="margin-bottom:16px;grid-template-columns:repeat(3,1fr)">
           <div class="online-kpi">
             <div class="online-kpi-icon green">
               <svg width="22" height="22" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div>
               <div class="online-kpi-val green"><span class="online-dot"></span><span id="kpi-online-2">—</span></div>
-              <div class="online-kpi-label">Users Online Now (5 min)</div>
+              <div class="online-kpi-label">Registered Online</div>
               <div class="online-kpi-guest" id="kpi-online-guest-2">— guests</div>
             </div>
           </div>
@@ -392,6 +401,15 @@ function approvable_labels(string $role): string {
             <div>
               <div class="online-kpi-val blue" id="kpi-today-2">—</div>
               <div class="online-kpi-label">Logins Today</div>
+            </div>
+          </div>
+          <div class="online-kpi">
+            <div class="online-kpi-icon" style="background:#FFF7ED">
+              <svg width="22" height="22" fill="none" stroke="#D97706" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="18 9 13 14 9 10 3 16"/></svg>
+            </div>
+            <div>
+              <div class="online-kpi-val" style="color:#D97706" id="kpi-visits-2">—</div>
+              <div class="online-kpi-label">Total Visits</div>
             </div>
           </div>
         </div>
@@ -463,6 +481,7 @@ function approvable_labels(string $role): string {
           <div class="um-stat"><div class="um-stat-val um-val-yellow" id="stat-pending">—</div><div class="um-stat-label">Pending (Your Queue)</div></div>
           <div class="um-stat"><div class="um-stat-val um-val-red" id="stat-suspended">—</div><div class="um-stat-label">Suspended</div></div>
           <div class="um-stat"><div class="um-stat-val um-val-muted" id="stat-guest">—</div><div class="um-stat-label">Guests</div></div>
+          <div class="um-stat"><div class="um-stat-val" style="color:#D97706" id="stat-visits">—</div><div class="um-stat-label">Total Visits</div></div>
         </div>
 
         <div class="card">

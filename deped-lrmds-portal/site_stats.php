@@ -105,26 +105,33 @@ function heartbeat(): void {
 }
 
 // ── Stats ─────────────────────────────────────────────────────
-function stats(bool $manage): array {
+// Roles that REQUIRE TOTP (must mirror signin_handler.php / manage.js)
+define('TOTP_ROLES', ['teacher', 'school-head', 'developer', 'admin']);
+
+function stats(bool $manage, ?string $actor_role = null): array {
     $p = db();
 
-    // Authenticated online: use user_sessions — written by BOTH user_api.php and heartbeat()
+    // ── Online counts ──────────────────────────────────────────
+    // Authenticated: tracked in user_sessions (written by heartbeat + user_api)
     $onlineAuth = (int) $p->query("
         SELECT COUNT(DISTINCT user_id) FROM user_sessions
         WHERE last_seen >= DATE_SUB(NOW(), INTERVAL ".ONLINE_SEC." SECOND)
     ")->fetchColumn();
 
-    // Guest online: site_sessions rows with no user_id
+    // Guests: site_sessions with no user_id
     $onlineGuest = (int) $p->query("
         SELECT COUNT(*) FROM site_sessions
         WHERE user_id IS NULL
           AND last_seen >= DATE_SUB(NOW(), INTERVAL ".ONLINE_SEC." SECOND)
     ")->fetchColumn();
 
+    // ── Basic visit/login stats ────────────────────────────────
     $loginsToday = 0;
-    try { $loginsToday = (int)$p->query("SELECT COUNT(*) FROM users WHERE DATE(last_login)=CURDATE()")->fetchColumn(); } catch(Exception $e){}
-
-    $totalVisits = (int)$p->query("SELECT COUNT(*) FROM site_visits")->fetchColumn();
+    $totalVisits = 0;
+    try {
+        $loginsToday = (int) $p->query("SELECT COUNT(*) FROM users WHERE DATE(last_login) = CURDATE()")->fetchColumn();
+        $totalVisits = (int) $p->query("SELECT COUNT(*) FROM site_visits")->fetchColumn();
+    } catch(Exception $e) {}
 
     $out = [
         'ok'           => true,
@@ -133,25 +140,86 @@ function stats(bool $manage): array {
         'online_guest' => $onlineGuest,
         'logins_today' => $loginsToday,
         'total_visits' => $totalVisits,
-        'today'        => $loginsToday,
+        'today'        => $loginsToday,  // alias used by manage.js
     ];
 
-    if ($manage) {
-        try {
-            $row = $p->query("SELECT
-                COUNT(*) AS total,
-                SUM(status='active') AS active,
-                SUM(status IN ('pending','email_pending')) AS pending,
-                SUM(status='suspended') AS suspended,
-                SUM(role='guest') AS guests
-            FROM users")->fetch();
-            $out['users_total']     = (int)($row['total']??0);
-            $out['users_active']    = (int)($row['active']??0);
-            $out['users_pending']   = (int)($row['pending']??0);
-            $out['users_suspended'] = (int)($row['suspended']??0);
-            $out['users_guests']    = (int)($row['guests']??0);
-        } catch(Exception $e){}
+    if (!$manage) return $out;
+
+    // ── Extended stats for manage.php dashboard ────────────────
+    try {
+        // User status/role summary
+        $row = $p->query("SELECT
+            COUNT(*)                                        AS total,
+            SUM(status = 'active')                         AS active,
+            SUM(status IN ('pending','email_pending'))     AS pending,
+            SUM(status = 'suspended')                      AS suspended,
+            SUM(role = 'guest')                            AS guests,
+            SUM(DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7  DAY)) AS new_week,
+            SUM(DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)) AS new_month
+        FROM users")->fetch();
+
+        $out['users_total']          = (int)($row['total']    ?? 0);
+        $out['users_active']         = (int)($row['active']   ?? 0);
+        $out['users_pending']        = (int)($row['pending']  ?? 0);
+        $out['users_suspended']      = (int)($row['suspended']?? 0);
+        $out['users_guests']         = (int)($row['guests']   ?? 0);
+        $out['users_new_this_week']  = (int)($row['new_week'] ?? 0);
+        $out['users_new_this_month'] = (int)($row['new_month']?? 0);
+
+        // ── Role-scoped pending count (for the nav badge) ──────
+        // Uses the caller's role the same way user_api.php did.
+        if ($actor_role !== null) {
+            $approvable = match($actor_role) {
+                'admin'       => ['teacher', 'school-head', 'developer', 'admin'],
+                'developer'   => ['school-head', 'developer'],
+                'school-head' => ['teacher'],
+                default       => [],
+            };
+            if (!empty($approvable)) {
+                $in  = implode(',', array_fill(0, count($approvable), '?'));
+                $st  = $p->prepare("SELECT COUNT(*) FROM users WHERE status='pending' AND role IN ($in)");
+                $st->execute($approvable);
+                $out['users_pending'] = (int) $st->fetchColumn();
+            }
+        }
+
+        // ── 2FA adoption ───────────────────────────────────────
+        $totpRoles = TOTP_ROLES;
+        $inTotp    = implode(',', array_fill(0, count($totpRoles), '?'));
+        $totpSt    = $p->prepare("SELECT
+            SUM(totp_enabled = 1) AS enabled,
+            COUNT(*)              AS required
+        FROM users WHERE role IN ($inTotp)");
+        $totpSt->execute($totpRoles);
+        $totpRow = $totpSt->fetch();
+        $out['totp_enabled_count']  = (int)($totpRow['enabled']  ?? 0);
+        $out['totp_required_count'] = (int)($totpRow['required'] ?? 0);
+
+        // ── Visit breakdown ────────────────────────────────────
+        $out['visits_today']     = (int) $p->query("SELECT COUNT(*) FROM site_visits WHERE visit_date = CURDATE()")->fetchColumn();
+        $out['visits_this_week'] = (int) $p->query("SELECT COUNT(*) FROM site_visits WHERE visit_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")->fetchColumn();
+
+        // ── Online breakdown by role ───────────────────────────
+        // Join user_sessions (active within ONLINE_SEC) back to users to get role
+        $roleRows = $p->query("
+            SELECT u.role, COUNT(*) AS cnt
+            FROM user_sessions us
+            JOIN users u ON u.id = us.user_id
+            WHERE us.last_seen >= DATE_SUB(NOW(), INTERVAL ".ONLINE_SEC." SECOND)
+            GROUP BY u.role
+        ")->fetchAll();
+
+        $byRole = [];
+        foreach ($roleRows as $r) {
+            $byRole[$r['role']] = (int) $r['cnt'];
+        }
+        $out['online_by_role'] = $byRole;
+
+    } catch(Exception $e) {
+        // Non-fatal: partial stats are still useful
+        error_log('LRMDS site_stats extended: ' . $e->getMessage());
     }
+
     return $out;
 }
 
@@ -197,7 +265,7 @@ if ($action === 'debug') {
     echo "  Auth  : $a\n  Guest : $g\n\n";
 
     echo "--- Simulated online_stats JSON ---\n";
-    echo json_encode(stats(true), JSON_PRETTY_PRINT)."\n";
+    echo json_encode(stats(true, $_SESSION['user_role'] ?? null), JSON_PRETTY_PRINT)."\n";
     exit;
 }
 
@@ -211,7 +279,9 @@ try {
 
 if ($action === 'online_stats' && $_SERVER['REQUEST_METHOD']==='POST') {
     heartbeat();
-    echo json_encode(stats(true));
+    // Pass the actor's role so pending counts are scoped to their approval level
+    $actor_role = $_SESSION['user_role'] ?? null;
+    echo json_encode(stats(true, $actor_role));
     exit;
 }
 

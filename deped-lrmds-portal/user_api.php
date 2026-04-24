@@ -112,39 +112,11 @@ if ($action === 'stats') {
 }
 
 /* ════════════════════════════════════════════════════════
-   ACTION: online_stats
-   Tracks presence via a lightweight session-heartbeat table.
-   Falls back gracefully if the table doesn't exist yet.
+   ACTION: online_stats  — forwarded to site_stats.php
+   Kept for backwards compatibility only.
 ════════════════════════════════════════════════════════ */
 if ($action === 'online_stats') {
-    // Heartbeat: upsert current user's activity
-    try {
-        $pdo->prepare('
-            INSERT INTO user_sessions (user_id, last_seen)
-            VALUES (?, NOW())
-            ON DUPLICATE KEY UPDATE last_seen = NOW()
-        ')->execute([$actor_id]);
-    } catch (PDOException) { /* table may not exist yet */ }
-
-    // Online = active within the last 5 minutes
-    $online = 0;
-    try {
-        $online = (int) $pdo->query("
-            SELECT COUNT(DISTINCT user_id) FROM user_sessions
-            WHERE last_seen >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-        ")->fetchColumn();
-    } catch (PDOException) {}
-
-    // Logins today = last_login >= today 00:00:00
-    $today = 0;
-    try {
-        $today = (int) $pdo->query("
-            SELECT COUNT(*) FROM users
-            WHERE DATE(last_login) = CURDATE()
-        ")->fetchColumn();
-    } catch (PDOException) {}
-
-    echo json_encode(['ok' => true, 'online' => $online, 'today' => $today]);
+    require __DIR__ . '/site_stats.php';
     exit;
 }
 

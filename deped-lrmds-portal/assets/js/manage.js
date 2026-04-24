@@ -268,6 +268,9 @@ function umUpdateStats(d) {
     set(id, fmt(g) + ' guest' + (g !== 1 ? 's' : ''));
   });
 
+  // Total visits KPI
+  ['kpi-visits', 'kpi-visits-2'].forEach(id => set(id, fmt(d.total_visits ?? 0)));
+
   // User summary cards (only present when site_stats returns user counts)
   if (d.users_total !== undefined) {
     set('stat-total',     fmt(d.users_total));
@@ -275,6 +278,7 @@ function umUpdateStats(d) {
     set('stat-pending',   fmt(d.users_pending));
     set('stat-suspended', fmt(d.users_suspended));
     set('stat-guest',     fmt(d.users_guests));
+    set('stat-visits',    fmt(d.total_visits ?? 0));
 
     const navBadge = document.getElementById('pending-nav-badge');
     if (navBadge) {
@@ -288,7 +292,7 @@ async function umLoadStats() {
   try {
     const fd = new FormData();
     fd.append('action', 'online_stats');
-    const r = await fetch('site_stats.php', { method: 'POST', body: fd, credentials: 'same-origin' });const r = await fetch('site_stats.php', { method: 'POST', body: fd });
+    const r = await fetch('site_stats.php', { method: 'POST', body: fd, credentials: 'same-origin' });
     const d = await r.json();
     if (d.ok) umUpdateStats(d);
   } catch (e) { /* silent */ }
