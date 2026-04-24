@@ -636,17 +636,63 @@
         <span class="rf-error" id="reg-submit-err" role="alert" style="display:block;margin-top:8px;text-align:center"></span>
       </div>
 
-      <!-- SUCCESS -->
+      <!-- SUCCESS — two states, only one shown at a time via JS -->
+
+      <!--
+        State A: TOTP roles (teacher / school-head / developer)
+        No sign-in button — they CANNOT sign in yet (account is pending admin approval).
+        JS hides all panels and shows this, then redirects to totp_setup.php after 3 s.
+      -->
+      <div class="reg-panel" id="reg-panel-totp-handoff" hidden>
+        <div class="reg-success">
+          <div class="rs-icon-wrap" style="background:#ECFDF5;">
+            <svg width="44" height="44" fill="none" stroke="#059669" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+            </svg>
+          </div>
+          <h2 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 10px;">
+            Details saved — one more step!
+          </h2>
+          <p style="font-size:14px;color:#6B7280;line-height:1.65;margin:0 0 6px;">
+            You are being taken to set up a <strong>security code on your phone</strong>.<br>
+            This is the <strong>last step</strong> before your account is submitted for approval.
+          </p>
+          <p style="font-size:13px;color:#9CA3AF;margin:0 0 24px;">
+            Do not close this page — you will be redirected automatically.
+          </p>
+          <!-- Progress bar -->
+          <div style="background:#E5E7EB;border-radius:999px;height:6px;overflow:hidden;max-width:240px;margin:0 auto 10px;">
+            <div id="totp-handoff-bar"
+                 style="height:100%;width:0;background:#059669;border-radius:999px;transition:width 3s linear;"></div>
+          </div>
+          <p style="font-size:12px;color:#9CA3AF;margin:0;">Redirecting in 3 seconds…</p>
+        </div>
+      </div>
+
+      <!--
+        State B: learner / parent — generic success, sign-in link is fine
+        (they go to registration_pending.php first anyway, this is a fallback)
+      -->
       <div class="reg-panel" id="reg-panel-success" hidden>
         <div class="reg-success">
           <div class="rs-icon-wrap">
-            <svg width="44" height="44" fill="none" stroke="#059669" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+            <svg width="44" height="44" fill="none" stroke="#059669" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+            </svg>
           </div>
-          <h2 id="success-title">Account Created!</h2>
-          <p id="success-msg">Welcome to LRMDS. You can now sign in and start accessing learning resources.</p>
-          <a href="signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;margin-top:8px">
+          <h2 id="success-title" style="font-size:22px;font-weight:800;color:#111827;margin:0 0 10px;">
+            Account Created!
+          </h2>
+          <p id="success-msg" style="font-size:14px;color:#6B7280;margin:0 0 20px;line-height:1.65;">
+            Welcome to LRMDS. You can now sign in and start accessing learning resources.
+          </p>
+          <a href="signin.php" id="success-signin-link"
+             class="rf-btn rf-btn-primary"
+             style="display:inline-flex;text-decoration:none;">
             Go to Sign In
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
           </a>
         </div>
       </div>

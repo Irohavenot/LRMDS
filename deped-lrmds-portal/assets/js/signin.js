@@ -156,22 +156,4 @@ qs('#btn-deped-sso')?.addEventListener('click', () => {
 });
 // Google is now handled by google_oauth.php — no stub needed here
 
-  /* ── Flash message from register/TOTP flow ── */
-  // totp_setup.php sets $_SESSION['flash_success'] on completion
-  // We read it via a data attribute injected by signin.php (see below)
-  const flash = document.body.dataset.flash;
-  if (flash) {
-    const pill = document.createElement('div');
-    pill.style.cssText =
-      'background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;' +
-      'font-size:13px;font-weight:600;border-radius:8px;' +
-      'padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;' +
-      'font-family:inherit';
-    pill.innerHTML =
-      '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">' +
-      '<path d="M20 6 9 17l-5-5"/></svg>' + flash;
-    const header = qs('.ar-header');
-    if (header) header.insertAdjacentElement('afterend', pill);
-  }
-
 })();

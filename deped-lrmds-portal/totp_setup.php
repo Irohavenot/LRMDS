@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             unset($_SESSION['totp_setup_user_id'], $_SESSION['pending_totp_secret']);
 
-            $_SESSION['flash_success'] = 'Two-factor authentication is now active on your account. Welcome!';
+            $_SESSION['flash_success'] = '🔐 Two-factor authentication is now active on your account. Welcome back, ' . $u_row['first_name'] . '!';
             header('Location: index.php');
             exit;
         }
@@ -231,8 +231,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Clean up session
         unset($_SESSION['pending_registration'], $_SESSION['pending_totp_secret']);
 
-        // Set flash message for signin page
-        $_SESSION['flash_success'] = 'Two-factor authentication is set up. Your account is ready — please sign in.';
+        // Build a short, plain-text flash for signin.php.
+        // - No HTML tags (signin.php runs it through htmlspecialchars before output)
+        // - Include position title if available (e.g. "Principal I · School Head / Curriculum")
+        $role_display = [
+            'teacher'     => 'Teacher',
+            'school-head' => 'School Head / Curriculum',
+            'developer'   => 'Content Developer / Partner',
+        ][$reg['role']] ?? 'Staff';
+
+        $position_label = '';
+        if (!empty($reg['meta'])) {
+            $meta_arr = json_decode($reg['meta'], true);
+            if (!empty($meta_arr['position'])) {
+                $position_labels = [
+                    'principal-1' => 'Principal I', 'principal-2' => 'Principal II',
+                    'principal-3' => 'Principal III', 'principal-4' => 'Principal IV',
+                    'head-teacher-1' => 'Head Teacher I', 'head-teacher-2' => 'Head Teacher II',
+                    'head-teacher-3' => 'Head Teacher III', 'head-teacher-4' => 'Head Teacher IV',
+                    'head-teacher-5' => 'Head Teacher V', 'head-teacher-6' => 'Head Teacher VI',
+                    'eps' => 'Education Program Supervisor', 'chief-eps' => 'Chief EPS',
+                    'asds' => 'ASDS / SDS', 'other-admin' => 'Administrator',
+                ];
+                $position_label = $position_labels[$meta_arr['position']] ?? '';
+            }
+        }
+
+        // e.g. "Principal I · School Head / Curriculum" or just "Teacher"
+        $title_line = $position_label
+            ? $position_label . ' · ' . $role_display
+            : $role_display;
+
+        // Short, plain text — signin.php escapes it with htmlspecialchars before echo
+        $_SESSION['flash_success'] =
+            'Registration complete, ' . $reg['fname'] . '! '
+            . '(' . $title_line . ') '
+            . "Your account is pending admin approval. We'll email you when it's ready.";
+
         header('Location: signin.php');
         exit;
     }
@@ -342,6 +377,38 @@ $first_name = htmlspecialchars($reg['fname']);
 <body class="reg-body" style="background:#F8FAFC">
 <div class="totp-wrap">
 
+  <?php if ($entry_mode === 'registration'): ?>
+  <!-- ── Registration arrival banner ─────────────────────────────────────
+       This replaces what used to be an ambiguous "Go to Sign In" flash.
+       It makes clear that the user is on the RIGHT page and doing the
+       RIGHT thing — not accidentally redirected somewhere confusing.
+  ──────────────────────────────────────────────────────────────────── -->
+  <div style="
+    background: #ECFDF5; border: 1.5px solid #6EE7B7; border-radius: 14px;
+    padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start;
+    margin-bottom: 28px;
+  ">
+    <div style="
+      width: 38px; height: 38px; background: #D1FAE5; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    ">
+      <svg width="20" height="20" fill="none" stroke="#059669" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+      </svg>
+    </div>
+    <div>
+      <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#065F46;">
+        ✅ Step 3 of 4 — Your details have been saved!
+      </p>
+      <p style="margin:0;font-size:13px;color:#047857;line-height:1.55;">
+        You are almost done. This last step sets up a security code on your phone
+        to protect your <strong><?= htmlspecialchars($role_label) ?></strong> account.
+        <strong>Do not close this page.</strong>
+      </p>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <div class="totp-badge">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     Two-Factor Authentication Setup
@@ -360,8 +427,8 @@ $first_name = htmlspecialchars($reg['fname']);
   </p>
   <?php else: ?>
   <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
-    As a <strong><?= htmlspecialchars($role_label) ?></strong>, your account requires two-factor authentication
-    before it can be created. This protects access to sensitive resources.
+    As a <strong><?= htmlspecialchars($role_label) ?></strong>, your account requires
+    two-factor authentication before it can be created. This protects access to sensitive resources.
   </p>
   <p style="font-size:13px;color:#9CA3AF;margin:0">
     Your account will only be saved once you complete this step.

@@ -367,7 +367,7 @@ async function umLoadUsers() {
   }
 }
 
-/* ── Applicant card ── */
+/* ── Applicant card (click-to-expand) ── */
 function umApplicantCard(u) {
   const name     = escHtml(u.first_name + ' ' + u.last_name);
   const email    = escHtml(u.email);
@@ -375,31 +375,101 @@ function umApplicantCard(u) {
   const initials = ((u.first_name[0] || '') + (u.last_name[0] || '')).toUpperCase();
   const meta     = u.meta || {};
 
-  const chips = [`<span class="chip chip-blue">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>`];
-  if (u.region)         chips.push(`<span class="chip chip-gray">${escHtml(u.region)}</span>`);
-  if (u.division)       chips.push(`<span class="chip chip-gray">${escHtml(u.division)}</span>`);
-  if (u.employee_id)    chips.push(`<span class="chip chip-gray">ID: ${escHtml(u.employee_id)}</span>`);
-  if (meta.position)    chips.push(`<span class="chip chip-purple">${escHtml(meta.position)}</span>`);
-  if (meta.school_name) chips.push(`<span class="chip chip-gray">${escHtml(meta.school_name)}</span>`);
+  // Build expanded detail rows from all available fields
+  const detailRows = [];
+  if (u.region)          detailRows.push(['Region',       u.region]);
+  if (u.division)        detailRows.push(['Division',     u.division]);
+  if (u.employee_id)     detailRows.push(['Employee ID',  u.employee_id]);
+  if (meta.grade_level)  detailRows.push(['Grade Level',  meta.grade_level]);
+  if (meta.subjects)     detailRows.push(['Subjects',     meta.subjects]);
+  if (meta.school_name)  detailRows.push(['School',       meta.school_name]);
+  if (meta.lrn)          detailRows.push(['LRN',          meta.lrn]);
+  if (meta.child_grade)  detailRows.push(['Child Grade',  meta.child_grade]);
+  if (meta.child_school) detailRows.push(['Child School', meta.child_school]);
+  if (meta.position)     detailRows.push(['Position',     meta.position]);
+
+  const detailHtml = detailRows.map(([label, val]) => `
+    <div class="app-detail-row">
+      <span class="app-detail-label">${escHtml(label)}</span>
+      <span class="app-detail-val">${escHtml(String(val))}</span>
+    </div>`).join('');
+
+  const totpBadge   = u.totp_enabled
+    ? `<span class="app-badge app-badge-green"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>2FA On</span>`
+    : `<span class="app-badge app-badge-gray">No 2FA</span>`;
+  const googleBadge = u.google_id
+    ? `<span class="app-badge app-badge-blue">Google</span>`
+    : '';
+
+  const safeName = name.replace(/'/g, "\\'");
 
   return `
-    <div class="applicant-card" id="applicant-${u.id}">
-      <div class="applicant-avatar" style="background:${color}" title="View profile" onclick="vmOpen(${u.id})">${initials}</div>
-      <div class="applicant-main">
-        <div class="applicant-name">${name}</div>
-        <div class="applicant-email">${email}</div>
-        <div class="applicant-chips">${chips.join('')}</div>
-        <div class="applicant-meta">Applied ${escHtml(u.created_at_human)}</div>
+    <div class="app-card" id="applicant-${u.id}">
+      <div class="app-card-head" onclick="appToggle(${u.id})" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter'||event.key===' ')appToggle(${u.id})"
+           aria-expanded="false" id="app-head-${u.id}">
+        <div class="app-avatar" style="background:${color}">${initials}</div>
+        <div class="app-head-info">
+          <div class="app-name">${name}</div>
+          <div class="app-email">${email}</div>
+        </div>
+        <div class="app-head-right">
+          <span class="app-role-badge" style="background:${color}20;color:${color};border:1px solid ${color}30">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
+          ${totpBadge}${googleBadge}
+          <span class="app-date-inline">Applied ${escHtml(u.created_at_human)}</span>
+          <svg class="app-chevron" id="app-chevron-${u.id}" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
       </div>
-      <div class="applicant-actions">
-        <button class="btn-approve" onclick="umApprove(${u.id}, '${name.replace(/'/g,"\\'")}')">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Approve
-        </button>
-        <button class="btn-reject" onclick="umOpenReject(${u.id}, '${name.replace(/'/g,"\\'")}')">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
-        </button>
+
+      <div class="app-details" id="app-details-${u.id}">
+        <div class="app-details-inner">
+          <div class="app-details-grid">
+            ${detailHtml || '<p class="app-no-details">No additional registration details provided.</p>'}
+            <div class="app-detail-row">
+              <span class="app-detail-label">Applied</span>
+              <span class="app-detail-val">${escHtml(u.created_at_human)}</span>
+            </div>
+          </div>
+          <div class="app-card-actions">
+            <button class="app-btn-view" onclick="event.stopPropagation();vmOpen(${u.id})">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              View Full Profile
+            </button>
+            <div class="app-action-group">
+              <button class="app-btn-reject" onclick="event.stopPropagation();umOpenReject(${u.id}, '${safeName}')">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Reject
+              </button>
+              <button class="app-btn-approve" onclick="event.stopPropagation();umApprove(${u.id}, '${safeName}')">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+                Approve
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>`;
+}
+
+/* ── Toggle applicant card expand/collapse ── */
+function appToggle(id) {
+  const details  = document.getElementById('app-details-' + id);
+  const head     = document.getElementById('app-head-'    + id);
+  const chevron  = document.getElementById('app-chevron-' + id);
+  const card     = document.getElementById('applicant-'   + id);
+  const isOpen   = details.classList.contains('open');
+
+  if (isOpen) {
+    details.classList.remove('open');
+    head.setAttribute('aria-expanded', 'false');
+    chevron.style.transform = '';
+    card.classList.remove('expanded');
+  } else {
+    details.classList.add('open');
+    head.setAttribute('aria-expanded', 'true');
+    chevron.style.transform = 'rotate(180deg)';
+    card.classList.add('expanded');
+  }
 }
 
 /* ── User table row ── */
@@ -470,7 +540,7 @@ function umUserRow(u) {
 
 /* ── Approve ── */
 async function umApprove(id, name) {
-  const btn = document.querySelector(`#applicant-${id} .btn-approve`);
+  const btn = document.querySelector(`#applicant-${id} .app-btn-approve`);
   if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
   try {
     const fd = new FormData();

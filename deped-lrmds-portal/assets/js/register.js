@@ -1,4 +1,40 @@
 // DepEd LRMDS – register.js  (Role → Profile → Account)
+//
+// ── TOTP HANDOFF PANEL ────────────────────────────────────────────────────────
+// For teacher / school-head / developer roles, after the form is submitted,
+// a dedicated transition panel is shown instead of the generic success panel.
+// This prevents non-tech-savvy users from seeing a "Go to Sign In" button and
+// abandoning the mandatory TOTP setup step.
+//
+// Paste this HTML into register.php, AFTER the #reg-panel-success div:
+//
+//   <div id="reg-panel-totp-handoff" hidden
+//        style="text-align:center; padding: 48px 24px; max-width: 480px; margin: 0 auto;">
+//     <div style="width:72px;height:72px;background:#ECFDF5;border-radius:50%;
+//                 display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+//       <svg width="36" height="36" fill="none" stroke="#059669" stroke-width="1.8" viewBox="0 0 24 24">
+//         <path stroke-linecap="round" stroke-linejoin="round"
+//               d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+//       </svg>
+//     </div>
+//     <h2 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 10px">
+//       Details saved — one more step!
+//     </h2>
+//     <p style="font-size:14px;color:#6B7280;line-height:1.65;margin:0 0 28px">
+//       You are being taken to set up a <strong>security code on your phone</strong>.<br>
+//       This is the <strong>last step</strong> before your account is created.<br>
+//       <em>Do not close this page.</em>
+//     </p>
+//     <!-- Progress bar -->
+//     <div style="background:#E5E7EB;border-radius:999px;height:6px;overflow:hidden;margin-bottom:12px;">
+//       <div class="totp-handoff-bar-fill"
+//            style="height:100%;width:0;background:#059669;border-radius:999px;"></div>
+//     </div>
+//     <p style="font-size:12px;color:#9CA3AF;">Redirecting you automatically…</p>
+//   </div>
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
 (function () {
   'use strict';
 
@@ -527,12 +563,23 @@
           const t = qs('#success-title');
           const m = qs('#success-msg');
           if (data.requires_totp) {
-            if (t) t.textContent = 'Almost there!';
-            if (m) m.textContent =
-              'Your account is created. You will now be asked to set up ' +
-              'two-factor authentication — it only takes 2 minutes.';
-            showSuccess();
-            setTimeout(() => { window.location.href = data.redirect || 'totp_setup.php'; }, 2200);
+            // Staff roles: hide everything and show the TOTP handoff panel only.
+            // There is NO sign-in button here — they cannot sign in until admin approves.
+            panels.forEach(p => { p.hidden = true; });
+            if (switchEl) switchEl.style.display = 'none';
+            stepEls.forEach(s => { s.classList.remove('active'); s.classList.add('done'); });
+            lines.forEach(l => l.classList.add('done'));
+
+            const totpHandoff = qs('#reg-panel-totp-handoff');
+            if (totpHandoff) {
+              totpHandoff.hidden = false;
+              totpHandoff.removeAttribute('hidden');
+              totpHandoff.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              const bar = qs('#totp-handoff-bar');
+              if (bar) requestAnimationFrame(() => { bar.style.width = '100%'; });
+            }
+
+            setTimeout(() => { window.location.href = data.redirect || 'totp_setup.php'; }, 3000);
           } else if (data.requires_verify) {
             // Learner / parent — must verify email before signing in
             window.location.href = data.redirect || 'registration_pending.php';

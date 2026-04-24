@@ -41,7 +41,7 @@ if ($err_param === 'email_pending') {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 </head>
-<body class="auth-body"<?= $flash ? ' data-flash="' . $flash . '"' : '' ?>>
+<body class="auth-body">
 
 <div class="auth-layout">
 
@@ -93,16 +93,27 @@ if ($err_param === 'email_pending') {
         <p>Sign in to your LRMDS account to access learning resources.</p>
       </div>
 
-      <!-- Flash success message (e.g. after completing TOTP setup) -->
+      <!-- Flash message from TOTP setup / registration flow -->
       <?php if ($flash): ?>
+      <?php
+        // Pending approval messages get an amber banner, not green.
+        // The upgrade (Path B) flash says "now active" — that stays green.
+        $is_pending = str_contains($flash, 'pending');
+        $banner_bg     = $is_pending ? '#FFFBEB' : '#ECFDF5';
+        $banner_border = $is_pending ? '#FDE68A' : '#A7F3D0';
+        $banner_color  = $is_pending ? '#78350F' : '#065F46';
+        $banner_icon   = $is_pending
+          ? '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>'
+          : '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
+      ?>
       <div style="
-        background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;
+        background:<?= $banner_bg ?>;border:1px solid <?= $banner_border ?>;color:<?= $banner_color ?>;
         font-size:13px;font-weight:600;border-radius:8px;
         padding:10px 14px;margin-bottom:16px;
-        display:flex;align-items:center;gap:8px;
+        display:flex;align-items:flex-start;gap:8px;line-height:1.5;
         font-family:'Plus Jakarta Sans',system-ui,sans-serif">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
-        <?= $flash ?>
+        <?= $banner_icon ?>
+        <span><?= $flash /* already htmlspecialchars'd above */ ?></span>
       </div>
       <?php endif; ?>
 
