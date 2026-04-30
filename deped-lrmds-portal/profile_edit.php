@@ -508,11 +508,25 @@ body {
 
   <!-- Alerts -->
   <?php if ($success): ?>
-  <div class="pe-alert is-success" role="alert">
-    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px">
-      <path d="M20 6 9 17l-5-5"/>
-    </svg>
-    <span>Your profile has been updated successfully.</span>
+  <div class="pe-alert is-success" role="alert" style="align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem">
+    <div style="display:flex;align-items:center;gap:.6rem">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="flex-shrink:0">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+      <span>Your profile has been updated successfully.</span>
+    </div>
+    <a href="index.php" class="pe-btn pe-btn-go-home" style="
+      display:inline-flex;align-items:center;gap:.4rem;
+      padding:.45rem 1rem;border-radius:8px;font-size:.82rem;font-weight:600;
+      background:#059669;color:#fff;text-decoration:none;
+      border:none;white-space:nowrap;
+      transition:background .15s,transform .1s;box-shadow:0 1px 4px rgba(5,150,105,.25);
+    " onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      </svg>
+      Back to Home
+    </a>
   </div>
   <?php elseif (!empty($errors)): ?>
   <div class="pe-alert is-error" role="alert">

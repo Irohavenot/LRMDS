@@ -117,6 +117,54 @@ if (!empty($_SESSION['pending_registration'])) {
         'status' => $u_row['status'],
     ];
 
+} elseif (!empty($_SESSION['user_id']) && isset($_GET['manage'])) {
+
+    // ── Path C: signed-in user visits "Manage 2FA" from profile panel ──
+    $entry_mode = 'manage';
+
+    try {
+        $pdo_guard = new PDO(
+            sprintf('mysql:host=%s;dbname=%s;charset=%s', DB_HOST, DB_NAME, DB_CHARSET),
+            DB_USER, DB_PASS,
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]
+        );
+    } catch (PDOException $e) {
+        error_log('LRMDS totp_setup manage DB: ' . $e->getMessage());
+        die('Database error. Make sure XAMPP MySQL is running.');
+    }
+
+    $u_guard = $pdo_guard->prepare(
+        'SELECT id, email, first_name, last_name, role, status, totp_secret, totp_enabled FROM users WHERE id = ? LIMIT 1'
+    );
+    $u_guard->execute([(int) $_SESSION['user_id']]);
+    $u_row = $u_guard->fetch();
+
+    if (!$u_row) {
+        header('Location: signin.php');
+        exit;
+    }
+
+    $reg = [
+        'email'  => $u_row['email'],
+        'fname'  => $u_row['first_name'],
+        'lname'  => $u_row['last_name'],
+        'role'   => $u_row['role'],
+        'status' => $u_row['status'],
+    ];
+
+    // If 2FA is already enabled, show the existing secret (no new secret generated)
+    // If not yet enabled, generate a new secret for them to set up
+    if ($u_row['totp_enabled'] && !empty($u_row['totp_secret'])) {
+        $_SESSION['pending_totp_secret'] = $u_row['totp_secret'];
+        $manage_already_enabled = true;
+    } else {
+        $manage_already_enabled = false;
+    }
+
 } else {
     header('Location: register.php');
     exit;
@@ -187,7 +235,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        /* ── Path A: new registration — INSERT the account ── */
+        /* ── Path C: manage — re-confirm or re-enrol 2FA ── */
+        if ($entry_mode === 'manage') {
+            try {
+                $pdo->prepare('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?')
+                    ->execute([$secret, (int) $_SESSION['user_id']]);
+            } catch (PDOException $e) {
+                error_log('LRMDS totp_setup manage save: ' . $e->getMessage());
+                $error = 'Could not save your 2FA settings. Please try again.';
+                goto render_page;
+            }
+
+            unset($_SESSION['pending_totp_secret']);
+            $_SESSION['flash_success'] = '🔐 Two-factor authentication has been confirmed and is active on your account.';
+            header('Location: index.php');
+            exit;
+        }
+
+
 
         // Final duplicate email check (edge case: same email registered during the 30-min window)
         $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
@@ -407,6 +472,34 @@ $first_name = htmlspecialchars($reg['fname']);
       </p>
     </div>
   </div>
+  <?php elseif ($entry_mode === 'manage'): ?>
+  <!-- ── Manage 2FA banner ── -->
+  <div style="
+    background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 14px;
+    padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start;
+    margin-bottom: 28px;
+  ">
+    <div style="
+      width: 38px; height: 38px; background: #DBEAFE; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    ">
+      <svg width="20" height="20" fill="none" stroke="#1D4ED8" stroke-width="2.2" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
+      </svg>
+    </div>
+    <div>
+      <p style="margin:0 0 3px;font-size:14px;font-weight:700;color:#1E40AF;">
+        🔐 Your 2FA QR Code
+      </p>
+      <p style="margin:0;font-size:13px;color:#1D4ED8;line-height:1.55;">
+        <?php if (!empty($manage_already_enabled)): ?>
+          This is your existing authenticator QR code. Re-scan it if you switch phones or add a new authenticator app. Enter your current code below to confirm you still have access.
+        <?php else: ?>
+          Your account doesn't have 2FA active yet. Scan the QR code below with your authenticator app to enable it now.
+        <?php endif; ?>
+      </p>
+    </div>
+  </div>
   <?php endif; ?>
 
   <div class="totp-badge">
@@ -415,7 +508,11 @@ $first_name = htmlspecialchars($reg['fname']);
   </div>
 
   <h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px">
-    Almost done, <?= $first_name ?>!
+    <?php if ($entry_mode === 'manage'): ?>
+      Manage Two-Factor Auth
+    <?php else: ?>
+      Almost done, <?= $first_name ?>!
+    <?php endif; ?>
   </h1>
   <?php if ($entry_mode === 'upgrade'): ?>
   <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
@@ -424,6 +521,14 @@ $first_name = htmlspecialchars($reg['fname']);
   </p>
   <p style="font-size:13px;color:#9CA3AF;margin:0">
     You only need to do this once. Future sign-ins will just ask for your code.
+  </p>
+  <?php elseif ($entry_mode === 'manage'): ?>
+  <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
+    Hello, <strong><?= $first_name ?></strong>. Below is your account's authenticator QR code.
+    Keep it private — anyone who scans it can generate codes for your account.
+  </p>
+  <p style="font-size:13px;color:#9CA3AF;margin:0">
+    Enter your current 6-digit code to confirm you still have access.
   </p>
   <?php else: ?>
   <p style="font-size:14px;color:#6B7280;margin:0 0 4px">
@@ -470,7 +575,7 @@ $first_name = htmlspecialchars($reg['fname']);
     </p>
   </div>
 
-  <form method="POST" action="totp_setup.php" autocomplete="off">
+  <form method="POST" action="totp_setup.php<?= $entry_mode === 'manage' ? '?manage=1' : '' ?>" autocomplete="off">
     <p style="font-size:14px;font-weight:700;color:#374151;margin:0 0 4px">
       4. Enter the 6-digit code shown in your app to confirm and create your account:
     </p>
@@ -494,12 +599,16 @@ $first_name = htmlspecialchars($reg['fname']);
     />
 
     <button type="submit" class="rf-btn rf-btn-primary" style="width:100%;margin-top:14px;justify-content:center">
-      <?= $entry_mode === 'upgrade' ? 'Confirm &amp; Activate 2FA' : 'Confirm &amp; Create Account' ?>
+      <?= $entry_mode === 'upgrade' ? 'Confirm &amp; Activate 2FA' : ($entry_mode === 'manage' ? 'Confirm Code' : 'Confirm &amp; Create Account') ?>
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </button>
   </form>
 
-  <?php if ($entry_mode !== 'upgrade'): ?>
+  <?php if ($entry_mode === 'manage'): ?>
+  <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px">
+    <a href="index.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">← Back to Home</a>
+  </p>
+  <?php elseif ($entry_mode !== 'upgrade'): ?>
   <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px">
     Want to use a different email?
     <a href="register.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">Go back to registration</a>

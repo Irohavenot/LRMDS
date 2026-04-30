@@ -239,7 +239,7 @@ if (!empty($pu_meta['child_school'])) $extra_fields["Child's School"] = htmlspec
           </svg>
           Change Password
         </a>
-        <a href="totp_setup.php" class="pp-action-btn">
+        <a href="totp_setup.php?manage=1" class="pp-action-btn">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
           </svg>
