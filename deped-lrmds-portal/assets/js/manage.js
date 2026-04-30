@@ -45,8 +45,8 @@ const ROLE_LABELS = {
   teacher:      'Teacher',
   learner:      'Learner',
   parent:       'Parent',
-  'school-head':'School Head',
-  developer:    'Developer',
+  'school-head':'School Head / PSDS',
+  developer:    'SDS / ASDS',
   admin:        'Admin',
   guest:        'Guest',
 };
@@ -57,12 +57,40 @@ const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
 
 /* ════════════════════════════
    ROLE-BASED ACCESS HELPER
+   ─────────────────────────
+   Hierarchy (highest → lowest):
+     admin        → manage everyone
+     developer    → manage school-head, psds, teacher, learner, parent, guest
+                    (SDS/ASDS are at this level)
+     school-head  → manage teacher, learner, parent, guest
+                    (School Heads and PSDS are at this level)
+     teacher/learner/parent/guest → no management rights
 ════════════════════════════ */
+
+// Roles that each actor can edit/manage
+const EDITABLE_BY = {
+  'admin':       ['admin', 'developer', 'school-head', 'teacher', 'learner', 'parent', 'guest'],
+  'developer':   ['school-head', 'teacher', 'learner', 'parent', 'guest'],
+  'school-head': ['teacher', 'learner', 'parent', 'guest'],
+};
+
+// Roles that each actor can approve (pending registrations)
+const APPROVABLE_BY = {
+  'admin':       ['admin', 'developer', 'school-head', 'teacher'],
+  'developer':   ['school-head', 'developer'],
+  'school-head': ['teacher'],
+};
+
 function canEditUser(u) {
   if (typeof CURRENT_USER_ROLE === 'undefined') return false;
-  if (CURRENT_USER_ROLE === 'admin') return true;
-  if (CURRENT_USER_ROLE === 'school-head' && u.role === 'teacher') return true;
-  return false;
+  const allowed = EDITABLE_BY[CURRENT_USER_ROLE] || [];
+  return allowed.includes(u.role);
+}
+
+function canApproveRole(targetRole) {
+  if (typeof CURRENT_USER_ROLE === 'undefined') return false;
+  const allowed = APPROVABLE_BY[CURRENT_USER_ROLE] || [];
+  return allowed.includes(targetRole);
 }
 
 /* ════════════════════════════
@@ -109,7 +137,7 @@ function renderTable(data) {
       <td><span class="status-badge ${r.status}"><span class="dot"></span>${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span></td>
       <td>${r.dl.toLocaleString()}</td>
       <td style="color:var(--muted);font-size:12px">${r.updated}</td>
-      <td><div class="action-row"><button class="tbl-btn primary">View</button><button class="tbl-btn">Edit</button></div></td>
+      <td><div class="action-row"><button class="tbl-btn primary" onclick="resView(this)">View</button><button class="tbl-btn" onclick="resEdit(this)">Edit</button></div></td>
     </tr>`).join('');
 }
 
@@ -121,6 +149,37 @@ function filterTable(q) {
         r.subject.toLowerCase().includes(query) ||
         r.melc.toLowerCase().includes(query))
     : RESOURCES);
+}
+
+/* ── Resource table row actions ───────────────────────────*/
+function resEdit(btn) {
+  const row   = btn.closest('tr');
+  const title = row.querySelector('.resource-title')?.textContent?.trim() ?? 'this resource';
+  const melc  = row.querySelector('.resource-meta')?.textContent?.trim()  ?? '';
+
+  const modal = document.getElementById('res-modal');
+  if (!modal) { console.error('[resEdit] #res-modal not found in DOM'); return; }
+
+  // Populate and open the resource edit modal
+  document.getElementById('res-modal-title').textContent = title;
+  document.getElementById('res-modal-melc').textContent  = melc;
+  // Use both class + inline style so it works regardless of which CSS rule the theme uses
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+}
+
+function resView(btn) {
+  const row   = btn.closest('tr');
+  const title = row.querySelector('.resource-title')?.textContent?.trim() ?? 'this resource';
+  alert('Viewing: ' + title);
+}
+
+function closeResModal() {
+  const modal = document.getElementById('res-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+  }
 }
 
 /* ════════════════════════════
@@ -496,14 +555,23 @@ function umUserRow(u) {
     ? `<button class="btn-reactivate" onclick="umReactivate(${u.id}, '${name.replace(/'/g,"\\'")}')">Reactivate</button>`
     : '';
 
-  // Role select — clicking triggers the confirmation modal, not an immediate save
-  const roleSelect = `
-    <select class="role-select-inline" data-user-id="${u.id}" data-user-name="${escHtml(name)}" data-current-role="${escHtml(u.role)}"
-            onchange="rcmOpen(this, ${u.id}, '${name.replace(/'/g,"\\'")}', '${u.role}', this.value)">
-      ${['teacher','learner','parent','school-head','developer','admin','guest'].map(r =>
-        `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABELS[r] || r}</option>`
-      ).join('')}
-    </select>`;
+  // Role select — only show roles the current actor can assign
+  // Always include the user's current role (may be read-only if above actor's scope)
+  const assignable = EDITABLE_BY[CURRENT_USER_ROLE] || [];
+  const roleOptions = ['teacher','learner','parent','school-head','developer','admin','guest']
+    .filter(r => assignable.includes(r) || r === u.role)
+    .map(r => {
+      const dis = !assignable.includes(r) ? 'disabled' : '';
+      return `<option value="${r}" ${r === u.role ? 'selected' : ''} ${dis}>${ROLE_LABELS[r] || r}</option>`;
+    }).join('');
+
+  // If the actor can't edit this user at all, show a plain read-only role badge instead of a select
+  const roleCell = canEditUser(u)
+    ? `<select class="role-select-inline" data-user-id="${u.id}" data-user-name="${escHtml(name)}" data-current-role="${escHtml(u.role)}"
+              onchange="rcmOpen(this, ${u.id}, '${name.replace(/'/g,"\\'")}', '${u.role}', this.value)">
+        ${roleOptions}
+       </select>`
+    : `<span class="app-meta-item role-badge" style="background:${color}20;color:${color};border:1px solid ${color}30">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>`;
 
   const editBtn = canEditUser(u)
     ? `<button class="tbl-btn primary" onclick="euOpen(${u.id})">Edit</button>`
@@ -523,7 +591,7 @@ function umUserRow(u) {
           </div>
         </div>
       </td>
-      <td>${roleSelect}</td>
+      <td>${roleCell}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px;color:var(--muted)">${escHtml(u.region || '—')}</td>
       <td>${totp}</td>
@@ -845,8 +913,9 @@ function closeViewModal() {
 
 function vmSwitchToEdit() {
   const id = document.getElementById('vm-edit-btn').dataset.userId;
+  if (!id) { console.error('[vmSwitchToEdit] No userId stored on edit button'); return; }
   closeViewModal();
-  euOpen(parseInt(id));
+  euOpen(parseInt(id, 10));
 }
 
 document.getElementById('view-modal')?.addEventListener('click', function(e) {
@@ -859,7 +928,17 @@ document.getElementById('view-modal')?.addEventListener('click', function(e) {
 let euCurrentUser = null;
 
 async function euOpen(id) {
-  document.getElementById('eu-overlay').classList.add('open');
+  // Guard: id must be a valid positive integer
+  const uid = parseInt(id, 10);
+  if (!uid || isNaN(uid)) {
+    console.error('[euOpen] Invalid user id:', id);
+    return;
+  }
+
+  const _overlay = document.getElementById('eu-overlay');
+  const _drawer  = document.getElementById('eu-drawer');
+  if (!_overlay) { alert('FATAL: #eu-overlay not found. Please refresh the page.'); return; }
+  _overlay.classList.add('open');
   document.getElementById('eu-error').style.display   = 'none';
   document.getElementById('eu-title').textContent     = 'Loading…';
   document.getElementById('eu-sub').textContent       = '';
@@ -867,14 +946,22 @@ async function euOpen(id) {
   document.getElementById('eu-save-btn').disabled     = true;
 
   try {
-    const r = await fetch('users_handler.php?action=get_user&id=' + encodeURIComponent(id));
+    const r = await fetch('users_handler.php?action=get_user&id=' + uid, { credentials: 'same-origin' });
+    if (!r.ok) {
+      // HTTP-level error: 403 = session expired, 500 = PHP crash, etc.
+      const text = await r.text();
+      console.error('[euOpen] HTTP', r.status, text);
+      euShowError('Server error (' + r.status + '). Your session may have expired \u2014 try refreshing the page.');
+      return;
+    }
     const d = await r.json();
     if (!d.ok) { euShowError(d.msg || 'Could not load user.'); return; }
     euCurrentUser = d.data;
     euPopulate(d.data);
     document.getElementById('eu-save-btn').disabled = false;
   } catch (e) {
-    euShowError('Network error. Please check the server.');
+    console.error('[euOpen] fetch failed:', e);
+    euShowError('Network error \u2014 could not reach users_handler.php. Check the server.');
   }
 }
 
@@ -899,43 +986,73 @@ function euPopulate(u) {
   document.getElementById('eu-new-password').value = '';
   document.getElementById('eu-error').style.display = 'none';
 
-  // Update TOTP hint
-  const totpEnabled = !!parseInt(u.totp_enabled);
-  document.getElementById('eu-totp-hint').textContent = totpEnabled
-    ? '✓ Enabled — user must verify a code at every sign-in'
-    : '✗ Not set up — account has no 2FA protection';
-  const totpBtn = document.getElementById('eu-totp-btn');
-  totpBtn.style.display = totpEnabled ? '' : 'none';
-  totpBtn.disabled      = false;
-  totpBtn.textContent   = 'Disable 2FA';
+  // ── Show/hide role-specific meta sections and populate them ──
+  const meta = u.meta || {};
+  const allRoleFields = ['teacher','learner','parent','school-head','developer'];
+  allRoleFields.forEach(r => {
+    const el = document.getElementById('eu-fields-' + r);
+    if (el) el.style.display = 'none';
+  });
+  const activeFields = document.getElementById('eu-fields-' + u.role);
+  if (activeFields) activeFields.style.display = '';
 
-  // Update role-change hint dynamically when the role select changes
-  const roleSelect = document.getElementById('eu-role');
-  const roleHintEl = document.getElementById('eu-role-hint');
-  const updateRoleHint = () => {
-    const newRole = roleSelect.value;
-    const oldRole = u.role;
-    if (newRole === oldRole) {
-      roleHintEl.textContent = '';
-      roleHintEl.className = 'eu-hint';
-    } else if (TOTP_ROLES.includes(oldRole) && NO_TOTP_ROLES.includes(newRole)) {
-      roleHintEl.textContent = '⚠ Saving will clear this user\'s 2FA secret.';
-      roleHintEl.className = 'eu-hint eu-hint-warn';
-    } else if (NO_TOTP_ROLES.includes(oldRole) && TOTP_ROLES.includes(newRole)) {
-      roleHintEl.textContent = '🔒 This role requires 2FA. User will enroll on next login.';
-      roleHintEl.className = 'eu-hint eu-hint-info';
-    } else {
-      roleHintEl.textContent = '';
-      roleHintEl.className = 'eu-hint';
-    }
-  };
-  roleSelect.addEventListener('change', updateRoleHint);
-  updateRoleHint(); // run once on populate
+  // Teacher
+  if (u.role === 'teacher') {
+    const gl = document.getElementById('eu-grade-level');
+    const sc = document.getElementById('eu-school-name');
+    const su = document.getElementById('eu-subjects');
+    if (gl) gl.value = meta.grade_level || '';
+    if (sc) sc.value = meta.school_name || '';
+    if (su) su.value = meta.subjects    || '';
+  }
+  // Learner
+  if (u.role === 'learner') {
+    const lg = document.getElementById('eu-learner-grade');
+    const ls = document.getElementById('eu-learner-school');
+    const lr = document.getElementById('eu-lrn');
+    if (lg) lg.value = meta.grade_level || '';
+    if (ls) ls.value = meta.school_name || '';
+    if (lr) lr.value = meta.lrn         || '';
+  }
+  // Parent
+  if (u.role === 'parent') {
+    const cg = document.getElementById('eu-child-grade');
+    const cs = document.getElementById('eu-child-school');
+    if (cg) cg.value = meta.child_grade  || '';
+    if (cs) cs.value = meta.child_school || '';
+  }
+  // School Head / PSDS
+  if (u.role === 'school-head') {
+    const pos = document.getElementById('eu-position');
+    const sch = document.getElementById('eu-sh-school');
+    if (pos) pos.value = meta.position   || '';
+    if (sch) sch.value = meta.school_name || '';
+  }
+  // Developer (SDS / ASDS)
+  if (u.role === 'developer') {
+    const dp  = document.getElementById('eu-dev-position');
+    const aff = document.getElementById('eu-affiliation');
+    if (dp)  dp.value  = meta.dev_position || '';
+    if (aff) aff.value = meta.affiliation  || '';
+  }
 
-  /* Restrict school-head: lock Role, hide sensitive actions */
-  const totpRow      = document.getElementById('eu-totp-row');
+  // ── Single roleSelect reference for all listeners below ──
+  const roleSelect  = document.getElementById('eu-role');
+  const roleHintEl  = document.getElementById('eu-role-hint');
+  const totpRow     = document.getElementById('eu-totp-row');
   const newPassField = document.getElementById('eu-new-password');
 
+  // Rebuild role <select> options based on actor's editable scope
+  const assignableRoles = EDITABLE_BY[CURRENT_USER_ROLE] || [];
+  const allOptions = ['teacher','learner','parent','school-head','developer','admin','guest'];
+  roleSelect.innerHTML = allOptions
+    .filter(r => assignableRoles.includes(r) || r === u.role)
+    .map(r => {
+      const disabled = !assignableRoles.includes(r) ? 'disabled' : '';
+      return `<option value="${r}" ${r === u.role ? 'selected' : ''} ${disabled}>${ROLE_LABELS[r] || r}</option>`;
+    }).join('');
+
+  // school-head: lock role entirely and hide sensitive security fields
   if (CURRENT_USER_ROLE === 'school-head') {
     roleSelect.disabled = true;
     totpRow.style.display = 'none';
@@ -945,6 +1062,47 @@ function euPopulate(u) {
     totpRow.style.display = '';
     newPassField.closest('.eu-field').style.display = '';
   }
+
+  // Role-change TOTP hint -- defined FIRST so the change listener can call it
+  function updateRoleHint() {
+    const newRole = roleSelect.value;
+    const oldRole = u.role;
+    if (newRole === oldRole) {
+      roleHintEl.textContent = '';
+      roleHintEl.className   = 'eu-hint';
+    } else if (TOTP_ROLES.includes(oldRole) && NO_TOTP_ROLES.includes(newRole)) {
+      roleHintEl.textContent = '⚠ Saving will clear this user\'s 2FA secret.';
+      roleHintEl.className   = 'eu-hint eu-hint-warn';
+    } else if (NO_TOTP_ROLES.includes(oldRole) && TOTP_ROLES.includes(newRole)) {
+      roleHintEl.textContent = '🔒 This role requires 2FA. User will enroll on next login.';
+      roleHintEl.className   = 'eu-hint eu-hint-info';
+    } else {
+      roleHintEl.textContent = '';
+      roleHintEl.className   = 'eu-hint';
+    }
+  }
+  updateRoleHint(); // run once on populate
+
+  // Show/hide role-specific meta field sections when role changes
+  roleSelect.addEventListener('change', function() {
+    allRoleFields.forEach(r => {
+      const el = document.getElementById('eu-fields-' + r);
+      if (el) el.style.display = 'none';
+    });
+    const newFields = document.getElementById('eu-fields-' + this.value);
+    if (newFields) newFields.style.display = '';
+    updateRoleHint();
+  });
+
+  // TOTP status display
+  const totpEnabled = !!parseInt(u.totp_enabled);
+  document.getElementById('eu-totp-hint').textContent = totpEnabled
+    ? '✓ Enabled — user must verify a code at every sign-in'
+    : '✗ Not set up — account has no 2FA protection';
+  const totpBtn = document.getElementById('eu-totp-btn');
+  totpBtn.style.display = totpEnabled ? '' : 'none';
+  totpBtn.disabled      = false;
+  totpBtn.textContent   = 'Disable 2FA';
 }
 
 async function euSave() {
@@ -955,7 +1113,7 @@ async function euSave() {
   const email    = document.getElementById('eu-email').value.trim();
   const role     = document.getElementById('eu-role').value;
   const status   = document.getElementById('eu-status').value;
-  const region   = document.getElementById('eu-region').value.trim();
+  const region   = document.getElementById('eu-region').value;
   const division = document.getElementById('eu-division').value.trim();
   const empId    = document.getElementById('eu-employee-id').value.trim();
   const newPass  = document.getElementById('eu-new-password').value;
@@ -964,6 +1122,44 @@ async function euSave() {
   if (!email)            { euShowError('Email is required.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { euShowError('Enter a valid email address.'); return; }
   if (newPass && newPass.length < 8) { euShowError('New password must be at least 8 characters.'); return; }
+
+  // ── Collect role-specific meta fields ──
+  const pick = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const meta = {};
+  if (role === 'teacher') {
+    const gl = pick('eu-grade-level');
+    const sc = pick('eu-school-name');
+    const su = pick('eu-subjects');
+    if (gl) meta.grade_level = gl;
+    if (sc) meta.school_name = sc;
+    if (su) meta.subjects    = su;
+  }
+  if (role === 'learner') {
+    const lg = pick('eu-learner-grade');
+    const ls = pick('eu-learner-school');
+    const lr = pick('eu-lrn');
+    if (lg) meta.grade_level = lg;
+    if (ls) meta.school_name = ls;
+    if (lr) meta.lrn         = lr;
+  }
+  if (role === 'parent') {
+    const cg = pick('eu-child-grade');
+    const cs = pick('eu-child-school');
+    if (cg) meta.child_grade  = cg;
+    if (cs) meta.child_school = cs;
+  }
+  if (role === 'school-head') {
+    const pos = pick('eu-position');
+    const sch = pick('eu-sh-school');
+    if (pos) meta.position    = pos;
+    if (sch) meta.school_name = sch;
+  }
+  if (role === 'developer') {
+    const dp  = pick('eu-dev-position');
+    const aff = pick('eu-affiliation');
+    if (dp)  meta.dev_position = dp;
+    if (aff) meta.affiliation  = aff;
+  }
 
   const btn = document.getElementById('eu-save-btn');
   btn.disabled  = true;
@@ -980,6 +1176,7 @@ async function euSave() {
   fd.append('region',      region);
   fd.append('division',    division);
   fd.append('employee_id', empId);
+  fd.append('meta',        JSON.stringify(meta));
   if (newPass) fd.append('new_password', newPass);
 
   try {
@@ -1038,9 +1235,15 @@ async function euSendPasswordReset() {
 function euCloseDrawer() {
   document.getElementById('eu-overlay').classList.remove('open');
   // Remove the dynamic change listener to avoid stacking on re-open
+  // by cloning the select — listeners attached by euPopulate are removed
   const roleSelect = document.getElementById('eu-role');
   const fresh = roleSelect.cloneNode(true);
   roleSelect.parentNode.replaceChild(fresh, roleSelect);
+  // Hide all role-specific field sections
+  ['teacher','learner','parent','school-head','developer'].forEach(r => {
+    const el = document.getElementById('eu-fields-' + r);
+    if (el) el.style.display = 'none';
+  });
   euCurrentUser = null;
 }
 

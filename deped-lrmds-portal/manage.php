@@ -19,9 +19,9 @@ if (!in_array($actor_role, $manage_roles)) {
 // What this role can approve
 function approvable_labels(string $role): string {
     return match($role) {
-        'admin'       => 'Teachers, School Heads, Developers, Admins',
-        'developer'   => 'School Heads & Developers',
-        'school-head' => 'Teachers',
+        'admin'       => 'Teachers, School Heads, PSDS, SDS/ASDS (Developers), Admins',
+        'developer'   => 'School Heads, PSDS & below',
+        'school-head' => 'Teachers & below (Learners, Parents)',
         default       => 'None',
     };
 }
@@ -169,13 +169,13 @@ function approvable_labels(string $role): string {
 
   <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
   <aside class="sidebar">
-    <div class="sidebar-brand">
+    <a class="sidebar-brand" href="http://localhost/lrmds/deped-lrmds-portal/index.php" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px" title="Back to Home">
       <div class="logo-box">DE</div>
       <div class="brand-text">
         <span class="brand-name">LRMDS</span>
         <span class="brand-sub">Manage Portal</span>
       </div>
-    </div>
+    </a>
 
     <div class="sidebar-section">
       <div class="sidebar-section-label">Overview</div>
@@ -513,15 +513,15 @@ function approvable_labels(string $role): string {
             <div class="um-section active" id="um-section-pending">
               <div class="um-filter-bar">
                 <input type="search" id="pending-search" placeholder="Search by name, email, or ID…" oninput="umLoadPending()"/>
-                <select id="pending-role-filter" onchange="umLoadPending()">
+                  <select id="pending-role-filter" onchange="umLoadPending()">
                   <option value="">All Roles</option>
                   <?php if (in_array($actor_role, ['admin'])): ?>
                     <option value="teacher">Teacher</option>
-                    <option value="school-head">School Head</option>
-                    <option value="developer">Content Developer</option>
+                    <option value="school-head">School Head / PSDS</option>
+                    <option value="developer">SDS / ASDS (Developer)</option>
                   <?php elseif ($actor_role === 'developer'): ?>
-                    <option value="school-head">School Head</option>
-                    <option value="developer">Content Developer</option>
+                    <option value="school-head">School Head / PSDS</option>
+                    <option value="developer">SDS / ASDS (Developer)</option>
                   <?php elseif ($actor_role === 'school-head'): ?>
                     <option value="teacher">Teacher</option>
                   <?php endif; ?>
@@ -538,11 +538,13 @@ function approvable_labels(string $role): string {
                 <select id="users-role-filter" onchange="umLoadUsers()">
                   <option value="">All Roles</option>
                   <option value="teacher">Teacher</option>
-                  <?php if (in_array($actor_role, ['admin', 'developer'])): ?>
+                  <?php if (in_array($actor_role, ['admin', 'developer', 'school-head'])): ?>
                     <option value="learner">Learner</option>
                     <option value="parent">Parent</option>
-                    <option value="school-head">School Head</option>
-                    <option value="developer">Developer</option>
+                  <?php endif; ?>
+                  <?php if (in_array($actor_role, ['admin', 'developer'])): ?>
+                    <option value="school-head">School Head / PSDS</option>
+                    <option value="developer">SDS / ASDS (Developer)</option>
                     <option value="guest">Guest</option>
                   <?php endif; ?>
                   <?php if ($actor_role === 'admin'): ?>
@@ -655,6 +657,11 @@ function approvable_labels(string $role): string {
 <!-- ══ EDIT USER DRAWER ══ -->
 <div class="eu-overlay" id="eu-overlay">
   <div class="eu-drawer" id="eu-drawer" role="dialog" aria-modal="true" aria-label="Edit User">
+    <!-- ⚠ PROTOTYPE: Edit drawer is under active development. Save works but some fields may not persist. -->
+    <div style="background:#FEF3C7;border-bottom:2px solid #FDE68A;padding:6px 16px;font-size:11px;font-weight:700;color:#92400E;display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      PROTOTYPE — Edit User (under development)
+    </div>
     <div class="eu-header">
       <div class="eu-header-left">
         <div class="eu-avatar" id="eu-avatar">AB</div>
@@ -687,8 +694,8 @@ function approvable_labels(string $role): string {
             <option value="teacher">Teacher</option>
             <option value="learner">Learner</option>
             <option value="parent">Parent</option>
-            <option value="school-head">School Head</option>
-            <option value="developer">Content Developer</option>
+            <option value="school-head">School Head / PSDS</option>
+            <option value="developer">SDS / ASDS (Developer)</option>
             <?php if ($actor_role === 'admin'): ?>
               <option value="admin">Admin</option>
             <?php endif; ?>
@@ -706,10 +713,156 @@ function approvable_labels(string $role): string {
         </div>
       </div>
       <div class="eu-section-label" style="margin-top:20px">Organization</div>
-      <div class="eu-field"><label class="eu-label" for="eu-region">Region</label><input class="eu-input" id="eu-region" type="text" placeholder="e.g. Region VII"/></div>
+      <div class="eu-field"><label class="eu-label" for="eu-region">Region</label>
+        <select class="eu-select" id="eu-region">
+          <option value="">Select region…</option>
+          <option>NCR</option><option>CAR</option><option>Region I</option>
+          <option>Region II</option><option>Region III</option><option>Region IV-A</option>
+          <option>Region IV-B</option><option>Region V</option><option>Region VI</option>
+          <option>Region VII</option><option>Region VIII</option><option>Region IX</option>
+          <option>Region X</option><option>Region XI</option><option>Region XII</option>
+          <option>CARAGA</option><option>BARMM</option>
+        </select>
+      </div>
       <div class="eu-row-2">
-        <div class="eu-field"><label class="eu-label" for="eu-division">Division</label><input class="eu-input" id="eu-division" type="text" placeholder="e.g. Carcar City Division"/></div>
+        <div class="eu-field"><label class="eu-label" for="eu-division">Division / School</label><input class="eu-input" id="eu-division" type="text" placeholder="e.g. Division of Iloilo"/></div>
         <div class="eu-field"><label class="eu-label" for="eu-employee-id">Employee / School ID</label><input class="eu-input" id="eu-employee-id" type="text" placeholder="e.g. 10042"/></div>
+      </div>
+
+      <!-- TEACHER fields -->
+      <div class="eu-role-fields" id="eu-fields-teacher" style="display:none">
+        <div class="eu-section-label" style="margin-top:20px">Teaching Details</div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-grade-level">Grade Level(s) Taught</label>
+          <select class="eu-select" id="eu-grade-level">
+            <option value="">Select grade level…</option>
+            <option value="kinder">Kindergarten</option>
+            <option value="g1">Grade 1</option><option value="g2">Grade 2</option>
+            <option value="g3">Grade 3</option><option value="g4">Grade 4</option>
+            <option value="g5">Grade 5</option><option value="g6">Grade 6</option>
+            <option value="g7">Grade 7</option><option value="g8">Grade 8</option>
+            <option value="g9">Grade 9</option><option value="g10">Grade 10</option>
+            <option value="g11">Grade 11 (SHS)</option><option value="g12">Grade 12 (SHS)</option>
+            <option value="multi">Multiple / Advisory</option>
+          </select>
+        </div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-subjects">Learning Area(s)</label>
+          <input class="eu-input" id="eu-subjects" type="text" placeholder="e.g. English, Mathematics"/>
+          <div class="eu-hint">Comma-separated list of subjects.</div>
+        </div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-school-name">School Name</label>
+          <input class="eu-input" id="eu-school-name" type="text" placeholder="e.g. Calinog NHS"/>
+        </div>
+      </div>
+
+      <!-- LEARNER fields -->
+      <div class="eu-role-fields" id="eu-fields-learner" style="display:none">
+        <div class="eu-section-label" style="margin-top:20px">Student Details</div>
+        <div class="eu-row-2">
+          <div class="eu-field">
+            <label class="eu-label" for="eu-learner-grade">Grade Level</label>
+            <select class="eu-select" id="eu-learner-grade">
+              <option value="">Select grade…</option>
+              <option value="kinder">Kindergarten</option>
+              <option value="g1">Grade 1</option><option value="g2">Grade 2</option>
+              <option value="g3">Grade 3</option><option value="g4">Grade 4</option>
+              <option value="g5">Grade 5</option><option value="g6">Grade 6</option>
+              <option value="g7">Grade 7</option><option value="g8">Grade 8</option>
+              <option value="g9">Grade 9</option><option value="g10">Grade 10</option>
+              <option value="g11">Grade 11 (SHS)</option><option value="g12">Grade 12 (SHS)</option>
+            </select>
+          </div>
+          <div class="eu-field">
+            <label class="eu-label" for="eu-learner-school">School Name</label>
+            <input class="eu-input" id="eu-learner-school" type="text" placeholder="e.g. Calinog NHS"/>
+          </div>
+        </div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-lrn">Learner Reference Number (LRN)</label>
+          <input class="eu-input" id="eu-lrn" type="text" placeholder="12-digit LRN" maxlength="12"/>
+        </div>
+      </div>
+
+      <!-- PARENT fields -->
+      <div class="eu-role-fields" id="eu-fields-parent" style="display:none">
+        <div class="eu-section-label" style="margin-top:20px">Child / Ward Details</div>
+        <div class="eu-row-2">
+          <div class="eu-field">
+            <label class="eu-label" for="eu-child-grade">Child's Grade Level</label>
+            <select class="eu-select" id="eu-child-grade">
+              <option value="">Select grade…</option>
+              <option value="kinder">Kindergarten</option>
+              <option value="g1">Grade 1</option><option value="g2">Grade 2</option>
+              <option value="g3">Grade 3</option><option value="g4">Grade 4</option>
+              <option value="g5">Grade 5</option><option value="g6">Grade 6</option>
+              <option value="g7">Grade 7</option><option value="g8">Grade 8</option>
+              <option value="g9">Grade 9</option><option value="g10">Grade 10</option>
+              <option value="g11">Grade 11 (SHS)</option><option value="g12">Grade 12 (SHS)</option>
+              <option value="multi">Multiple children</option>
+            </select>
+          </div>
+          <div class="eu-field">
+            <label class="eu-label" for="eu-child-school">Child's School</label>
+            <input class="eu-input" id="eu-child-school" type="text" placeholder="e.g. Calinog Central ES"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCHOOL HEAD / PSDS fields -->
+      <div class="eu-role-fields" id="eu-fields-school-head" style="display:none">
+        <div class="eu-section-label" style="margin-top:20px">Position &amp; Assignment</div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-position">Position / Designation</label>
+          <select class="eu-select" id="eu-position">
+            <option value="">Select position…</option>
+            <option value="principal-1">Principal I</option>
+            <option value="principal-2">Principal II</option>
+            <option value="principal-3">Principal III</option>
+            <option value="principal-4">Principal IV</option>
+            <option value="head-teacher-1">Head Teacher I</option>
+            <option value="head-teacher-2">Head Teacher II</option>
+            <option value="head-teacher-3">Head Teacher III</option>
+            <option value="head-teacher-4">Head Teacher IV</option>
+            <option value="head-teacher-5">Head Teacher V</option>
+            <option value="head-teacher-6">Head Teacher VI</option>
+            <option value="eps">Education Program Supervisor (EPS)</option>
+            <option value="chief-eps">Chief EPS / Curriculum</option>
+            <option value="psds">PSDS (Public Schools District Supervisor)</option>
+            <option value="other-admin">Other Administrative</option>
+          </select>
+        </div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-sh-school">School / Office Name</label>
+          <input class="eu-input" id="eu-sh-school" type="text" placeholder="e.g. Calinog NHS / SDO Iloilo"/>
+        </div>
+      </div>
+
+      <!-- SDS / ASDS (Developer) fields -->
+      <div class="eu-role-fields" id="eu-fields-developer" style="display:none">
+        <div class="eu-section-label" style="margin-top:20px">Contributor Details</div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-dev-position">Position / Designation</label>
+          <select class="eu-select" id="eu-dev-position">
+            <option value="">Select position…</option>
+            <option value="asds">ASDS (Assistant Schools Division Superintendent)</option>
+            <option value="sds">SDS (Schools Division Superintendent)</option>
+            <option value="teacher-dev">Teacher / Content Author</option>
+            <option value="eps-dev">Education Program Supervisor</option>
+            <option value="curriculum-writer">Curriculum Writer</option>
+            <option value="illustrator">Illustrator / Graphic Artist</option>
+            <option value="instructional-designer">Instructional Designer</option>
+            <option value="ict-coordinator">ICT Coordinator</option>
+            <option value="partner-org">Partner Organization Representative</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="eu-field">
+          <label class="eu-label" for="eu-affiliation">Organization / Affiliation</label>
+          <input class="eu-input" id="eu-affiliation" type="text" placeholder="e.g. SDO Iloilo, CHED, NGO Name"/>
+          <div class="eu-hint">DepEd office, school, university, or partner organization.</div>
+        </div>
       </div>
       <div class="eu-section-label" style="margin-top:20px">Security</div>
       <div class="eu-security-row" id="eu-totp-row">
@@ -745,6 +898,29 @@ function approvable_labels(string $role): string {
 <div id="um-toast">
   <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" id="toast-icon"><path d="M20 6 9 17l-5-5"/></svg>
   <span id="um-toast-msg"></span>
+</div>
+
+<!-- ══ RESOURCE EDIT MODAL ══ -->
+<div class="um-modal-overlay" id="res-modal" onclick="if(event.target===this)closeResModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center">
+  <div class="um-modal">
+    <div class="um-modal-title">Edit Resource</div>
+    <div class="um-modal-body">
+      <div style="margin-bottom:8px">
+        <strong id="res-modal-title" style="font-size:15px;color:var(--text)"></strong>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="res-modal-melc"></div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin:12px 0 0">
+        Full resource editing is handled through the submission pipeline. Use the Pipeline panel to update status, reassign reviewers, or make metadata changes.
+      </p>
+    </div>
+    <div class="um-modal-actions">
+      <button class="btn btn-ghost" onclick="closeResModal()">Close</button>
+      <button class="btn btn-primary" onclick="showPanel('pipeline');closeResModal()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+        Go to Pipeline
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>

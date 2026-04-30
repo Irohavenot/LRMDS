@@ -29,12 +29,15 @@ if (empty($_SESSION['user'])) {
 $actor_role = $_SESSION['user_role'] ?? '';
 $actor_id   = (int) ($_SESSION['user_id'] ?? 0);
 
-/* ── Hierarchy rules ─────────────────────────────────────
- *  admin        → can approve/manage everyone
- *  developer    → can approve school-head, developer; manage teacher/learner/parent/guest
- *  school-head  → can approve teacher; manage teacher within same division
- *
- *  Returns which roles the actor is ALLOWED to approve.
+/**
+ * Hierarchy:
+ *   admin        → approve/manage everyone
+ *   developer    → approve school-head, developer
+ *                  manage school-head, teacher, learner, parent, guest
+ *                  (SDS / ASDS sit at this level)
+ *   school-head  → approve teacher
+ *                  manage teacher, learner, parent, guest
+ *                  (School Heads and PSDS sit at this level)
  */
 function approvable_roles(string $role): array {
     return match($role) {
@@ -48,8 +51,8 @@ function approvable_roles(string $role): array {
 function manageable_roles(string $role): array {
     return match($role) {
         'admin'       => ['teacher', 'school-head', 'developer', 'admin', 'learner', 'parent', 'guest'],
-        'developer'   => ['teacher', 'school-head', 'developer', 'learner', 'parent', 'guest'],
-        'school-head' => ['teacher'],
+        'developer'   => ['school-head', 'teacher', 'learner', 'parent', 'guest'],
+        'school-head' => ['teacher', 'learner', 'parent', 'guest'],
         default       => [],
     };
 }

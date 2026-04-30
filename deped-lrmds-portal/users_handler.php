@@ -286,12 +286,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$targetUser) { json_err('User not found.'); exit; }
 
-        $canEdit = false;
-        if ($myRole === 'admin') {
-            $canEdit = true;
-        } elseif ($myRole === 'school-head' && $targetUser['role'] === 'teacher') {
-            $canEdit = true;
-        }
+        /**
+         * Hierarchy:
+         *   admin        → edit anyone
+         *   developer    → edit school-head, teacher, learner, parent, guest
+         *                  (SDS / ASDS are at developer level)
+         *   school-head  → edit teacher, learner, parent, guest
+         *   teacher/etc  → no edit rights (blocked at auth guard above)
+         */
+        $editable_by = [
+            'admin'       => ['admin', 'developer', 'school-head', 'teacher', 'learner', 'parent', 'guest'],
+            'developer'   => ['school-head', 'teacher', 'learner', 'parent', 'guest'],
+            'school-head' => ['teacher', 'learner', 'parent', 'guest'],
+        ];
+
+        $canEdit = in_array($targetUser['role'], $editable_by[$myRole] ?? [], true);
 
         if (!$canEdit) {
             json_err('You do not have permission to edit this user.'); exit;
@@ -307,6 +316,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emp_id   = trim($_POST['employee_id'] ?? '');
         $new_pass = $_POST['new_password']     ?? '';
 
+        // Meta JSON from JS (role-specific fields)
+        $meta_raw  = $_POST['meta'] ?? null;
+        $meta_json = null;
+        if ($meta_raw) {
+            $meta_decoded = json_decode($meta_raw, true);
+            if (is_array($meta_decoded) && !empty($meta_decoded)) {
+                $meta_json = json_encode($meta_decoded);
+            }
+        }
+
         if (!$fname || !$lname)  { json_err('First and last name are required.'); exit; }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { json_err('Enter a valid email address.'); exit; }
 
@@ -315,8 +334,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($role,   $allowed_roles,    true)) { json_err('Invalid role.'); exit; }
         if (!in_array($status, $allowed_statuses, true)) { json_err('Invalid status.'); exit; }
 
-        if ($myRole === 'school-head' && $role !== 'teacher') {
-            json_err('You are only allowed to keep this user as a Teacher.'); exit;
+        // Determine which roles this actor is allowed to assign
+        $assignable_roles_map = [
+            'admin'       => ['teacher', 'learner', 'parent', 'school-head', 'developer', 'admin', 'guest'],
+            'developer'   => ['school-head', 'teacher', 'learner', 'parent', 'guest'],
+            'school-head' => ['teacher', 'learner', 'parent', 'guest'],
+        ];
+        $assignable = $assignable_roles_map[$myRole] ?? [];
+
+        // school-head: role is locked — always keep the target's existing role
+        if ($myRole === 'school-head') {
+            $role = $targetUser['role'];
+        }
+
+        if (!in_array($role, $assignable, true) && $role !== $targetUser['role']) {
+            json_err('You are not allowed to assign this role.'); exit;
         }
 
         if ($new_pass && strlen($new_pass) < 8) { json_err('Password must be at least 8 characters.'); exit; }
@@ -335,17 +367,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UPDATE users
                 SET first_name = ?, last_name = ?, email = ?,
                     role = ?, status = ?, region = ?,
-                    division = ?, employee_id = ?, password_hash = ?
+                    division = ?, employee_id = ?, password_hash = ?,
+                    meta = ?
                 WHERE id = ?
-            ")->execute([$fname, $lname, $email, $role, $status, $region, $division ?: null, $emp_id ?: null, $hash, $id]);
+            ")->execute([$fname, $lname, $email, $role, $status, $region, $division ?: null, $emp_id ?: null, $hash, $meta_json, $id]);
         } else {
             $pdo->prepare("
                 UPDATE users
                 SET first_name = ?, last_name = ?, email = ?,
                     role = ?, status = ?, region = ?,
-                    division = ?, employee_id = ?
+                    division = ?, employee_id = ?,
+                    meta = ?
                 WHERE id = ?
-            ")->execute([$fname, $lname, $email, $role, $status, $region, $division ?: null, $emp_id ?: null, $id]);
+            ")->execute([$fname, $lname, $email, $role, $status, $region, $division ?: null, $emp_id ?: null, $meta_json, $id]);
         }
 
         // Auto-clear TOTP if role was changed to a non-2FA role
