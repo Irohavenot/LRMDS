@@ -37,6 +37,7 @@ function approvable_labels(string $role): string {
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="assets/css/manage.css"/>
   <link rel="stylesheet" href="assets/css/manage-users.css"/>
+  <link rel="stylesheet" href="assets/css/profile_panel.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     /* ── Online stats KPI cards ── */
@@ -165,6 +166,14 @@ function approvable_labels(string $role): string {
   </style>
 </head>
 <body>
+<?php
+// Profile panel requires session user data — provide it from manage.php session
+$_SESSION['user_id']   = $_SESSION['user_id']   ?? 0;
+$_SESSION['user_name'] = $_SESSION['user_name']  ?? $actor_name;
+$_SESSION['user_role'] = $actor_role;
+include 'includes/profile_panel.php';
+?>
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
 <div class="shell">
 
   <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
@@ -240,17 +249,35 @@ function approvable_labels(string $role): string {
 
     <!-- Top Bar -->
     <div class="topbar">
-      <span class="topbar-title" id="topbar-title">Dashboard</span>
-      <span class="topbar-sub"   id="topbar-sub">Carcar City Division — SY 2025–2026</span>
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <div class="topbar-titles">
+        <span class="topbar-title" id="topbar-title">Dashboard</span>
+        <span class="topbar-sub"   id="topbar-sub">Carcar City Division — SY 2025–2026</span>
+      </div>
       <div class="topbar-right">
         <div class="notif-btn" onclick="showPanel('notifications')">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span class="notif-dot"></span>
         </div>
-        <button class="btn btn-primary" onclick="showPanel('pipeline')">
+        <button class="btn btn-primary topbar-new-btn" onclick="showPanel('pipeline')">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          New Submission
+          <span class="btn-label">New Submission</span>
         </button>
+        <?php if (isset($initials)): ?>
+        <button class="topbar-profile-btn" id="hdr-account-btn" aria-label="Your profile">
+          <div class="hdr-avatar-mini"><?= $initials ?? $actor_init ?></div>
+        </button>
+        <?php else: ?>
+        <button class="topbar-profile-btn" id="hdr-account-btn" aria-label="Your profile">
+          <div class="hdr-avatar-mini"><?= $actor_init ?></div>
+        </button>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -930,5 +957,25 @@ function approvable_labels(string $role): string {
   //console.log(canEditUser({role:'teacher'})); // permission test
 </script>
 <script src="assets/js/manage.js"></script>
-</body>
+<script src="assets/js/profile_panel.js"></script>
+<script>
+  function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+  }
+  function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  // Close sidebar when a nav item is clicked on mobile
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      if (window.innerWidth < 1024) closeSidebar();
+    });
+  });
+</script>
 </html>

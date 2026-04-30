@@ -552,15 +552,23 @@
 /* ════════════════════════════════════════════════════════
    RESPONSIVE
 ════════════════════════════════════════════════════════ */
-@media (max-width: 860px) {
+@media (max-width: 1023px) {
   .um-stats-bar { grid-template-columns: repeat(3, 1fr); }
 }
-@media (max-width: 600px) {
+@media (max-width: 860px) {
+  .um-stats-bar { grid-template-columns: repeat(3, 1fr); }
+  .eu-drawer { width: 420px; }
+}
+@media (max-width: 640px) {
   .um-stats-bar { grid-template-columns: 1fr 1fr; }
   .eu-drawer    { width: 100vw; }
   .eu-row-2     { grid-template-columns: 1fr; }
   .vm-body      { grid-template-columns: 1fr; }
   .um-modal-view { max-width: 100%; border-radius: 0; }
+  .um-filter-bar { padding: 8px 10px; }
+  .um-filter-bar input[type="search"] { min-width: 0; }
+  .app-card-head { flex-wrap: wrap; }
+  .app-head-right { flex-wrap: wrap; gap: 4px; }
 }
 /* ════════════════════════════════════════════════════════
    ADDITIONS TO manage-users.css

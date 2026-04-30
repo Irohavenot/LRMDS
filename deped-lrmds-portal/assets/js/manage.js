@@ -924,34 +924,72 @@ document.getElementById('view-modal')?.addEventListener('click', function(e) {
 
 /* ════════════════════════════
    EDIT USER DRAWER
+   Opens via display:flex — no CSS class, no z-index stacking trap.
 ════════════════════════════ */
 let euCurrentUser = null;
 
-async function euOpen(id) {
-  // Guard: id must be a valid positive integer
-  const uid = parseInt(id, 10);
-  if (!uid || isNaN(uid)) {
-    console.error('[euOpen] Invalid user id:', id);
+function euShowDrawer() {
+  document.getElementById('eu-overlay').style.display = 'block';
+  document.getElementById('eu-drawer').style.display  = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function euCloseDrawer() {
+  document.getElementById('eu-overlay').style.display = 'none';
+  document.getElementById('eu-drawer').style.display  = 'none';
+  document.body.style.overflow = '';
+  // Remove dynamic change listener by cloning the role select
+  const roleSelect = document.getElementById('eu-role');
+  const fresh = roleSelect.cloneNode(true);
+  roleSelect.parentNode.replaceChild(fresh, roleSelect);
+  // Hide all role-specific field sections
+  ['teacher','learner','parent','school-head','developer'].forEach(r => {
+    const el = document.getElementById('eu-fields-' + r);
+    if (el) el.style.display = 'none';
+  });
+  euCurrentUser = null;
+}
+
+/* Close drawer when clicking the dark overlay */
+document.getElementById('eu-overlay').addEventListener('click', euCloseDrawer);
+
+/* Open directly from table row — no fetch needed, data is in data-user attr */
+function euOpenDirect(btn) {
+  const row = btn.closest('tr');
+  if (!row) { console.error('[euOpenDirect] no parent <tr>'); return; }
+  let u;
+  try { u = JSON.parse(row.dataset.user); }
+  catch(e) {
+    console.error('[euOpenDirect] bad data-user JSON:', e);
+    const rid = parseInt((row.id||'').replace('user-row-',''), 10);
+    if (rid) euOpen(rid);
     return;
   }
+  euCurrentUser = u;
+  document.getElementById('eu-error').style.display = 'none';
+  document.getElementById('eu-save-btn').disabled   = false;
+  euShowDrawer();
+  euPopulate(u);
+}
 
-  const _overlay = document.getElementById('eu-overlay');
-  const _drawer  = document.getElementById('eu-drawer');
-  if (!_overlay) { alert('FATAL: #eu-overlay not found. Please refresh the page.'); return; }
-  _overlay.classList.add('open');
-  document.getElementById('eu-error').style.display   = 'none';
-  document.getElementById('eu-title').textContent     = 'Loading…';
-  document.getElementById('eu-sub').textContent       = '';
-  document.getElementById('eu-avatar').textContent    = '…';
-  document.getElementById('eu-save-btn').disabled     = true;
+/* Fetch-based fallback (vmSwitchToEdit → edit from View modal) */
+async function euOpen(id) {
+  const uid = parseInt(id, 10);
+  if (!uid) { console.error('[euOpen] invalid id', id); return; }
+
+  euShowDrawer();
+  document.getElementById('eu-error').style.display = 'none';
+  document.getElementById('eu-title').textContent   = 'Loading…';
+  document.getElementById('eu-sub').textContent     = '';
+  document.getElementById('eu-avatar').textContent  = '…';
+  document.getElementById('eu-save-btn').disabled   = true;
 
   try {
     const r = await fetch('users_handler.php?action=get_user&id=' + uid, { credentials: 'same-origin' });
     if (!r.ok) {
-      // HTTP-level error: 403 = session expired, 500 = PHP crash, etc.
-      const text = await r.text();
-      console.error('[euOpen] HTTP', r.status, text);
-      euShowError('Server error (' + r.status + '). Your session may have expired \u2014 try refreshing the page.');
+      const txt = await r.text();
+      euShowError('Server error ' + r.status + '. Your session may have expired — try refreshing.');
+      console.error('[euOpen] HTTP', r.status, txt);
       return;
     }
     const d = await r.json();
@@ -959,9 +997,9 @@ async function euOpen(id) {
     euCurrentUser = d.data;
     euPopulate(d.data);
     document.getElementById('eu-save-btn').disabled = false;
-  } catch (e) {
-    console.error('[euOpen] fetch failed:', e);
-    euShowError('Network error \u2014 could not reach users_handler.php. Check the server.');
+  } catch(e) {
+    euShowError('Network error — check server connection.');
+    console.error('[euOpen] fetch error:', e);
   }
 }
 
@@ -1232,21 +1270,6 @@ async function euSendPasswordReset() {
   } catch (e) { umToast('Network error.','error'); }
 }
 
-function euCloseDrawer() {
-  document.getElementById('eu-overlay').classList.remove('open');
-  // Remove the dynamic change listener to avoid stacking on re-open
-  // by cloning the select — listeners attached by euPopulate are removed
-  const roleSelect = document.getElementById('eu-role');
-  const fresh = roleSelect.cloneNode(true);
-  roleSelect.parentNode.replaceChild(fresh, roleSelect);
-  // Hide all role-specific field sections
-  ['teacher','learner','parent','school-head','developer'].forEach(r => {
-    const el = document.getElementById('eu-fields-' + r);
-    if (el) el.style.display = 'none';
-  });
-  euCurrentUser = null;
-}
-
 function euShowError(msg) {
   const el = document.getElementById('eu-error');
   el.textContent   = msg;
@@ -1254,16 +1277,11 @@ function euShowError(msg) {
   el.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
-/* Close drawer when clicking the dark overlay */
-document.getElementById('eu-overlay')?.addEventListener('click', function(e) {
-  if (e.target === this) euCloseDrawer();
-});
-
 /* Escape key closes whichever layer is open */
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.getElementById('role-change-modal').classList.contains('open')) { rcmClose(true); return; }
-  if (document.getElementById('eu-overlay').classList.contains('open'))         { euCloseDrawer(); return; }
+  if (document.getElementById('eu-drawer').style.display === 'flex')            { euCloseDrawer(); return; }
   if (document.getElementById('view-modal').classList.contains('open'))          { closeViewModal(); return; }
   if (document.getElementById('reject-modal').classList.contains('open'))        { closeRejectModal(); }
 });
