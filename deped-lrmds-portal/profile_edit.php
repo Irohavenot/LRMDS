@@ -35,7 +35,7 @@ try {
     $s = $pdo->prepare('
         SELECT id, first_name, last_name, email, role, status,
                region, division, employee_id, created_at, last_login,
-               totp_enabled, meta
+               totp_enabled, meta, avatar
         FROM   users WHERE id = ? LIMIT 1
     ');
     $s->execute([$uid]);
@@ -55,7 +55,77 @@ if (!empty($user['meta'])) {
 
 // ── Handle POST ───────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user && empty($errors)) {
-    // Sanitise scalar fields
+
+    // ── Remove avatar ──
+    if (isset($_POST['remove_avatar'])) {
+        $old_avatar = $user['avatar'] ?? '';
+        if ($old_avatar && file_exists(__DIR__ . '/' . ltrim($old_avatar, '/'))) {
+            @unlink(__DIR__ . '/' . ltrim($old_avatar, '/'));
+        }
+        try {
+            $pdo->prepare('UPDATE users SET avatar = NULL WHERE id = ?')->execute([$uid]);
+            $user['avatar'] = null;
+            $success = true;
+        } catch (PDOException $e) {
+            $errors[] = 'Could not remove avatar.';
+        }
+        goto render;
+    }
+
+    // ── Avatar upload (handled separately, no full-form submit needed) ──
+    if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $f = $_FILES['avatar'];
+        $allowed_mime = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime  = $finfo->file($f['tmp_name']);
+
+        if ($f['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = 'Avatar upload failed. Please try again.';
+        } elseif (!in_array($mime, $allowed_mime, true)) {
+            $errors[] = 'Avatar must be a JPEG, PNG, GIF, or WebP image.';
+        } elseif ($f['size'] > 2 * 1024 * 1024) {
+            $errors[] = 'Avatar file size must not exceed 2 MB.';
+        } else {
+            $ext      = match($mime) {
+                'image/jpeg' => 'jpg',
+                'image/png'  => 'png',
+                'image/gif'  => 'gif',
+                'image/webp' => 'webp',
+                default      => 'jpg',
+            };
+            $upload_dir = __DIR__ . '/uploads/avatars/';
+            if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+
+            // Delete old avatar file if it exists
+            $old_avatar = $user['avatar'] ?? '';
+            if ($old_avatar && file_exists(__DIR__ . '/' . ltrim($old_avatar, '/'))) {
+                @unlink(__DIR__ . '/' . ltrim($old_avatar, '/'));
+            }
+
+            $filename    = 'avatar_' . $uid . '_' . time() . '.' . $ext;
+            $destination = $upload_dir . $filename;
+
+            if (move_uploaded_file($f['tmp_name'], $destination)) {
+                $avatar_path = 'uploads/avatars/' . $filename;
+                try {
+                    $av_upd = $pdo->prepare('UPDATE users SET avatar = ? WHERE id = ?');
+                    $av_upd->execute([$avatar_path, $uid]);
+                    $user['avatar'] = $avatar_path;
+                    // If this was an avatar-only POST, mark success and skip rest
+                    if (!isset($_POST['first_name'])) {
+                        $success = true;
+                        goto render;
+                    }
+                } catch (PDOException $e) {
+                    $errors[] = 'Could not save avatar. Please try again.';
+                }
+            } else {
+                $errors[] = 'Could not save avatar file. Check server permissions.';
+            }
+        }
+    }
+
+    // ── Sanitise scalar fields ──
     $first_name  = trim($_POST['first_name']  ?? '');
     $last_name   = trim($_POST['last_name']   ?? '');
     $email       = trim($_POST['email']       ?? '');
@@ -126,6 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user && empty($errors)) {
 }
 
 // ── View helpers ──────────────────────────────────────────────
+render:
 $role     = $user['role'] ?? $_SESSION['user_role'] ?? '';
 $role_map = [
     'admin'       => ['label' => 'Administrator',  'color' => '#7C3AED', 'bg' => '#F5F3FF'],
@@ -142,6 +213,8 @@ $initials = strtoupper(
     substr($user['first_name'] ?? $_SESSION['user_name'] ?? 'U', 0, 1) .
     substr($user['last_name'] ?? '', 0, 1)
 );
+
+$pu_avatar = !empty($user['avatar']) ? htmlspecialchars($user['avatar']) : null;
 
 $v = fn(string $field, string $fallback = '') =>
     htmlspecialchars($_POST[$field] ?? $user[$field] ?? $fallback);
@@ -480,6 +553,49 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 .is-loading .pe-spinner { display: block; }
 .is-loading .pe-btn-label { display: none; }
+/* ── Avatar upload ──────────────────────────────────────────── */
+.pe-avatar-wrap {
+  position: relative;
+  width: 58px; height: 58px;
+  flex-shrink: 0;
+}
+.pe-avatar {
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -.5px;
+  box-shadow: 0 0 0 3px var(--brand-soft), 0 0 0 5px rgba(79,70,229,.15);
+  overflow: hidden;
+}
+.pe-avatar img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.pe-avatar-edit-btn {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
+.pe-avatar-edit-btn:hover { background: #4338CA; transform: scale(1.1); }
+.pe-avatar-edit-btn svg { pointer-events: none; }
 </style>
 </head>
 <body>
@@ -496,7 +612,28 @@ body {
 
   <!-- Title bar -->
   <div class="pe-title-bar">
-    <div class="pe-avatar"><?= $initials ?></div>
+    <div class="pe-avatar-wrap">
+      <div class="pe-avatar" id="pe-avatar-display">
+        <?php if ($pu_avatar): ?>
+          <img src="<?= $pu_avatar ?>" alt="Profile photo">
+        <?php else: ?>
+          <?= $initials ?>
+        <?php endif; ?>
+      </div>
+
+      <!-- Hidden file input -->
+      <input type="file" id="pe-avatar-input" accept="image/jpeg,image/png,image/gif,image/webp"
+             style="display:none">
+
+      <!-- Pencil button -->
+      <button type="button" class="pe-avatar-edit-btn" id="pe-avatar-edit-btn"
+              aria-label="Change profile photo" title="Change profile photo">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </button>
+    </div>
     <div class="pe-title-info">
       <h1>Edit Profile</h1>
       <p><?= htmlspecialchars($user['email'] ?? '') ?></p>
@@ -543,7 +680,7 @@ body {
   </div>
   <?php endif; ?>
 
-  <form method="POST" id="pe-form" novalidate>
+  <form method="POST" id="pe-form" enctype="multipart/form-data" novalidate>
 
     <!-- ── Personal Information ── -->
     <div class="pe-card">
@@ -871,8 +1008,98 @@ body {
 
 </div>
 
+<!-- ── Avatar Crop Modal ── -->
+<div class="av-modal-bg" id="av-modal-bg">
+  <div class="av-modal">
+    <div class="av-modal-head">
+      <h3>Choose profile picture</h3>
+      <button class="av-modal-x" id="av-modal-x" aria-label="Close">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="av-crop-wrap" id="av-crop-wrap">
+      <img class="av-crop-img" id="av-crop-img" src="" alt="">
+      <div class="av-circle-mask"></div>
+      <div class="av-tip">Drag to reposition · Arrow keys for fine control</div>
+    </div>
+    <div class="av-modal-foot">
+      <button class="av-btn av-btn-cancel" id="av-btn-cancel">Cancel</button>
+      <button class="av-btn av-btn-save"   id="av-btn-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.av-modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.65); z-index: 9999;
+  align-items: center; justify-content: center;
+}
+.av-modal-bg.open { display: flex; }
+.av-modal {
+  background: #fff; border-radius: 14px;
+  width: min(480px, 95vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  overflow: hidden; animation: av-pop .2s ease;
+}
+@keyframes av-pop {
+  from { opacity:0; transform: scale(.93) translateY(10px); }
+  to   { opacity:1; transform: scale(1)   translateY(0); }
+}
+.av-modal-head {
+  padding: .9rem 1.2rem; border-bottom: 1px solid #E5E7EB;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.av-modal-head h3 { font-size: 1rem; font-weight: 600; color: #111827; margin:0; }
+.av-modal-x {
+  background: none; border: none; cursor: pointer;
+  color: #6B7280; padding: 4px; border-radius: 6px;
+  display: flex; align-items: center; transition: background .12s;
+}
+.av-modal-x:hover { background: #F3F4F6; color: #111; }
+.av-crop-wrap {
+  position: relative; width: 100%; height: 300px;
+  background: #111; overflow: hidden; cursor: grab;
+}
+.av-crop-wrap:active { cursor: grabbing; }
+.av-crop-img {
+  position: absolute; transform-origin: top left;
+  user-select: none; pointer-events: none;
+}
+.av-circle-mask {
+  position: absolute; top: 50%; left: 50%;
+  width: 220px; height: 220px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.55);
+  pointer-events: none; z-index: 1;
+}
+.av-tip {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.6); color: #fff;
+  font-size: .72rem; padding: .3rem .75rem; border-radius: 99px;
+  pointer-events: none; z-index: 2; white-space: nowrap;
+}
+.av-modal-foot {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: .6rem; padding: .85rem 1.2rem;
+}
+.av-btn {
+  padding: .55rem 1.2rem; border-radius: 8px;
+  font-size: .88rem; font-weight: 600; cursor: pointer;
+  border: none; transition: background .15s;
+}
+.av-btn-cancel { background: #F3F4F6; color: #374151; }
+.av-btn-cancel:hover { background: #E5E7EB; }
+.av-btn-save { background: #4F46E5; color: #fff; box-shadow: 0 1px 4px rgba(79,70,229,.3); }
+.av-btn-save:hover { background: #4338CA; }
+.av-btn-save:disabled { opacity:.6; cursor:default; }
+</style>
+
 <script>
-// Show loading state on submit
+// ── Submit spinner ────────────────────────────────────────────
 document.getElementById('pe-form').addEventListener('submit', function(e) {
   const btn = document.getElementById('pe-submit');
   btn.classList.add('is-loading');
@@ -880,16 +1107,154 @@ document.getElementById('pe-form').addEventListener('submit', function(e) {
 });
 
 // Auto-dismiss success alert after 5s
-const alert = document.querySelector('.pe-alert.is-success');
-if (alert) {
+const peAlert = document.querySelector('.pe-alert.is-success');
+if (peAlert) {
   setTimeout(() => {
-    alert.style.transition = 'opacity .4s ease, max-height .4s ease, margin .4s ease';
-    alert.style.opacity = '0';
-    alert.style.maxHeight = '0';
-    alert.style.overflow = 'hidden';
-    alert.style.marginBottom = '0';
+    peAlert.style.transition = 'opacity .4s ease, max-height .4s ease, margin .4s ease';
+    peAlert.style.opacity = '0';
+    peAlert.style.maxHeight = '0';
+    peAlert.style.overflow = 'hidden';
+    peAlert.style.marginBottom = '0';
   }, 5000);
 }
+
+// ── Avatar crop + upload ──────────────────────────────────────
+(function () {
+  const camBtn    = document.getElementById('pe-avatar-edit-btn');
+  const fileIn    = document.getElementById('pe-avatar-input');
+  const circle    = document.getElementById('pe-avatar-display');
+  const modalBg   = document.getElementById('av-modal-bg');
+  const modalX    = document.getElementById('av-modal-x');
+  const cropImg   = document.getElementById('av-crop-img');
+  const cropWrap  = document.getElementById('av-crop-wrap');
+  const btnCancel = document.getElementById('av-btn-cancel');
+  const btnSave   = document.getElementById('av-btn-save');
+
+  if (!camBtn || !fileIn) return;
+
+  const CIRCLE = 220;   // diameter of the crop circle in px
+  let imgW = 0, imgH = 0;
+  let scale = 1;        // cover-fit scale (fixed, no zoom)
+  let ox = 0, oy = 0;  // pan offset in rendered pixels
+  let dragging = false, startX = 0, startY = 0, startOx = 0, startOy = 0;
+
+  camBtn.addEventListener('click', () => fileIn.click());
+
+  fileIn.addEventListener('change', function () {
+    const file = fileIn.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Image must be 5 MB or smaller.'); return; }
+    const url = URL.createObjectURL(file);
+    cropImg.onload = function () {
+      imgW = cropImg.naturalWidth; imgH = cropImg.naturalHeight;
+      ox = 0; oy = 0;
+      computeCoverScale();
+      applyTransform();
+      modalBg.classList.add('open');
+    };
+    cropImg.src = url;
+    fileIn.value = '';
+  });
+
+  /* cover-fit: shortest side fills the circle */
+  function computeCoverScale() {
+    scale = Math.max(CIRCLE / imgW, CIRCLE / imgH);
+  }
+
+  function closeModal() { modalBg.classList.remove('open'); }
+  modalX.addEventListener('click', closeModal);
+  btnCancel.addEventListener('click', closeModal);
+  modalBg.addEventListener('click', e => { if (e.target === modalBg) closeModal(); });
+
+  cropWrap.addEventListener('mousedown', dragStart);
+  cropWrap.addEventListener('touchstart', dragStart, { passive: true });
+  window.addEventListener('mousemove', dragMove);
+  window.addEventListener('touchmove', dragMove, { passive: false });
+  window.addEventListener('mouseup', dragEnd);
+  window.addEventListener('touchend', dragEnd);
+
+  function getXY(e) {
+    return e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+                     : { x: e.clientX, y: e.clientY };
+  }
+  function dragStart(e) {
+    dragging = true;
+    const p = getXY(e); startX = p.x; startY = p.y; startOx = ox; startOy = oy;
+  }
+  function dragMove(e) {
+    if (!dragging) return;
+    if (e.cancelable) e.preventDefault();
+    const p = getXY(e);
+    ox = startOx + (p.x - startX);
+    oy = startOy + (p.y - startY);
+    clampOffset(); applyTransform();
+  }
+  function dragEnd() { dragging = false; }
+
+  document.addEventListener('keydown', function (e) {
+    if (!modalBg.classList.contains('open')) return;
+    const step = 6;
+    if (e.key === 'ArrowLeft')  { ox -= step; e.preventDefault(); }
+    if (e.key === 'ArrowRight') { ox += step; e.preventDefault(); }
+    if (e.key === 'ArrowUp')    { oy -= step; e.preventDefault(); }
+    if (e.key === 'ArrowDown')  { oy += step; e.preventDefault(); }
+    clampOffset(); applyTransform();
+  });
+
+  function clampOffset() {
+    const maxOx = Math.max(0, (imgW * scale - CIRCLE) / 2);
+    const maxOy = Math.max(0, (imgH * scale - CIRCLE) / 2);
+    ox = Math.max(-maxOx, Math.min(maxOx, ox));
+    oy = Math.max(-maxOy, Math.min(maxOy, oy));
+  }
+
+  function applyTransform() {
+    const ww = cropWrap.clientWidth, wh = cropWrap.clientHeight;
+    const renderedW = imgW * scale, renderedH = imgH * scale;
+    cropImg.style.width     = renderedW + 'px';
+    cropImg.style.height    = renderedH + 'px';
+    cropImg.style.left      = ((ww - renderedW) / 2 + ox) + 'px';
+    cropImg.style.top       = ((wh - renderedH) / 2 + oy) + 'px';
+    cropImg.style.transform = 'none';
+  }
+
+  btnSave.addEventListener('click', function () {
+    btnSave.disabled = true; btnSave.textContent = 'Saving…';
+    const SIZE = 400;
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE; canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath(); ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2); ctx.clip();
+
+    const ww = cropWrap.clientWidth, wh = cropWrap.clientHeight;
+    const renderedW = imgW * scale, renderedH = imgH * scale;
+    const imgLeft    = (ww - renderedW) / 2 + ox;
+    const imgTop     = (wh - renderedH) / 2 + oy;
+    const circleLeft = (ww - CIRCLE) / 2;
+    const circleTop  = (wh - CIRCLE) / 2;
+    const sx = (circleLeft - imgLeft) / scale;
+    const sy = (circleTop  - imgTop)  / scale;
+    const sw = CIRCLE / scale;
+    const sh = CIRCLE / scale;
+
+    ctx.drawImage(cropImg, sx, sy, sw, sh, 0, 0, SIZE, SIZE);
+    canvas.toBlob(function (blob) {
+      const fd = new FormData();
+      fd.append('avatar', blob, 'avatar.jpg');
+      fetch('upload_avatar.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(function (data) {
+          if (data.success) {
+            const url = data.url + '?t=' + Date.now();
+            circle.innerHTML = '<img src="' + url + '" alt="Profile photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            closeModal();
+          } else { alert(data.error || 'Upload failed.'); }
+        })
+        .catch(() => alert('Upload failed. Please try again.'))
+        .finally(() => { btnSave.disabled = false; btnSave.textContent = 'Save'; });
+    }, 'image/jpeg', 0.92);
+  });
+})();
 </script>
 
 </body>

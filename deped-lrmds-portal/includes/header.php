@@ -5,6 +5,24 @@ if (session_status() === PHP_SESSION_NONE) {
 $isSignedIn = isset($_SESSION['user']) && $_SESSION['user'];
 $userRole   = $_SESSION['user_role'] ?? '';
 
+// Fetch avatar from DB so header always shows the latest photo
+$hdr_avatar = null;
+if ($isSignedIn && !empty($_SESSION['user_id'])) {
+    try {
+        $hdr_pdo = new PDO(
+            'mysql:host=localhost;dbname=lrmds;charset=utf8mb4',
+            'root', '',
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+             PDO::ATTR_EMULATE_PREPARES => false]
+        );
+        $hdr_s = $hdr_pdo->prepare('SELECT avatar FROM users WHERE id = ? LIMIT 1');
+        $hdr_s->execute([(int)$_SESSION['user_id']]);
+        $hdr_row = $hdr_s->fetch();
+        if (!empty($hdr_row['avatar'])) $hdr_avatar = htmlspecialchars($hdr_row['avatar']);
+    } catch (PDOException $e) { /* silently fallback to initials */ }
+}
+
 // Roles that can see "Develop" (submit resources)
 $canDevelop = $isSignedIn && in_array($userRole, ['teacher','school-head','partner','developer','admin'], true);
 
@@ -78,7 +96,13 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
         <!-- Hidden sign-out btn kept for JS sign-out modal wiring -->
         <button style="display:none" id="hdr-signout-btn" aria-hidden="true"></button>
         <a href="#" class="hdr-avatar-btn" id="hdr-account-btn" aria-label="Open profile">
-          <span class="hdr-avatar-mini" aria-hidden="true"><?= $hdr_initials ?></span>
+          <span class="hdr-avatar-mini" aria-hidden="true">
+            <?php if ($hdr_avatar): ?>
+              <img src="<?= $hdr_avatar ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
+            <?php else: ?>
+              <?= $hdr_initials ?>
+            <?php endif; ?>
+          </span>
           <span><?= htmlspecialchars($_SESSION['user_name'] ?? 'Account') ?></span>
         </a>
       <?php else: ?>
@@ -208,7 +232,15 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
     );
   ?>
     <a class="mob-nav-item" href="#" id="mob-account-btn">
-      <span class="mob-icon-wrap"><span class="mob-avatar-mini" aria-hidden="true"><?= $mob_initials ?></span></span>
+      <span class="mob-icon-wrap">
+        <span class="mob-avatar-mini" aria-hidden="true">
+          <?php if ($hdr_avatar): ?>
+            <img src="<?= $hdr_avatar ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
+          <?php else: ?>
+            <?= $mob_initials ?>
+          <?php endif; ?>
+        </span>
+      </span>
       <span>Profile</span>
     </a>
   <?php else: ?>
