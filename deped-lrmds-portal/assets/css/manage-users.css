@@ -133,6 +133,18 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 260px;
+}
+.applicant-grid .um-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  width: 100%;
+  margin: 0;
 }
 .applicant-card {
   background: var(--surface);
@@ -325,9 +337,12 @@
    VIEW USER MODAL  (wider, read-only profile card)
 ════════════════════════════════════════════════════════ */
 .um-modal-view {
-  max-width: 560px;
+  max-width: 580px;
   padding: 0;
   overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .vm-header {
@@ -362,10 +377,12 @@
 }
 
 .vm-body {
-  padding: 20px 24px 4px;
+  padding: 20px 24px 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 140px);
 }
 
 .vm-field-label {
@@ -395,6 +412,7 @@
   padding-top: 16px;
   border-top: 1px solid var(--border);
   margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -422,8 +440,9 @@
   transform: translateX(100%);
   transition: transform .28s cubic-bezier(.4,0,.2,1);
   z-index: 1101;
+  /* drawer is now a sibling — always in DOM, slides via transform */
 }
-.eu-overlay.open .eu-drawer { transform: translateX(0); }
+.eu-drawer.open { transform: translateX(0); }
 
 /* Header */
 .eu-header {
@@ -685,4 +704,125 @@
 .vm-body .vm-field-val[data-highlight="last-login"] {
   color: var(--blue);
   font-weight: 700;
+}
+
+/* ── Drawer tab bar (CSS-class approach, fixes active-state bug) ── */
+.eu-tabs-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.eu-drawer-tab {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.eu-drawer-tab:hover { color: var(--text); }
+.eu-drawer-tab.active {
+  border-bottom-color: var(--primary, #0B4F9C);
+  color: var(--primary, #0B4F9C);
+}
+
+/* -- "Select" mode toggle button (sits in filter bar) -- */
+.btn-select-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border, #E5E7EB);
+  background: var(--surface, #fff);
+  color: var(--muted, #6B7280);
+  transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.btn-select-mode:hover {
+  background: #F3F4F6;
+  border-color: #D1D5DB;
+  color: var(--text, #111827);
+}
+.btn-select-mode.active {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+  color: #1D4ED8;
+}
+
+/* -- Bulk action bar (shown only in select mode) -- */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #EFF6FF;
+  border: 1.5px solid #BFDBFE;
+  border-radius: 10px;
+  padding: 9px 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.bulk-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1D4ED8;
+  white-space: nowrap;
+}
+.bulk-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.bulk-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.bulk-btn-success { background: #ECFDF5; color: #047857; border-color: #A7F3D0; }
+.bulk-btn-success:hover { background: #D1FAE5; }
+.bulk-btn-warn { background: #FEF2F2; color: #B91C1C; border-color: #FECACA; }
+.bulk-btn-warn:hover { background: #FEE2E2; }
+.bulk-btn-neutral { background: #F3F4F6; color: #374151; border-color: #E5E7EB; }
+.bulk-btn-neutral:hover { background: #E5E7EB; }
+.bulk-btn-clear {
+  background: none;
+  color: var(--muted, #6B7280);
+  border: 1.5px solid var(--border, #E5E7EB);
+  font-size: 12px;
+}
+.bulk-btn-clear:hover { background: #F9FAFB; color: var(--text, #111827); }
+
+/* -- Checkbox cells (hidden by default; toggled visible when select mode is active) -- */
+.bulk-check-cell {
+  display: none;
+  width: 36px !important;
+  min-width: 36px;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0 !important;
+}
+.user-row-check {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: #0B4F9C;
 }

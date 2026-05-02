@@ -79,6 +79,52 @@ try {
 const TOTP_ROLES    = ['teacher', 'school-head', 'developer', 'admin'];
 const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
 
+/* ── Ensure audit log table exists ── */
+$pdo->exec("
+  CREATE TABLE IF NOT EXISTS user_change_log (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    target_id   INT UNSIGNED NOT NULL,
+    actor_id    INT UNSIGNED,
+    actor_name  VARCHAR(120),
+    actor_role  VARCHAR(40),
+    action_type VARCHAR(60) NOT NULL,
+    detail      TEXT,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_target (target_id),
+    INDEX idx_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+
+/**
+ * Write one row to user_change_log.
+ */
+function audit_log(PDO $pdo, int $targetId, string $action, string $detail, array $session): void {
+    $actorId   = (int)($session['user_id']   ?? 0);
+    $actorName = trim(($session['user_name'] ?? '') ?: '');
+    $actorRole = $session['user_role'] ?? '';
+
+    // If session name is blank but we have an actor ID, look it up from the DB
+    if ($actorName === '' && $actorId > 0) {
+        try {
+            $s = $pdo->prepare('SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1');
+            $s->execute([$actorId]);
+            $row = $s->fetch();
+            if ($row) {
+                $actorName = trim($row['first_name'] . ' ' . $row['last_name']);
+            }
+        } catch (Exception $e) { /* ignore — best effort */ }
+    }
+
+    try {
+        $pdo->prepare("
+            INSERT INTO user_change_log (target_id, actor_id, actor_name, actor_role, action_type, detail)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ")->execute([$targetId, $actorId ?: null, $actorName ?: null, $actorRole ?: null, $action, $detail]);
+    } catch (Exception $e) {
+        error_log('LRMDS audit_log: ' . $e->getMessage());
+    }
+}
+
 /* ── Helpers ── */
 function human_time(string $dt): string {
     if (!$dt) return 'Never';
@@ -151,6 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $search = '%' . trim($_GET['search'] ?? '') . '%';
         $role   = trim($_GET['role']   ?? '');
         $status = trim($_GET['status'] ?? '');
+        $region = trim($_GET['region'] ?? '');
 
         $sql = "SELECT id, email, first_name, last_name, role, status, region,
                        division, employee_id, totp_enabled, created_at, last_login
@@ -160,6 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         if ($role)   { $sql .= ' AND role = ?';   $params[] = $role; }
         if ($status) { $sql .= ' AND status = ?'; $params[] = $status; }
+        if ($region) { $sql .= ' AND region = ?'; $params[] = $region; }
         $sql .= ' ORDER BY created_at DESC';
 
         $stmt = $pdo->prepare($sql);
@@ -200,6 +248,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    /* ── get_audit_log ── */
+    if ($action === 'get_audit_log') {
+        $id = (int)($_GET['id'] ?? 0);
+        if (!$id) { json_err('Invalid user ID.'); exit; }
+
+        $stmt = $pdo->prepare("
+            SELECT l.action_type, l.detail, l.actor_role, l.created_at,
+                   COALESCE(NULLIF(TRIM(l.actor_name),''), CONCAT(u.first_name,' ',u.last_name), 'System') AS actor_name
+            FROM   user_change_log l
+            LEFT JOIN users u ON u.id = l.actor_id
+            WHERE  l.target_id = ?
+            ORDER  BY l.created_at DESC
+            LIMIT  100
+        ");
+        $stmt->execute([$id]);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$r) {
+            $r['created_at_human'] = human_time($r['created_at']);
+        }
+        echo json_encode(['ok' => true, 'data' => $rows]);
+        exit;
+    }
+
     json_err('Unknown action.');
     exit;
 }
@@ -216,6 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { json_err('Invalid ID.'); exit; }
         $pdo->prepare("UPDATE users SET status = 'active' WHERE id = ? AND status = 'pending'")
             ->execute([$id]);
+        audit_log($pdo, $id, 'approve', 'Account approved and activated.', $_SESSION);
         echo json_encode(['ok' => true, 'msg' => 'User approved.']);
         exit;
     }
@@ -234,6 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { json_err('Invalid ID.'); exit; }
         $pdo->prepare("UPDATE users SET status = 'suspended' WHERE id = ?")
             ->execute([$id]);
+        audit_log($pdo, $id, 'suspend', 'Account suspended.', $_SESSION);
         echo json_encode(['ok' => true, 'msg' => 'User suspended.']);
         exit;
     }
@@ -243,6 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { json_err('Invalid ID.'); exit; }
         $pdo->prepare("UPDATE users SET status = 'active' WHERE id = ?")
             ->execute([$id]);
+        audit_log($pdo, $id, 'reactivate', 'Account reactivated.', $_SESSION);
         echo json_encode(['ok' => true, 'msg' => 'User reactivated.']);
         exit;
     }
@@ -271,6 +345,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg .= ' This role requires 2FA — the user will be prompted to enroll on next login.';
         }
 
+        $oldLabel = $oldUser['role'] ?? '?';
+        audit_log($pdo, $id, 'change_role', "Role changed from {$oldLabel} to {$role}." . ($totpCleared ? ' 2FA cleared automatically.' : ''), $_SESSION);
         echo json_encode(['ok' => true, 'msg' => $msg, 'totp_cleared' => $totpCleared]);
         exit;
     }
@@ -280,7 +356,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { json_err('Invalid ID.'); exit; }
 
         /* ── Role-based permission check ── */
-        $targetStmt = $pdo->prepare('SELECT role FROM users WHERE id = ? LIMIT 1');
+        $targetStmt = $pdo->prepare('SELECT id, role, first_name, last_name, email, status FROM users WHERE id = ? LIMIT 1');
         $targetStmt->execute([$id]);
         $targetUser = $targetStmt->fetch();
 
@@ -288,11 +364,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /**
          * Hierarchy:
-         *   admin        → edit anyone
-         *   developer    → edit school-head, teacher, learner, parent, guest
+         *   admin        -> edit anyone
+         *   developer    -> edit school-head, teacher, learner, parent, guest
          *                  (SDS / ASDS are at developer level)
-         *   school-head  → edit teacher, learner, parent, guest
-         *   teacher/etc  → no edit rights (blocked at auth guard above)
+         *   school-head  -> edit teacher, learner, parent, guest
+         *   teacher/etc  -> no edit rights (blocked at auth guard above)
          */
         $editable_by = [
             'admin'       => ['admin', 'developer', 'school-head', 'teacher', 'learner', 'parent', 'guest'],
@@ -392,6 +468,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg .= ' This role requires 2FA — the user will be prompted to enroll on next login.';
         }
 
+        // Build human-readable audit detail
+        $changes = [];
+        $oldName = trim(($targetUser['first_name'] ?? '') . ' ' . ($targetUser['last_name'] ?? ''));
+        $newName = trim("{$fname} {$lname}");
+        if ($newName !== $oldName)             $changes[] = 'Name: "' . $oldName . '" -> "' . $newName . '"';
+        if ($email !== $targetUser['email'])   $changes[] = 'Email: "' . $targetUser['email'] . '" -> "' . $email . '"';
+        if ($role  !== $targetUser['role'])    $changes[] = 'Role: ' . $targetUser['role'] . ' -> ' . $role;
+        if ($status !== $targetUser['status']) $changes[] = 'Status: ' . $targetUser['status'] . ' -> ' . $status;
+        $auditDetail = empty($changes)
+            ? "Profile reviewed (no changes)."
+            : implode('; ', $changes) . '.';
+        if ($totpCleared) { $auditDetail .= ' 2FA cleared automatically.'; }
+        audit_log($pdo, $id, 'edit_user', $auditDetail, $_SESSION);
+
         echo json_encode(['ok' => true, 'msg' => $msg, 'totp_cleared' => $totpCleared]);
         exit;
     }
@@ -402,6 +492,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$id) { json_err('Invalid ID.'); exit; }
         $pdo->prepare("UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?")
             ->execute([$id]);
+        audit_log($pdo, $id, 'disable_totp', 'Two-factor authentication manually disabled by admin.', $_SESSION);
         echo json_encode(['ok' => true, 'msg' => '2FA disabled. The user will need to re-enroll on next login.']);
         exit;
     }

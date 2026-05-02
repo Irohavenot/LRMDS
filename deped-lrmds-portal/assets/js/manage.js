@@ -71,7 +71,7 @@ const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
 const EDITABLE_BY = {
   'admin':       ['admin', 'developer', 'school-head', 'teacher', 'learner', 'parent', 'guest'],
   'developer':   ['school-head', 'teacher', 'learner', 'parent', 'guest'],
-  'school-head': ['teacher', 'learner', 'parent', 'guest'],
+  'school-head': ['teacher'],   // School heads may only edit teachers
 };
 
 // Roles that each actor can approve (pending registrations)
@@ -402,16 +402,17 @@ async function umLoadUsers() {
   const search = document.getElementById('users-search')?.value  ?? '';
   const role   = document.getElementById('users-role-filter')?.value   ?? '';
   const status = document.getElementById('users-status-filter')?.value ?? '';
-  const params = new URLSearchParams({ action:'list_users', search, role, status });
+  const region = document.getElementById('users-region-filter')?.value ?? '';
+  const params = new URLSearchParams({ action:'list_users', search, role, status, region });
   const tbody  = document.getElementById('users-tbody');
 
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Loading…</td></tr>';
 
   try {
     const r = await fetch('users_handler.php?' + params);
     const d = await r.json();
     if (!d.ok) {
-      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--red);padding:24px;text-align:center">${escHtml(d.msg)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:24px;text-align:center">${escHtml(d.msg)}</td></tr>`;
       return;
     }
     document.getElementById('um-all-count').textContent         = d.count;
@@ -419,10 +420,10 @@ async function umLoadUsers() {
     document.getElementById('um-card-sub').textContent          = d.count + ' total users';
 
     tbody.innerHTML = d.data.length === 0
-      ? '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No users found.</td></tr>'
+      ? '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">No users found.</td></tr>'
       : d.data.map(u => umUserRow(u)).join('');
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--red);padding:24px;text-align:center">Could not load users.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:24px;text-align:center">Could not load users.</td></tr>`;
   }
 }
 
@@ -567,7 +568,7 @@ function umUserRow(u) {
 
   // If the actor can't edit this user at all, show a plain read-only role badge instead of a select
   const roleCell = canEditUser(u)
-    ? `<select class="role-select-inline" data-user-id="${u.id}" data-user-name="${escHtml(name)}" data-current-role="${escHtml(u.role)}"
+    ? `<select class="role-select-inline" id="role-select-${u.id}" name="role_user_${u.id}" data-user-id="${u.id}" data-user-name="${escHtml(name)}" data-current-role="${escHtml(u.role)}"
               onchange="rcmOpen(this, ${u.id}, '${name.replace(/'/g,"\\'")}', '${u.role}', this.value)">
         ${roleOptions}
        </select>`
@@ -577,8 +578,10 @@ function umUserRow(u) {
     ? `<button class="tbl-btn primary" onclick="euOpen(${u.id})">Edit</button>`
     : '';
 
+  const chkCell = `<td class="bulk-check-cell" style="display:none;width:36px;text-align:center;vertical-align:middle"><input type="checkbox" class="user-row-check" data-id="${u.id}" style="cursor:pointer;width:15px;height:15px;accent-color:#0B4F9C" onchange="bulkToggleRow(${u.id}, this.checked)"></td>`;
   return `
-    <tr id="user-row-${u.id}">
+    <tr id="user-row-${u.id}" data-user-id="${u.id}">
+      ${chkCell}
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:32px;height:32px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;cursor:pointer"
@@ -668,20 +671,70 @@ async function confirmReject() {
 }
 
 /* ── Suspend / reactivate ── */
-async function umSuspend(id, name) {
-  if (!confirm(`Suspend ${name}'s account?`)) return;
-  const fd = new FormData(); fd.append('action','suspend'); fd.append('id',id);
-  const d = await (await fetch('users_handler.php',{method:'POST',body:fd})).json();
-  if (d.ok) { umToast(`${name} suspended.`,'error'); umLoadUsers(); umLoadStats(); }
-  else umToast(d.msg,'error');
+let suspendPending    = null;
+let reactivatePending = null;
+
+function umOpenSuspend(id, name) {
+  suspendPending = { id, name };
+  document.getElementById('suspend-user-name').textContent   = name;
+  document.getElementById('suspend-confirm-btn').disabled    = false;
+  document.getElementById('suspend-confirm-btn').innerHTML   =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Yes, Suspend Account';
+  document.getElementById('suspend-modal').classList.add('open');
 }
 
-async function umReactivate(id, name) {
-  const fd = new FormData(); fd.append('action','reactivate'); fd.append('id',id);
-  const d = await (await fetch('users_handler.php',{method:'POST',body:fd})).json();
-  if (d.ok) { umToast(`${name} reactivated.`,'success'); umLoadUsers(); umLoadStats(); }
-  else umToast(d.msg,'error');
+function closeSuspendModal() {
+  document.getElementById('suspend-modal').classList.remove('open');
+  suspendPending = null;
 }
+
+async function confirmSuspend() {
+  if (!suspendPending) return;
+  const { id, name } = suspendPending;
+  const btn = document.getElementById('suspend-confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:eu-spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Suspending…';
+  const fd = new FormData(); fd.append('action','suspend'); fd.append('id', id);
+  try {
+    const d = await (await fetch('users_handler.php', { method:'POST', body:fd })).json();
+    closeSuspendModal();
+    if (d.ok) { umToast(`${name} has been suspended.`, 'error'); umLoadUsers(); umLoadStats(); }
+    else { umToast(d.msg, 'error'); }
+  } catch (e) { closeSuspendModal(); umToast('Network error.', 'error'); }
+}
+
+function umOpenReactivate(id, name) {
+  reactivatePending = { id, name };
+  document.getElementById('reactivate-user-name').textContent = name;
+  document.getElementById('reactivate-confirm-btn').disabled  = false;
+  document.getElementById('reactivate-confirm-btn').innerHTML =
+    '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Yes, Reactivate';
+  document.getElementById('reactivate-modal').classList.add('open');
+}
+
+function closeReactivateModal() {
+  document.getElementById('reactivate-modal').classList.remove('open');
+  reactivatePending = null;
+}
+
+async function confirmReactivate() {
+  if (!reactivatePending) return;
+  const { id, name } = reactivatePending;
+  const btn = document.getElementById('reactivate-confirm-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation:eu-spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Reactivating…';
+  const fd = new FormData(); fd.append('action','reactivate'); fd.append('id', id);
+  try {
+    const d = await (await fetch('users_handler.php', { method:'POST', body:fd })).json();
+    closeReactivateModal();
+    if (d.ok) { umToast(`${name} has been reactivated.`, 'success'); umLoadUsers(); umLoadStats(); }
+    else { umToast(d.msg, 'error'); }
+  } catch (e) { closeReactivateModal(); umToast('Network error.', 'error'); }
+}
+
+/* keep old names as aliases so any existing references still work */
+async function umSuspend(id, name)    { umOpenSuspend(id, name); }
+async function umReactivate(id, name) { umOpenReactivate(id, name); }
 
 /* ════════════════════════════
    ROLE-CHANGE CONFIRMATION MODAL
@@ -783,6 +836,14 @@ document.getElementById('role-change-modal')?.addEventListener('click', function
 /* ── Close reject modal on overlay click ── */
 document.getElementById('reject-modal')?.addEventListener('click', function(e) {
   if (e.target === this) closeRejectModal();
+});
+
+/* ── Close suspend/reactivate modals on overlay click ── */
+document.getElementById('suspend-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeSuspendModal();
+});
+document.getElementById('reactivate-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeReactivateModal();
 });
 
 /* ════════════════════════════
@@ -929,14 +990,20 @@ document.getElementById('view-modal')?.addEventListener('click', function(e) {
 let euCurrentUser = null;
 
 function euShowDrawer() {
-  document.getElementById('eu-overlay').style.display = 'block';
-  document.getElementById('eu-drawer').style.display  = 'flex';
+  const overlay = document.getElementById('eu-overlay');
+  const drawer  = document.getElementById('eu-drawer');
+  // Show both — overlay is the backdrop, drawer slides in from the right
+  overlay.classList.add('open');
+  requestAnimationFrame(() => drawer.classList.add('open'));
   document.body.style.overflow = 'hidden';
+  euSwitchTab('details');
 }
 
 function euCloseDrawer() {
-  document.getElementById('eu-overlay').style.display = 'none';
-  document.getElementById('eu-drawer').style.display  = 'none';
+  const overlay = document.getElementById('eu-overlay');
+  const drawer  = document.getElementById('eu-drawer');
+  overlay.classList.remove('open');
+  drawer.classList.remove('open');
   document.body.style.overflow = '';
   // Remove dynamic change listener by cloning the role select
   const roleSelect = document.getElementById('eu-role');
@@ -950,7 +1017,7 @@ function euCloseDrawer() {
   euCurrentUser = null;
 }
 
-/* Close drawer when clicking the dark overlay */
+/* Close drawer when clicking the dark backdrop (overlay is now standalone, not parent of drawer) */
 document.getElementById('eu-overlay').addEventListener('click', euCloseDrawer);
 
 /* Open directly from table row — no fetch needed, data is in data-user attr */
@@ -967,7 +1034,6 @@ function euOpenDirect(btn) {
   }
   euCurrentUser = u;
   document.getElementById('eu-error').style.display = 'none';
-  document.getElementById('eu-save-btn').disabled   = false;
   euShowDrawer();
   euPopulate(u);
 }
@@ -996,7 +1062,6 @@ async function euOpen(id) {
     if (!d.ok) { euShowError(d.msg || 'Could not load user.'); return; }
     euCurrentUser = d.data;
     euPopulate(d.data);
-    document.getElementById('eu-save-btn').disabled = false;
   } catch(e) {
     euShowError('Network error — check server connection.');
     console.error('[euOpen] fetch error:', e);
@@ -1141,8 +1206,116 @@ function euPopulate(u) {
   totpBtn.style.display = totpEnabled ? '' : 'none';
   totpBtn.disabled      = false;
   totpBtn.textContent   = 'Disable 2FA';
+
+  // ── Dirty tracking: disable Save unless something actually changed ──
+  // Take a snapshot of all editable field values right after populating
+  function euSnapshot() {
+    const pick = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+    return {
+      fname:      pick('eu-fname'),
+      lname:      pick('eu-lname'),
+      email:      pick('eu-email'),
+      role:       pick('eu-role'),
+      status:     pick('eu-status'),
+      region:     pick('eu-region'),
+      division:   pick('eu-division'),
+      empId:      pick('eu-employee-id'),
+      newPass:    pick('eu-new-password'),
+      // role-specific
+      gradeLevel:   pick('eu-grade-level'),
+      schoolName:   pick('eu-school-name'),
+      subjects:     pick('eu-subjects'),
+      learnerGrade: pick('eu-learner-grade'),
+      learnerSchool:pick('eu-learner-school'),
+      lrn:          pick('eu-lrn'),
+      childGrade:   pick('eu-child-grade'),
+      childSchool:  pick('eu-child-school'),
+      position:     pick('eu-position'),
+      shSchool:     pick('eu-sh-school'),
+      devPosition:  pick('eu-dev-position'),
+      affiliation:  pick('eu-affiliation'),
+    };
+  }
+
+  const originalSnapshot = euSnapshot();
+
+  function euCheckDirty() {
+    const cur  = euSnapshot();
+    const dirty = Object.keys(originalSnapshot).some(k => cur[k] !== originalSnapshot[k]);
+    const saveBtn = document.getElementById('eu-save-btn');
+    saveBtn.disabled = !dirty;
+    saveBtn.style.opacity = dirty ? '' : '0.45';
+    saveBtn.title = dirty ? '' : 'No changes made yet';
+  }
+
+  // Watch all input/select/textarea inside the drawer
+  const drawerPanel = document.getElementById('eu-panel-details');
+  drawerPanel.addEventListener('input',  euCheckDirty);
+  drawerPanel.addEventListener('change', euCheckDirty);
+
+  // Start disabled — nothing changed yet
+  const saveBtn = document.getElementById('eu-save-btn');
+  saveBtn.disabled     = true;
+  saveBtn.style.opacity = '0.45';
+  saveBtn.title = 'No changes made yet';
 }
 
+
+/* ════════════════════════════
+   EDIT DRAWER — TAB SWITCHING & AUDIT LOG
+════════════════════════════ */
+function euSwitchTab(tab) {
+  ['details','history'].forEach(t => {
+    const btn = document.getElementById('eu-tab-' + t);
+    const pnl = document.getElementById('eu-panel-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (pnl) pnl.style.display = t === tab ? '' : 'none';
+  });
+  if (tab === 'history' && euCurrentUser) euLoadHistory(euCurrentUser.id);
+}
+
+async function euLoadHistory(userId) {
+  var container = document.getElementById('eu-history-body');
+  if (!container) return;
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0">Loading…</div>';
+  try {
+    var r = await fetch('users_handler.php?action=get_audit_log&id=' + encodeURIComponent(userId));
+    var d = await r.json();
+    if (!d.ok) {
+      container.innerHTML = '<div style="color:var(--red);font-size:13px;padding:16px 0">' + escHtml(d.msg) + '</div>';
+      return;
+    }
+    if (!d.data || d.data.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0;text-align:center">No changes recorded yet.</div>';
+      return;
+    }
+    var actionColors = {
+      edit_user:    { bg:'#EFF6FF', color:'#1D4ED8', label:'Edit' },
+      change_role:  { bg:'#F0FDF4', color:'#15803D', label:'Role Change' },
+      suspend:      { bg:'#FEF2F2', color:'#B91C1C', label:'Suspend' },
+      reactivate:   { bg:'#F0FDF4', color:'#15803D', label:'Reactivate' },
+      approve:      { bg:'#F0FDF4', color:'#15803D', label:'Approve' },
+      disable_totp: { bg:'#FFF7ED', color:'#C2410C', label:'2FA Disabled' }
+    };
+    container.innerHTML = d.data.map(function(entry) {
+      var actorName = escHtml(entry.actor_name || 'System');
+      var actorRole = escHtml(entry.actor_role || '');
+      var detail    = escHtml(entry.detail || '');
+      var time      = escHtml(entry.created_at_human || '');
+      var ac = actionColors[entry.action_type] || { bg:'#F8FAFC', color:'#64748B', label: escHtml(entry.action_type || '') };
+      return '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">'
+           + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+           + '<span style="background:' + ac.bg + ';color:' + ac.color + ';font-size:11px;font-weight:700;border-radius:5px;padding:2px 8px">' + ac.label + '</span>'
+           + '<span style="font-size:12px;color:var(--muted)">' + time + '</span>'
+           + '</div>'
+           + '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">' + detail + '</div>'
+           + '<div style="font-size:11px;color:var(--muted)">By ' + actorName + ' <span style="opacity:.6">(' + actorRole + ')</span></div>'
+           + '</div>';
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--red);font-size:13px;padding:16px 0">Network error loading history.</div>';
+  }
+}
 async function euSave() {
   if (!euCurrentUser) return;
 
@@ -1231,8 +1404,13 @@ async function euSave() {
   } catch (e) {
     euShowError('Network error. Please try again.');
   } finally {
-    btn.disabled  = false;
+    // Only re-enable on error (success closes the drawer); restore label regardless
     btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Changes';
+    // Re-enable only if we didn't successfully close (i.e. an error occurred)
+    if (document.getElementById('eu-drawer').classList.contains('open')) {
+      btn.disabled     = false;
+      btn.style.opacity = '';
+    }
   }
 }
 
@@ -1281,10 +1459,127 @@ function euShowError(msg) {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.getElementById('role-change-modal').classList.contains('open')) { rcmClose(true); return; }
-  if (document.getElementById('eu-drawer').style.display === 'flex')            { euCloseDrawer(); return; }
+  if (document.getElementById('eu-drawer').classList.contains('open'))           { euCloseDrawer(); return; }
   if (document.getElementById('view-modal').classList.contains('open'))          { closeViewModal(); return; }
   if (document.getElementById('reject-modal').classList.contains('open'))        { closeRejectModal(); }
 });
+
+
+/* =====================================
+   BULK SELECTION / SELECT MODE
+   Toggle with the "Select" button.
+   Checkbox cells are hidden by default.
+===================================== */
+let bulkMode     = false;
+let bulkSelected = new Set();
+
+function bulkToggleMode() {
+  bulkMode = !bulkMode;
+  const bar     = document.getElementById('bulk-bar');
+  const modeBtn = document.getElementById('btn-select-mode');
+
+  if (bulkMode) {
+    bar.style.display = 'flex';
+    if (modeBtn) { modeBtn.classList.add('active'); modeBtn.title = 'Exit select mode'; }
+    document.querySelectorAll('.bulk-check-cell').forEach(c => c.style.display = '');
+  } else {
+    bar.style.display = 'none';
+    if (modeBtn) { modeBtn.classList.remove('active'); modeBtn.title = 'Enable multi-select'; }
+    document.querySelectorAll('.bulk-check-cell').forEach(c => c.style.display = 'none');
+    bulkSelected.clear();
+    document.querySelectorAll('.user-row-check').forEach(cb => cb.checked = false);
+    const selAll = document.getElementById('select-all-users');
+    if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+    bulkUpdateBar();
+  }
+}
+
+function bulkUpdateBar() {
+  const count  = document.getElementById('bulk-count');
+  const selAll = document.getElementById('select-all-users');
+  if (count) count.textContent = bulkSelected.size + ' selected';
+  if (selAll) {
+    const all = document.querySelectorAll('.user-row-check');
+    selAll.indeterminate = bulkSelected.size > 0 && bulkSelected.size < all.length;
+    selAll.checked       = all.length > 0 && bulkSelected.size === all.length;
+  }
+}
+
+function bulkToggleRow(id, checked) {
+  if (checked) bulkSelected.add(id);
+  else         bulkSelected.delete(id);
+  bulkUpdateBar();
+}
+
+function bulkToggleAll(checked) {
+  document.querySelectorAll('.user-row-check').forEach(cb => {
+    cb.checked = checked;
+    const id   = parseInt(cb.dataset.id);
+    if (checked) bulkSelected.add(id);
+    else         bulkSelected.delete(id);
+  });
+  bulkUpdateBar();
+}
+
+async function bulkActivate() {
+  if (!bulkSelected.size) return;
+  if (!confirm('Activate ' + bulkSelected.size + ' selected user(s)?')) return;
+  const ids = [...bulkSelected];
+  const results = await Promise.all(ids.map(id => {
+    const fd = new FormData(); fd.append('action','reactivate'); fd.append('id', id);
+    return fetch('users_handler.php', { method:'POST', body:fd }).then(r => r.json()).catch(() => ({ ok:false }));
+  }));
+  const ok  = results.filter(r => r.ok).length;
+  const bad = results.length - ok;
+  umToast(ok + ' user(s) activated' + (bad ? ', ' + bad + ' failed' : '') + '.', bad > 0 ? 'error' : 'success');
+  bulkSelected.clear();
+  bulkToggleMode(); // exit select mode after action
+  umLoadUsers(); umLoadStats();
+}
+
+async function bulkSuspend() {
+  if (!bulkSelected.size) return;
+  if (!confirm('Suspend ' + bulkSelected.size + ' selected user(s)? They will be locked out immediately.')) return;
+  const ids = [...bulkSelected];
+  const results = await Promise.all(ids.map(id => {
+    const fd = new FormData(); fd.append('action','suspend'); fd.append('id', id);
+    return fetch('users_handler.php', { method:'POST', body:fd }).then(r => r.json()).catch(() => ({ ok:false }));
+  }));
+  const ok  = results.filter(r => r.ok).length;
+  const bad = results.length - ok;
+  umToast(ok + ' user(s) suspended' + (bad ? ', ' + bad + ' failed' : '') + '.', bad > 0 ? 'error' : 'success');
+  bulkSelected.clear();
+  bulkToggleMode();
+  umLoadUsers(); umLoadStats();
+}
+
+function bulkExportCSV() {
+  if (!bulkSelected.size) return;
+  const ids  = [...bulkSelected];
+  const rows = [['ID','Name','Email','Role','Status','Region','Last Login','Joined']];
+  ids.forEach(function(id) {
+    const row = document.getElementById('user-row-' + id);
+    if (!row) return;
+    const off  = bulkMode ? 1 : 0;
+    const name  = row.querySelector('.resource-title') ? row.querySelector('.resource-title').textContent.trim() : '';
+    const email = row.querySelector('.resource-meta')  ? row.querySelector('.resource-meta').textContent.trim()  : '';
+    const tds   = row.querySelectorAll('td');
+    rows.push([
+      id, name, email,
+      tds[1 + off] ? tds[1 + off].textContent.trim() : '',
+      tds[2 + off] ? tds[2 + off].textContent.trim() : '',
+      tds[3 + off] ? tds[3 + off].textContent.trim() : '',
+      tds[5 + off] ? tds[5 + off].textContent.trim() : '',
+      tds[6 + off] ? tds[6 + off].textContent.trim() : '',
+    ]);
+  });
+  const csv  = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'users_export_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
 
 /* ════════════════════════════
    INIT

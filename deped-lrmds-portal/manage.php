@@ -395,9 +395,9 @@ include 'includes/profile_panel.php';
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             <span class="card-title">All Resources</span>
             <div class="filter-bar" style="margin-left:auto">
-              <input type="search" placeholder="Search…" oninput="filterTable(this.value)"/>
-              <select><option value="">All Status</option><option>Published</option><option>Under Review</option><option>Archived</option></select>
-              <select><option>All Grades</option><option>Grade 3</option><option>Grade 6</option><option>Grade 10</option></select>
+              <input type="search" id="res-search" name="res-search" placeholder="Search…" oninput="filterTable(this.value)"/>
+              <select id="res-status-filter" name="res-status-filter"><option value="">All Status</option><option>Published</option><option>Under Review</option><option>Archived</option></select>
+              <select id="res-grade-filter" name="res-grade-filter"><option>All Grades</option><option>Grade 3</option><option>Grade 6</option><option>Grade 10</option></select>
               <button class="btn btn-primary" style="font-size:12px;padding:7px 12px">Export CSV</button>
             </div>
           </div>
@@ -584,11 +584,64 @@ include 'includes/profile_panel.php';
                   <option value="pending">Pending</option>
                   <option value="suspended">Suspended</option>
                 </select>
+                <select id="users-region-filter" name="users-region-filter" onchange="umLoadUsers()">
+                  <option value="">All Regions</option>
+                  <option value="NCR">NCR</option>
+                  <option value="CAR">CAR</option>
+                  <option value="Region I">Region I</option>
+                  <option value="Region II">Region II</option>
+                  <option value="Region III">Region III</option>
+                  <option value="Region IV-A">Region IV-A (CALABARZON)</option>
+                  <option value="Region IV-B">Region IV-B (MIMAROPA)</option>
+                  <option value="Region V">Region V</option>
+                  <option value="Region VI">Region VI</option>
+                  <option value="Region VII">Region VII</option>
+                  <option value="Region VIII">Region VIII</option>
+                  <option value="Region IX">Region IX</option>
+                  <option value="Region X">Region X</option>
+                  <option value="Region XI">Region XI</option>
+                  <option value="Region XII">Region XII</option>
+                  <option value="CARAGA">CARAGA</option>
+                  <option value="BARMM">BARMM</option>
+                </select>
                 <span class="um-result-count" id="users-result-count"></span>
+                <button class="btn-select-mode" id="btn-select-mode" onclick="bulkToggleMode()" title="Enable multi-select">
+                  <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="4" rx="1"/><line x1="10" y1="7" x2="21" y2="7"/><rect x="3" y="11" width="4" height="4" rx="1"/><line x1="10" y1="13" x2="21" y2="13"/><rect x="3" y="17" width="4" height="4" rx="1"/><line x1="10" y1="19" x2="21" y2="19"/></svg>
+                  Select
+                </button>
               </div>
+
+              <!-- Bulk action bar (only visible in select mode) -->
+              <div id="bulk-bar" class="bulk-bar" style="display:none">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="checkbox" id="select-all-users" title="Select all on this page" onchange="bulkToggleAll(this.checked)" style="cursor:pointer;width:15px;height:15px;accent-color:#0B4F9C">
+                  <span id="bulk-count" class="bulk-count">0 selected</span>
+                </div>
+                <div class="bulk-actions">
+                  <button class="bulk-btn bulk-btn-success" onclick="bulkActivate()">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+                    Activate
+                  </button>
+                  <button class="bulk-btn bulk-btn-warn" onclick="bulkSuspend()">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Suspend
+                  </button>
+                  <button class="bulk-btn bulk-btn-neutral" onclick="bulkExportCSV()">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export CSV
+                  </button>
+                  <button class="bulk-btn bulk-btn-clear" onclick="bulkToggleMode()">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    Done
+                  </button>
+                </div>
+              </div>
+
               <div class="table-wrap">
                 <table id="users-table">
-                  <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Region</th><th>2FA</th><th>Last Login</th><th>Joined</th><th>Actions</th></tr></thead>
+                  <thead><tr id="users-thead-row">
+                    <th>User</th><th>Role</th><th>Status</th><th>Region</th><th>2FA</th><th>Last Login</th><th>Joined</th><th>Actions</th>
+                  </tr></thead>
                   <tbody id="users-tbody"></tbody>
                 </table>
               </div>
@@ -607,7 +660,7 @@ include 'includes/profile_panel.php';
   <div class="um-modal">
     <div class="um-modal-title">Reject Application</div>
     <div class="um-modal-body">This will permanently delete the pending registration. The applicant will need to register again.<br><br>Reason (optional — not shown to applicant, logged internally):</div>
-    <textarea id="reject-reason" placeholder="e.g. Invalid employee ID, unverifiable credentials…"></textarea>
+    <textarea id="reject-reason" name="reject-reason" placeholder="e.g. Invalid employee ID, unverifiable credentials…"></textarea>
     <div class="um-modal-actions">
       <button class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
       <button class="btn-reject" id="reject-confirm-btn" onclick="confirmReject()">
@@ -671,7 +724,7 @@ include 'includes/profile_panel.php';
       </button>
     </div>
     <div class="vm-body" id="vm-body">Loading…</div>
-    <div class="um-modal-actions" style="padding-top:16px;border-top:1px solid var(--border)">
+    <div class="um-modal-actions" style="padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface);">
       <button class="btn btn-ghost" onclick="closeViewModal()">Close</button>
       <button class="btn btn-primary" id="vm-edit-btn" onclick="vmSwitchToEdit()">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -682,14 +735,12 @@ include 'includes/profile_panel.php';
 </div>
 
 <!-- ══ EDIT USER DRAWER ══ -->
-<div class="eu-overlay" id="eu-overlay">
-  <div class="eu-drawer" id="eu-drawer" role="dialog" aria-modal="true" aria-label="Edit User">
-    <!-- ⚠ PROTOTYPE: Edit drawer is under active development. Save works but some fields may not persist. -->
-    <div style="background:#FEF3C7;border-bottom:2px solid #FDE68A;padding:6px 16px;font-size:11px;font-weight:700;color:#92400E;display:flex;align-items:center;gap:6px;flex-shrink:0">
-      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      PROTOTYPE — Edit User (under development)
-    </div>
-    <div class="eu-header">
+<!-- Backdrop only — clicking it closes the drawer -->
+<div class="eu-overlay" id="eu-overlay"></div>
+
+<!-- Drawer sits as a sibling, NOT inside the overlay -->
+<div class="eu-drawer" id="eu-drawer" role="dialog" aria-modal="true" aria-label="Edit User">
+  <div class="eu-header">
       <div class="eu-header-left">
         <div class="eu-avatar" id="eu-avatar">AB</div>
         <div>
@@ -701,7 +752,16 @@ include 'includes/profile_panel.php';
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="eu-body">
+    <!-- Drawer tabs: Details / History -->
+    <div class="eu-tabs-bar">
+      <button id="eu-tab-details" class="eu-drawer-tab active" onclick="euSwitchTab('details')">
+        Details
+      </button>
+      <button id="eu-tab-history" class="eu-drawer-tab" onclick="euSwitchTab('history')">
+        Change History
+      </button>
+    </div>
+    <div id="eu-panel-details" class="eu-body">
       <div class="eu-error" id="eu-error" style="display:none"></div>
       <div class="eu-section-label">Personal Information</div>
       <div class="eu-row-2">
@@ -722,9 +782,9 @@ include 'includes/profile_panel.php';
             <option value="learner">Learner</option>
             <option value="parent">Parent</option>
             <option value="school-head">School Head / PSDS</option>
-            <option value="developer">SDS / ASDS (Developer)</option>
+            <option value="developer">Content Developer (SDS / ASDS)</option>
             <?php if ($actor_role === 'admin'): ?>
-              <option value="admin">Admin</option>
+              <option value="admin">Administrator</option>
             <?php endif; ?>
             <option value="guest">Guest</option>
           </select>
@@ -899,23 +959,83 @@ include 'includes/profile_panel.php';
         </div>
         <button class="eu-danger-btn" id="eu-totp-btn" onclick="euDisableTotp()">Disable 2FA</button>
       </div>
-      <div class="eu-security-row" style="margin-top:10px">
+      <div class="eu-security-row" style="margin-top:10px; opacity:0.65; pointer-events:none; cursor:not-allowed;" title="Not yet implemented">
         <div>
-          <div class="eu-security-label">Password Reset</div>
-          <div class="eu-security-hint">Send a password-reset email to this user.</div>
+          <div class="eu-security-label" style="display:flex;align-items:center;gap:6px;">
+            Password Reset
+            <span style="font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;border-radius:4px;padding:1px 6px;letter-spacing:.03em">COMING SOON</span>
+          </div>
+          <div class="eu-security-hint">Email-based password reset is not yet configured on this server.</div>
         </div>
-        <button class="eu-ghost-btn" onclick="euSendPasswordReset()">Send Reset Email</button>
+        <button class="eu-ghost-btn" disabled style="cursor:not-allowed">Send Reset Email</button>
       </div>
       <div class="eu-field" style="margin-top:12px">
         <label class="eu-label" for="eu-new-password">Set New Password <span style="font-weight:400;color:var(--muted)">(leave blank to keep current)</span></label>
         <input class="eu-input" id="eu-new-password" type="password" placeholder="Min. 8 characters" autocomplete="new-password"/>
       </div>
+    </div><!-- /eu-panel-details -->
+    <div id="eu-panel-history" style="display:none;flex:1;overflow-y:auto;padding:20px 24px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px">Change Log for this User</div>
+      <div id="eu-history-body"></div>
     </div>
     <div class="eu-footer">
       <button class="btn btn-ghost" onclick="euCloseDrawer()">Cancel</button>
       <button class="btn btn-primary" id="eu-save-btn" onclick="euSave()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
         Save Changes
+      </button>
+    </div>
+  </div><!-- /eu-drawer -->
+
+<!-- ══ SUSPEND CONFIRMATION MODAL ══ -->
+<div class="um-modal-overlay" id="suspend-modal">
+  <div class="um-modal rcm-modal">
+    <div class="rcm-icon-wrap" style="background:#FEF3C7;border-color:#FDE68A">
+      <svg width="22" height="22" fill="none" stroke="#92400E" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <div class="um-modal-title" style="text-align:center">Suspend Account</div>
+    <p class="rcm-who">You are about to suspend <strong id="suspend-user-name">—</strong>'s account.</p>
+    <div class="rcm-impact">
+      <div class="rcm-impact-warn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span><strong>The user will be locked out immediately.</strong> They won't be able to sign in until the account is reactivated by an admin.</span>
+      </div>
+    </div>
+    <p class="rcm-note">This action takes effect immediately. Are you sure you want to proceed?</p>
+    <div class="um-modal-actions">
+      <button class="btn btn-ghost" onclick="closeSuspendModal()">Cancel</button>
+      <button class="btn btn-primary" id="suspend-confirm-btn" onclick="confirmSuspend()" style="background:#C62828;border-color:#C62828">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Yes, Suspend Account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REACTIVATE CONFIRMATION MODAL ══ -->
+<div class="um-modal-overlay" id="reactivate-modal">
+  <div class="um-modal rcm-modal">
+    <div class="rcm-icon-wrap" style="background:#ECFDF5;border-color:#A7F3D0">
+      <svg width="22" height="22" fill="none" stroke="#047857" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <div class="um-modal-title" style="text-align:center">Reactivate Account</div>
+    <p class="rcm-who">You are about to reactivate <strong id="reactivate-user-name">—</strong>'s account.</p>
+    <div class="rcm-impact">
+      <div class="rcm-impact-info">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span><strong>The user will regain access immediately.</strong> They will be able to sign in with their existing credentials.</span>
+      </div>
+    </div>
+    <p class="rcm-note">Are you sure you want to reactivate this account?</p>
+    <div class="um-modal-actions">
+      <button class="btn btn-ghost" onclick="closeReactivateModal()">Cancel</button>
+      <button class="btn btn-primary" id="reactivate-confirm-btn" onclick="confirmReactivate()" style="background:#047857;border-color:#047857">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Yes, Reactivate
       </button>
     </div>
   </div>
@@ -971,7 +1091,6 @@ include 'includes/profile_panel.php';
     document.getElementById('sidebar-overlay').classList.remove('open');
     document.body.style.overflow = '';
   }
-  // Close sidebar when a nav item is clicked on mobile
   document.querySelectorAll('.nav-item').forEach(function(item) {
     item.addEventListener('click', function() {
       if (window.innerWidth < 1024) closeSidebar();
