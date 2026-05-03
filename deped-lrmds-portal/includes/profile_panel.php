@@ -32,7 +32,7 @@ try {
         LIMIT  1
     ');
     $s->execute([$_SESSION['user_id'] ?? 0]);
-    $panel_user = $s->fetch();
+    $panel_user = $s->fetch() ?: null;
 } catch (PDOException $e) {
     // Graceful fallback — panel will render with session data only
 }
@@ -46,8 +46,8 @@ $pu_status = $panel_user['status'] ?? 'active';
 $pu_region = htmlspecialchars($panel_user['region']   ?? '');
 $pu_div    = htmlspecialchars($panel_user['division'] ?? '');
 $pu_empid  = htmlspecialchars($panel_user['employee_id'] ?? '');
-$pu_joined = $panel_user['created_at'] ? date('M j, Y', strtotime($panel_user['created_at'])) : '—';
-$pu_login  = $panel_user['last_login']  ? date('M j, Y g:i A', strtotime($panel_user['last_login'])) : '—';
+$pu_joined = !empty($panel_user['created_at']) ? date('M j, Y', strtotime($panel_user['created_at'])) : '—';
+$pu_login  = !empty($panel_user['last_login'])  ? date('M j, Y g:i A', strtotime($panel_user['last_login'])) : '—';
 $pu_totp   = !empty($panel_user['totp_enabled']);
 
 // Parse meta JSON for extra profile fields
@@ -261,7 +261,7 @@ if (!empty($pu_meta['child_school'])) $extra_fields["Child's School"] = htmlspec
           </svg>
           Change Password
         </a>
-        <a href="totp_setup.php?manage=1" class="pp-action-btn">
+        <a href="auth/totp_setup.php?manage=1" class="pp-action-btn">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
           </svg>

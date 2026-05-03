@@ -16,19 +16,19 @@ if (!in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1'], true)) {
 
 session_start();
 
-require_once __DIR__ . '/lib/TwoFactorAuthException.php';
-require_once __DIR__ . '/lib/Algorithm.php';
-require_once __DIR__ . '/lib/Providers/Rng/IRNGProvider.php';
-require_once __DIR__ . '/lib/Providers/Rng/CSRNGProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/ITimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/LocalMachineTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/NTPTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/HttpTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/IQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRException.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRServerProvider.php';
-require_once __DIR__ . '/lib/TwoFactorAuth.php';
+require_once __DIR__ . '/../lib/TwoFactorAuthException.php';
+require_once __DIR__ . '/../lib/Algorithm.php';
+require_once __DIR__ . '/../lib/Providers/Rng/IRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Rng/CSRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/ITimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/LocalMachineTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/NTPTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/HttpTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/IQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRException.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRServerProvider.php';
+require_once __DIR__ . '/../lib/TwoFactorAuth.php';
 
 define('DB_HOST',    'localhost');
 define('DB_NAME',    'lrmds');

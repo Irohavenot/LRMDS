@@ -13,7 +13,7 @@
 
 session_start();
 
-require_once __DIR__ . '/lib/env.php';
+require_once __DIR__ . '/../lib/env.php';
 define('DB_CHARSET', 'utf8mb4');
 define('RESEND_COOLDOWN', 120); // seconds between resend attempts
 
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
                 $message = ['type' => 'warning', 'text' => 'This account does not need email verification. Contact support if you have questions.'];
 
             } else {
-                require_once __DIR__ . '/lib/send_verification_email.php';
+                require_once __DIR__ . '/../lib/send_verification_email.php';
                 [$ok, $err] = send_verification_email($pdo, (int)$user['id'], $email, $user['first_name']);
 
                 $_SESSION[$rl_key] = time(); // record timestamp regardless of outcome
@@ -97,8 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Resend Verification</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/register.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -169,14 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
       </button>
     </form>
     <?php else: ?>
-    <a href="signin.php" class="rf-btn rf-btn-primary" style="display:flex;justify-content:center;text-decoration:none;">
+    <a href="../auth/signin.php" class="rf-btn rf-btn-primary" style="display:flex;justify-content:center;text-decoration:none;">
       Go to Sign In
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
     <?php endif; ?>
 
     <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px;">
-      <a href="signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">← Back to sign in</a>
+      <a href="../auth/signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">← Back to sign in</a>
     </p>
   </div>
 </div>

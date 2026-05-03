@@ -18,7 +18,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 /* ── Guard ──────────────────────────────────────────────────── */
 if (empty($_SESSION['google_pending'])) {
-    header('Location: signin.php');
+    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
     exit;
 }
 
@@ -26,7 +26,7 @@ $gp = $_SESSION['google_pending'];
 
 if (time() > ($gp['expires_at'] ?? 0)) {
     unset($_SESSION['google_pending']);
-    header('Location: signin.php?expired=1');
+    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?expired=1');
     exit;
 }
 
@@ -78,14 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($u['status'] === 'email_pending') {
         // Registered via email/password but never verified — block Google sign-in too
         $resend = 'resend_verification.php?email=' . urlencode($u['email']);
-        header('Location: signin.php?err=email_pending&resend=' . urlencode($resend));
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=email_pending&resend=' . urlencode($resend));
         exit;
     }
     if ($u['status'] === 'suspended') {
-        header('Location: signin.php?err=suspended'); exit;
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=suspended'); exit;
     }
     if ($u['status'] === 'pending') {
-        header('Location: signin.php?err=pending'); exit;
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=pending'); exit;
     }
 
     // TOTP check — must match signin_handler.php and google_callback.php
@@ -93,10 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (in_array($u['role'], $totpRoles, true)) {
         if (!$u['totp_enabled'] || !$u['totp_secret']) {
             $_SESSION['totp_setup_user_id'] = $u['id'];
-            header('Location: totp_setup.php'); exit;
+            header('Location: /LRMDS/deped-lrmds-portal/auth/totp_setup.php'); exit;
         }
         $_SESSION['totp_pending_user_id'] = $u['id'];
-        header('Location: totp_verify.php'); exit;
+        header('Location: /LRMDS/deped-lrmds-portal/auth/totp_verify.php'); exit;
     }
 
     // No TOTP needed
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['user_role'] = $u['role'];
     $_SESSION['user_name'] = $u['first_name'];
     $_SESSION['user']      = $u['email'];
-    header('Location: index.php');
+    header('Location: /LRMDS/deped-lrmds-portal/index.php');
     exit;
 }
 
@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user']      = $gp['email'];
 
         $_SESSION['flash_success'] = 'Welcome to LRMDS! Your guest account is ready.';
-        header('Location: index.php');
+        header('Location: /LRMDS/deped-lrmds-portal/index.php');
         exit;
     }
 }
@@ -159,8 +159,8 @@ $safe_pic   = htmlspecialchars($gp['picture']);
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Complete Your Profile</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/register.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>

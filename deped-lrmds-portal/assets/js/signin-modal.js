@@ -119,7 +119,7 @@
                 '</button>',
               '</div>',
 
-              '<p class="sm-register">Don\'t have an account? <a class="sm-link" href="register.php">Register here</a></p>',
+              '<p class="sm-register">Don\'t have an account? <a class="sm-link" href="registration/register.php">Register here</a></p>',
 
             '</form>',
 
@@ -322,7 +322,7 @@ function showGeneralError(msg) {
     fd.append('email',    emailEl.value.trim());
     fd.append('password', pwEl.value);
 
-    fetch('signin_handler.php', { method: 'POST', body: fd })
+    fetch('auth/signin_handler.php', { method: 'POST', body: fd })
       .then(function (r) {
         if (!r.ok) throw new Error('Server error ' + r.status);
         return r.json();
@@ -381,7 +381,7 @@ function showGeneralError(msg) {
   var googleBtn = document.getElementById('smBtnGoogle');
   googleBtn && googleBtn.addEventListener('click', function () {
     // Mirror signin.php: Google routes through google_oauth.php
-    window.location.href = 'google_oauth.php';
+    window.location.href = 'auth/google_oauth.php';
   });
 
 })();

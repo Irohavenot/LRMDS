@@ -15,7 +15,7 @@ session_start();
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
-require_once __DIR__ . '/lib/env.php';
+require_once __DIR__ . '/../lib/env.php';
 
 define('DB_CHARSET', 'utf8mb4');
 
@@ -163,7 +163,7 @@ if (in_array($role, TOTP_ROLES, true)) {
     echo json_encode([
         'success'       => true,
         'requires_totp' => true,
-        'redirect'      => 'totp_setup.php',
+        'redirect'      => '../auth/totp_setup.php',
         'message'       => 'Please set up two-factor authentication to complete registration.',
     ]);
     exit;
@@ -205,7 +205,7 @@ try {
    PATH B1 – Email-verify roles: send verification email
 ══════════════════════════════════════════════════════════════════════════ */
 if (in_array($role, EMAIL_VERIFY_ROLES, true)) {
-    require_once __DIR__ . '/lib/send_verification_email.php';
+    require_once __DIR__ . '/../lib/send_verification_email.php';
     [$mail_ok, $mail_err] = send_verification_email($pdo, $new_user_id, $email, $fname);
 
     if (!$mail_ok) {
@@ -231,7 +231,7 @@ if (in_array($role, EMAIL_VERIFY_ROLES, true)) {
 echo json_encode([
     'success'  => true,
     'pending'  => ($status === 'pending'),
-    'redirect' => 'signin.php',
+    'redirect' => '../auth/signin.php',
     'message'  => 'Account created successfully. You can now sign in.',
 ]);
 exit;

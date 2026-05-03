@@ -12,8 +12,8 @@
  *      → FOUND  : set session, go to index.php
  *      → NOT FOUND: store Google data in session, go to google_complete.php
  */
-require __DIR__ . '/env_loader.php';
-loadEnv(__DIR__ . '/.env');
+require __DIR__ . '/../env_loader.php';
+loadEnv(__DIR__ . '/../.env');
 session_start();
 
 // // TEMPORARY DEBUG — remove after fixing
@@ -24,7 +24,7 @@ session_start();
 // ── Same constants as google_oauth.php ──────────────────────
 define('GOOGLE_CLIENT_ID',     getenv('GOOGLE_CLIENT_ID'));
 define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
-define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/google_callback.php');
+define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php');
 
 // ── DB ───────────────────────────────────────────────────────
 define('DB_HOST',    'localhost');
@@ -149,13 +149,13 @@ if ($user) {
             // via manage.php after the user already existed as a guest).
             // Store user_id so totp_setup.php can pick it up via the upgrade path.
             $_SESSION['totp_setup_user_id'] = $user['id'];
-            header('Location: totp_setup.php');
+            header('Location: /LRMDS/deped-lrmds-portal/auth/totp_setup.php');
             exit;
         }
 
         // TOTP enabled — hold in pending session, redirect to verify page
         $_SESSION['totp_pending_user_id'] = $user['id'];
-        header('Location: totp_verify.php');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/totp_verify.php');
         exit;
     }
 
@@ -165,7 +165,7 @@ if ($user) {
     $_SESSION['user_name'] = $user['first_name'];
     $_SESSION['user']      = $user['email'];
 
-    header('Location: index.php');
+    header('Location: /LRMDS/deped-lrmds-portal/index.php');
     exit;
 }
 
@@ -179,7 +179,7 @@ $_SESSION['google_pending'] = [
     'expires_at'=> time() + 900,   // 15-minute window to complete
 ];
 
-header('Location: google_complete.php');
+header('Location: /LRMDS/deped-lrmds-portal/auth/google_complete.php');
 exit;
 
 

@@ -9,27 +9,27 @@
 
 session_start();
 
-require_once __DIR__ . '/lib/TwoFactorAuthException.php';
-require_once __DIR__ . '/lib/Algorithm.php';
+require_once __DIR__ . '/../lib/TwoFactorAuthException.php';
+require_once __DIR__ . '/../lib/Algorithm.php';
 
 // RNG Providers
-require_once __DIR__ . '/lib/Providers/Rng/IRNGProvider.php';
-require_once __DIR__ . '/lib/Providers/Rng/CSRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Rng/IRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Rng/CSRNGProvider.php';
 
 // Time Providers
-require_once __DIR__ . '/lib/Providers/Time/ITimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/LocalMachineTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/NTPTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/HttpTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/ITimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/LocalMachineTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/NTPTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/HttpTimeProvider.php';
 
 // QR Providers
-require_once __DIR__ . '/lib/Providers/Qr/IQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRException.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRServerProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/IQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRException.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRServerProvider.php';
 
 // Main library (must be last)
-require_once __DIR__ . '/lib/TwoFactorAuth.php';
+require_once __DIR__ . '/../lib/TwoFactorAuth.php';
 
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'lrmds');
@@ -41,7 +41,7 @@ define('LOCKOUT_SECONDS', 300);
 
 /* ── Guard ── */
 if (empty($_SESSION['totp_pending_user_id'])) {
-    header('Location: signin.php');
+    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
     exit;
 }
 
@@ -69,7 +69,7 @@ $user = $stmt->fetch();
 
 if (!$user || !$user['totp_enabled'] || !$user['totp_secret']) {
     session_destroy();
-    header('Location: signin.php');
+    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
     exit;
 }
 
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$locked) {
         $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
             ->execute([$user['id']]);
 
-        header('Location: index.php');
+        header('Location: /LRMDS/deped-lrmds-portal/index.php');
         exit;
     }
 }
@@ -132,8 +132,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$locked) {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Two-Factor Verification</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/register.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -210,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$locked) {
   </form>
 
   <div style="text-align:center;margin-top:24px">
-    <a href="signin.php" style="font-size:13px;color:#6B7280;text-decoration:none">← Back to sign in</a>
+    <a href="../auth/signin.php" style="font-size:13px;color:#6B7280;text-decoration:none">← Back to sign in</a>
   </div>
 
   <p style="text-align:center;font-size:12px;color:#9CA3AF;margin-top:32px">

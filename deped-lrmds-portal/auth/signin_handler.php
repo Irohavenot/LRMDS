@@ -125,7 +125,7 @@ unset($_SESSION[$attempt_key], $_SESSION[$lockout_key]);
 // ── Check account status ──────────────────────────────────────
 if ($user['status'] === 'email_pending') {
     // Account exists but email not yet verified — block sign-in and show resend link
-    $resend_url = 'resend_verification.php?email=' . urlencode($user['email']);
+    $resend_url = 'registration/resend_verification.php?email=' . urlencode($user['email']);
     echo json_encode([
         'ok'    => false,
         'field' => 'general',
@@ -161,7 +161,7 @@ if (in_array($user['role'], TOTP_ROLES, true)) {
     if (!$user['totp_enabled']) {
         // TOTP role but setup was never completed — send them to setup
         $_SESSION['totp_setup_user_id'] = $user['id'];
-        echo json_encode(['ok' => true, 'redirect' => 'totp_setup.php']);
+        echo json_encode(['ok' => true, 'redirect' => 'auth/totp_setup.php']);
         exit;
     }
 
@@ -181,5 +181,5 @@ $_SESSION['user']       = $user['email'];   // keeps header.php check working
 $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
     ->execute([$user['id']]);
 
-echo json_encode(['ok' => true, 'redirect' => 'index.php']);
+echo json_encode(['ok' => true, 'redirect' => '../index.php']);
 exit;

@@ -3,7 +3,7 @@ session_start();
 
 // If already signed in, go straight to the homepage
 if (!empty($_SESSION['user'])) {
-    header('Location: index.php');
+    header('Location: ../index.php');
     exit;
 }
 
@@ -35,8 +35,8 @@ if ($err_param === 'email_pending') {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Sign In</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/signin.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/signin.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -53,7 +53,9 @@ if ($err_param === 'email_pending') {
     </div>
     <div class="al-content">
       <div class="al-brand">
-        <img src="assets/img/logo.svg" alt="DepEd Logo" class="al-logos"/>
+        <a href="../index.php">
+          <img src="../assets/img/logo.svg" alt="DepEd Logo" class="al-logos"/>
+        </a>
         <div>
           <p class="al-system">Department of Education</p>
           <p class="al-name">Learning Resource Management<br/>&amp; Development System</p>
@@ -170,7 +172,7 @@ if ($err_param === 'email_pending') {
             <span class="af-checkmark"></span>
             Keep me signed in
           </label>
-          <a class="af-link" href="#">Forgot password?</a>
+          <a class="af-link" href="forgot_password.php">Forgot password?</a>
         </div>
 
         <button type="submit" class="af-btn af-btn-primary" id="signin-btn">
@@ -183,7 +185,7 @@ if ($err_param === 'email_pending') {
 
         <div class="af-sso-row">
           <button type="button" class="af-sso-btn" id="btn-deped-sso">
-            <img src="assets/img/logo.svg" alt="" width="20" height="20"/>
+            <img src="../assets/img/logo.svg" alt="" width="20" height="20"/>
             DepEd SSO
           </button>
           <button type="button" class="af-sso-btn" id="btn-google">
@@ -199,7 +201,7 @@ if ($err_param === 'email_pending') {
 
       </form>
 
-      <p class="ar-switch">Don't have an account? <a class="af-link" href="register.php">Register here</a></p>
+      <p class="ar-switch">Don't have an account? <a class="af-link" href="../registration/register.php">Register here</a></p>
       <p class="ar-help">Need help? <a class="af-link" href="#">Contact LRMDS Helpdesk</a></p>
 
     </div>
@@ -207,7 +209,7 @@ if ($err_param === 'email_pending') {
 
 </div>
 
-<script src="assets/js/signin.js"></script>
+<script src="../assets/js/signin.js"></script>
 <script>
   document.getElementById('btn-google').addEventListener('click', () => {
     window.location.href = 'google_oauth.php';

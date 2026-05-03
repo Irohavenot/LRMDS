@@ -20,27 +20,27 @@
 
 session_start();
 
-require_once __DIR__ . '/lib/TwoFactorAuthException.php';
-require_once __DIR__ . '/lib/Algorithm.php';
+require_once __DIR__ . '/../lib/TwoFactorAuthException.php';
+require_once __DIR__ . '/../lib/Algorithm.php';
 
 // RNG Providers
-require_once __DIR__ . '/lib/Providers/Rng/IRNGProvider.php';
-require_once __DIR__ . '/lib/Providers/Rng/CSRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Rng/IRNGProvider.php';
+require_once __DIR__ . '/../lib/Providers/Rng/CSRNGProvider.php';
 
 // Time Providers
-require_once __DIR__ . '/lib/Providers/Time/ITimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/LocalMachineTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/NTPTimeProvider.php';
-require_once __DIR__ . '/lib/Providers/Time/HttpTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/ITimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/LocalMachineTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/NTPTimeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Time/HttpTimeProvider.php';
 
 // QR Providers
-require_once __DIR__ . '/lib/Providers/Qr/IQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRException.php';
-require_once __DIR__ . '/lib/Providers/Qr/QRServerProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/IQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/BaseHTTPQRCodeProvider.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRException.php';
+require_once __DIR__ . '/../lib/Providers/Qr/QRServerProvider.php';
 
 // Main library (must be last)
-require_once __DIR__ . '/lib/TwoFactorAuth.php';
+require_once __DIR__ . '/../lib/TwoFactorAuth.php';
 
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'lrmds');
@@ -70,7 +70,7 @@ if (!empty($_SESSION['pending_registration'])) {
 
     if (time() > ($reg['expires_at'] ?? 0)) {
         unset($_SESSION['pending_registration']);
-        header('Location: register.php?expired=1');
+        header('Location: /LRMDS/deped-lrmds-portal/registration/register.php?expired=1');
         exit;
     }
 
@@ -104,7 +104,7 @@ if (!empty($_SESSION['pending_registration'])) {
     if (!$u_row) {
         // User no longer exists — bail cleanly
         unset($_SESSION['totp_setup_user_id']);
-        header('Location: signin.php');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
         exit;
     }
 
@@ -144,7 +144,7 @@ if (!empty($_SESSION['pending_registration'])) {
     $u_row = $u_guard->fetch();
 
     if (!$u_row) {
-        header('Location: signin.php');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
         exit;
     }
 
@@ -166,7 +166,7 @@ if (!empty($_SESSION['pending_registration'])) {
     }
 
 } else {
-    header('Location: register.php');
+    header('Location: /LRMDS/deped-lrmds-portal/registration/register.php');
     exit;
 }
 
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['totp_setup_user_id'], $_SESSION['pending_totp_secret']);
 
             $_SESSION['flash_success'] = '🔐 Two-factor authentication is now active on your account. Welcome back, ' . $u_row['first_name'] . '!';
-            header('Location: index.php');
+            header('Location: /LRMDS/deped-lrmds-portal/index.php');
             exit;
         }
 
@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             unset($_SESSION['pending_totp_secret']);
             $_SESSION['flash_success'] = '🔐 Two-factor authentication has been confirmed and is active on your account.';
-            header('Location: index.php');
+            header('Location: /LRMDS/deped-lrmds-portal/index.php');
             exit;
         }
 
@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($dup->fetch()) {
             unset($_SESSION['pending_registration'], $_SESSION['pending_totp_secret']);
             $_SESSION['flash_error'] = 'An account with that email was just created. Please sign in or use a different email.';
-            header('Location: register.php');
+            header('Location: /LRMDS/deped-lrmds-portal/registration/register.php');
             exit;
         }
 
@@ -333,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . '(' . $title_line . ') '
             . "Your account is pending admin approval. We'll email you when it's ready.";
 
-        header('Location: signin.php');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
         exit;
     }
 }
@@ -368,8 +368,8 @@ $first_name = htmlspecialchars($reg['fname']);
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Set Up Two-Factor Authentication</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/register.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -606,12 +606,12 @@ $first_name = htmlspecialchars($reg['fname']);
 
   <?php if ($entry_mode === 'manage'): ?>
   <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px">
-    <a href="index.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">← Back to Home</a>
+    <a href="../index.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">← Back to Home</a>
   </p>
   <?php elseif ($entry_mode !== 'upgrade'): ?>
   <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:20px">
     Want to use a different email?
-    <a href="register.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">Go back to registration</a>
+    <a href="../registration/register.php" style="color:#0B4F9C;font-weight:600;text-decoration:none">Go back to registration</a>
   </p>
   <?php endif; ?>
 

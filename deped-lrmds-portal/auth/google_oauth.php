@@ -13,8 +13,8 @@
  *      (change to your actual domain in production)
  *   6. Copy the Client ID and Client Secret into the constants below
  */
-require __DIR__ . '/env_loader.php';
-loadEnv(__DIR__ . '/.env');
+require __DIR__ . '/../env_loader.php';
+loadEnv(__DIR__ . '/../.env');
 session_start();
 
 // ─────────────────────────────────────────────
@@ -24,7 +24,7 @@ define('GOOGLE_CLIENT_ID',     getenv('GOOGLE_CLIENT_ID'));
 define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
 
 // Must exactly match what you registered in Google Cloud Console
-define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/google_callback.php');
+define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php');
 // ─────────────────────────────────────────────
 
 // CSRF protection: random state token stored in session

@@ -11,7 +11,7 @@
 
 session_start();
 
-require_once __DIR__ . '/lib/env.php';
+require_once __DIR__ . '/../lib/env.php';
 define('DB_CHARSET', 'utf8mb4');
 
 /* ── DB ─────────────────────────────────────────────────────────────────── */
@@ -117,7 +117,7 @@ $redirect_delay = 5; // seconds before auto-redirect to signin
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <?php if ($state === 'success'): ?>
-  <meta http-equiv="refresh" content="<?= $redirect_delay ?>;url=signin.php"/>
+  <meta http-equiv="refresh" content="<?= $redirect_delay ?>;url=../auth/signin.php"/>
   <?php endif; ?>
   <style>
     .vf-wrap {
@@ -195,7 +195,7 @@ $redirect_delay = 5; // seconds before auto-redirect to signin
         Welcome to DepEd LRMDS<?= !empty($user_fname) ? ', <strong>' . htmlspecialchars($user_fname) . '</strong>' : '' ?>!
         Your account is now active. You can sign in and start accessing learning resources.
       </p>
-      <a href="signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;">
+      <a href="../auth/signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;">
         Go to Sign In
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
@@ -212,7 +212,7 @@ $redirect_delay = 5; // seconds before auto-redirect to signin
       </div>
       <h1 class="vf-title">Already Verified</h1>
       <p class="vf-body">This email address has already been verified. Your account is active — you can sign in now.</p>
-      <a href="signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;">
+      <a href="../auth/signin.php" class="rf-btn rf-btn-primary" style="display:inline-flex;text-decoration:none;">
         Sign In
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
@@ -278,7 +278,7 @@ $redirect_delay = 5; // seconds before auto-redirect to signin
     <hr class="vf-divider"/>
     <p class="vf-footer">
       © 2026 Department of Education ||LRMDS ·
-      <a href="signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">Sign In</a>
+      <a href="../auth/signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">Sign In</a>
     </p>
 
   </div>
@@ -292,7 +292,7 @@ $redirect_delay = 5; // seconds before auto-redirect to signin
     const t = setInterval(() => {
       s--;
       el.textContent = s;
-      if (s <= 0) { clearInterval(t); window.location.href = 'signin.php'; }
+      if (s <= 0) { clearInterval(t); window.location.href = '../auth/signin.php'; }
     }, 1000);
   }
 </script>

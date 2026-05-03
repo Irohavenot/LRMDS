@@ -5,8 +5,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>DepEd LRMDS – Create Account</title>
-  <link rel="stylesheet" href="assets/css/styles.css"/>
-  <link rel="stylesheet" href="assets/css/register.css"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <link rel="stylesheet" href="../assets/css/register.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -134,8 +134,10 @@
     <div class="rs-top">
       <div class="rs-logos">
         <div class="rs-logo-wrap" title="DepEd Logo">
-          <img src="assets/img/ww.png" alt="DepEd Logo" class="rs-deped-logo"
+          <a href="../index.php">
+          <img src="../assets/img/ww.png" alt="DepEd Logo" class="rs-deped-logo"
                onerror="this.parentElement.classList.add('logo-missing')"/>
+               </a>
         </div>
         <div class="rs-logo-divider" aria-hidden="true"></div>
         <div class="rs-lrmds-name">
@@ -271,20 +273,137 @@
             <label class="rf-label" for="reg-region">Region <span class="rf-req">*</span></label>
             <select class="rf-select" id="reg-region" name="region" required>
               <option value="">Select region…</option>
-              <option>NCR</option><option>CAR</option><option>Region I</option>
-              <option>Region II</option><option>Region III</option><option>Region IV-A</option>
-              <option>Region IV-B</option><option>Region V</option><option>Region VI</option>
-              <option>Region VII</option><option>Region VIII</option><option>Region IX</option>
-              <option>Region X</option><option>Region XI</option><option>Region XII</option>
-              <option>CARAGA</option><option>BARMM</option>
+              <option value="NCR">NCR – National Capital Region</option>
+              <option value="CAR">CAR – Cordillera Administrative Region</option>
+              <option value="Region I">Region I – Ilocos Region</option>
+              <option value="Region II">Region II – Cagayan Valley</option>
+              <option value="Region III">Region III – Central Luzon</option>
+              <option value="Region IV-A">Region IV-A – CALABARZON</option>
+              <option value="Region IV-B">Region IV-B – MIMAROPA</option>
+              <option value="Region V">Region V – Bicol Region</option>
+              <option value="Region VI">Region VI – Western Visayas</option>
+              <option value="Region VII" selected>Region VII – Central Visayas</option>
+              <option value="Region VIII">Region VIII – Eastern Visayas</option>
+              <option value="Region IX">Region IX – Zamboanga Peninsula</option>
+              <option value="Region X">Region X – Northern Mindanao</option>
+              <option value="Region XI">Region XI – Davao Region</option>
+              <option value="Region XII">Region XII – SOCCSKSARGEN</option>
+              <option value="CARAGA">CARAGA</option>
+              <option value="BARMM">BARMM – Bangsamoro</option>
             </select>
             <span class="rf-error" id="reg-region-err" role="alert"></span>
           </div>
           <div class="rf-group">
-            <label class="rf-label" for="reg-division">Division / School</label>
-            <input class="rf-input" type="text" id="reg-division" name="division" placeholder="e.g. Division of Iloilo"/>
+            <label class="rf-label" for="reg-division">Division <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-division" name="division" required>
+              <option value="">Select division…</option>
+            </select>
+            <span class="rf-hint" id="reg-division-hint">Select your region first.</span>
+            <span class="rf-error" id="reg-division-err" role="alert"></span>
           </div>
         </div>
+
+        <script>
+        /* ── Cascading Region → Division ───────────────────────────────── */
+        (function () {
+          var DIVISIONS = {
+            'NCR': [
+              'Manila','Caloocan','Las Piñas','Makati','Malabon','Mandaluyong',
+              'Marikina','Muntinlupa','Navotas','Parañaque','Pasay','Pasig',
+              'Pateros','Quezon City','San Juan','Taguig','Valenzuela'
+            ],
+            'CAR': [
+              'Abra','Apayao','Benguet','Baguio City','Ifugao','Kalinga','Mountain Province'
+            ],
+            'Region I': [
+              'Ilocos Norte','Ilocos Sur','La Union','Pangasinan I','Pangasinan II'
+            ],
+            'Region II': [
+              'Batanes','Cagayan','Isabela','Nueva Vizcaya','Quirino'
+            ],
+            'Region III': [
+              'Aurora','Bataan','Bulacan','Nueva Ecija','Pampanga','San Jose del Monte City',
+              'Tarlac','Zambales'
+            ],
+            'Region IV-A': [
+              'Batangas I','Batangas II','Cavite','Cavite City','Laguna I','Laguna II',
+              'Lucena City','Quezon','Rizal','Antipolo City'
+            ],
+            'Region IV-B': [
+              'Marinduque','Occidental Mindoro','Oriental Mindoro','Palawan','Puerto Princesa City','Romblon'
+            ],
+            'Region V': [
+              'Albay','Camarines Norte','Camarines Sur','Catanduanes','Masbate','Naga City','Sorsogon'
+            ],
+            'Region VI': [
+              'Aklan','Antique','Capiz','Guimaras','Iloilo','Iloilo City','Negros Occidental',
+              'Bacolod City'
+            ],
+            'Region VII': [
+              'Bohol','Cebu Province','Cebu City','Lapu-Lapu City','Mandaue City',
+              'Division of Carcar','Siquijor'
+            ],
+            'Region VIII': [
+              'Biliran','Eastern Samar','Leyte','Northern Samar','Ormoc City','Samar','Southern Leyte',
+              'Tacloban City'
+            ],
+            'Region IX': [
+              'Isabela City','Zamboanga City','Zamboanga del Norte','Zamboanga del Sur',
+              'Zamboanga Sibugay'
+            ],
+            'Region X': [
+              'Bukidnon','Camiguin','Cagayan de Oro City','Gingoog City','Iligan City',
+              'Lanao del Norte','Misamis Occidental','Misamis Oriental'
+            ],
+            'Region XI': [
+              'Compostela Valley','Davao City','Davao del Norte','Davao del Sur',
+              'Davao Occidental','Davao Oriental'
+            ],
+            'Region XII': [
+              'Cotabato City','Cotabato','North Cotabato','Sarangani','South Cotabato','Sultan Kudarat'
+            ],
+            'CARAGA': [
+              'Agusan del Norte','Agusan del Sur','Butuan City','Dinagat Islands',
+              'Surigao City','Surigao del Norte','Surigao del Sur'
+            ],
+            'BARMM': [
+              'Basilan','Lamitan City','Lanao del Sur','Marawi City',
+              'Maguindanao','Sulu','Tawi-Tawi'
+            ]
+          };
+
+          var DEFAULT_REGION   = 'Region VII';
+          var DEFAULT_DIVISION = 'Division of Carcar';
+
+          var regionSel   = document.getElementById('reg-region');
+          var divisionSel = document.getElementById('reg-division');
+          var divHint     = document.getElementById('reg-division-hint');
+
+          function populateDivisions(region, preselectValue) {
+            divisionSel.innerHTML = '<option value="">Select division…</option>';
+            var list = DIVISIONS[region];
+            if (!list) {
+              divHint.textContent = 'Select your region first.';
+              return;
+            }
+            list.forEach(function (d) {
+              var opt = document.createElement('option');
+              opt.value = d;
+              opt.textContent = d;
+              if (d === preselectValue) opt.selected = true;
+              divisionSel.appendChild(opt);
+            });
+            divHint.textContent = list.length + ' division' + (list.length !== 1 ? 's' : '') + ' available.';
+          }
+
+          /* Initial load — pre-select Region VII + Division of Carcar */
+          populateDivisions(DEFAULT_REGION, DEFAULT_DIVISION);
+
+          regionSel.addEventListener('change', function () {
+            populateDivisions(this.value, '');
+          });
+        })();
+        </script>
 
         <!-- ════════════════════════════
              TEACHER-specific fields
@@ -360,12 +479,48 @@
           </div>
 
           <div class="rf-group">
-            <label class="rf-label" for="reg-learner-lrn">Learner Reference Number (LRN)</label>
+            <label class="rf-label" for="reg-learner-lrn">
+              Learner Reference Number (LRN)
+              <button type="button" id="lrn-help-toggle" aria-expanded="false" aria-controls="lrn-help-box"
+                style="display:inline-flex;align-items:center;justify-content:center;
+                       width:17px;height:17px;border-radius:50%;border:1.5px solid #93C5FD;
+                       background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:700;
+                       cursor:pointer;margin-left:5px;vertical-align:middle;line-height:1;
+                       font-family:inherit;padding:0;"
+                title="What is an LRN?">?</button>
+            </label>
             <input class="rf-input" type="text" id="reg-learner-lrn" name="lrn"
-                   placeholder="12-digit LRN (optional)" maxlength="12" pattern="\d{12}"/>
-            <span class="rf-hint">Optional. Found on your report card or Form 138.</span>
+                   placeholder="e.g. 123456789012 (optional)" maxlength="12" pattern="\d{12}"
+                   inputmode="numeric"/>
+            <div id="lrn-help-box" hidden
+                 style="margin-top:6px;background:#EFF6FF;border:1px solid #BFDBFE;
+                        border-radius:8px;padding:10px 12px;font-size:12.5px;
+                        color:#1E40AF;line-height:1.6;">
+              <strong style="display:block;margin-bottom:4px;">&#128203; Where to find your LRN:</strong>
+              <ul style="margin:0;padding-left:16px;">
+                <li>Your <strong>Report Card (Form 138)</strong> or <strong>Form 137</strong></li>
+                <li>Your <strong>school ID</strong> or any official DepEd document</li>
+                <li>Ask your <strong>class adviser or school registrar</strong></li>
+              </ul>
+              <p style="margin:6px 0 0;">It is a <strong>12-digit number</strong> that starts with your region code (e.g. <code style="background:#DBEAFE;padding:1px 4px;border-radius:3px;">070XXXXXXXXX</code> for Region VII). You can skip this for now.</p>
+            </div>
+            <span class="rf-hint">Optional &mdash; skip if you don't have it handy.</span>
           </div>
         </div>
+        <script>
+        (function(){
+          var btn = document.getElementById('lrn-help-toggle');
+          var box = document.getElementById('lrn-help-box');
+          if (!btn || !box) return;
+          btn.addEventListener('click', function(){
+            var open = !box.hidden;
+            box.hidden = open;
+            btn.setAttribute('aria-expanded', String(!open));
+            btn.style.background  = open ? '#EFF6FF' : '#BFDBFE';
+            btn.style.borderColor = open ? '#93C5FD' : '#1D4ED8';
+          });
+        })();
+        </script>
 
         <!-- ════════════════════════════
              PARENT-specific fields
@@ -726,7 +881,7 @@
           <p id="success-msg" style="font-size:14px;color:#6B7280;margin:0 0 20px;line-height:1.65;">
             Welcome to LRMDS. You can now sign in and start accessing learning resources.
           </p>
-          <a href="signin.php" id="success-signin-link"
+          <a href="../auth/signin.php" id="success-signin-link"
              class="rf-btn rf-btn-primary"
              style="display:inline-flex;text-decoration:none;">
             Go to Sign In
@@ -737,12 +892,12 @@
         </div>
       </div>
 
-      <p class="rm-switch">Already have an account? <a class="af-link" href="signin.php">Sign in</a></p>
+      <p class="rm-switch">Already have an account? <a class="af-link" href="../auth/signin.php">Sign in</a></p>
     </div>
   </main>
 </div>
 
-<script src="assets/js/register.js"></script>
+<script src="../assets/js/register.js"></script>
 <script>
 /* ── Auto-capitalize: first letter of each word in name fields ── */
 (function () {

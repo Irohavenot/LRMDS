@@ -117,7 +117,7 @@ session_start();
       Wrong email address?
       <a href="register.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">Register again</a>
       · Already verified?
-      <a href="signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">Sign in</a>
+      <a href="../auth/signin.php" style="color:#0B4F9C;font-weight:600;text-decoration:none;">Sign in</a>
     </p>
 
   </div>
