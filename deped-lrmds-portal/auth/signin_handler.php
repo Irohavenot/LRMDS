@@ -167,7 +167,7 @@ if (in_array($user['role'], TOTP_ROLES, true)) {
 
     // TOTP is enabled — hold credentials in session until code is verified
     $_SESSION['totp_pending_user_id'] = $user['id'];
-    echo json_encode(['ok' => true, 'redirect' => 'totp_verify.php']);
+    echo json_encode(['ok' => true, 'redirect' => 'auth/totp_verify.php']);
     exit;
 }
 
