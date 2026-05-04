@@ -532,7 +532,15 @@ body {
   color: #fff;
   box-shadow: 0 1px 4px rgba(79,70,229,.25);
 }
-.pe-btn-primary:hover { background: #4338CA; box-shadow: 0 3px 10px rgba(79,70,229,.3); }
+.pe-btn-primary:hover:not(:disabled) { background: #4338CA; box-shadow: 0 3px 10px rgba(79,70,229,.3); }
+.pe-btn-primary:disabled {
+  background: #C7D2FE;
+  color: #fff;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none !important;
+  opacity: 0.7;
+}
 
 .pe-btn-ghost {
   background: transparent;
@@ -991,7 +999,7 @@ body {
         <a href="javascript:history.back()" class="pe-btn pe-btn-ghost">
           Cancel
         </a>
-        <button type="submit" class="pe-btn pe-btn-primary" id="pe-submit">
+        <button type="submit" class="pe-btn pe-btn-primary" id="pe-submit" disabled>
           <span class="pe-spinner" id="pe-spinner"></span>
           <span class="pe-btn-label">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -1104,7 +1112,35 @@ document.getElementById('pe-form').addEventListener('submit', function(e) {
   const btn = document.getElementById('pe-submit');
   btn.classList.add('is-loading');
   btn.disabled = true;
-});
+}); 
+
+// ── Save Changes: enable only when something changed ────────
+(function () {
+  var form   = document.getElementById('pe-form');
+  var btn    = document.getElementById('pe-submit');
+  if (!form || !btn) return;
+
+  // Collect all editable inputs/selects/textareas inside the form
+  var fields = Array.from(
+    form.querySelectorAll('input:not([type=file]):not([type=hidden]), select, textarea')
+  );
+
+  // Snapshot original values on page load
+  var originals = new Map(fields.map(function(f) { return [f, f.value]; }));
+
+  function hasChanged() {
+    return fields.some(function(f) { return f.value !== originals.get(f); });
+  }
+
+  function updateBtn() {
+    btn.disabled = !hasChanged();
+  }
+
+  fields.forEach(function(f) {
+    f.addEventListener('input',  updateBtn);
+    f.addEventListener('change', updateBtn);
+  });
+})();
 
 // Auto-dismiss success alert after 5s
 const peAlert = document.querySelector('.pe-alert.is-success');
