@@ -364,7 +364,7 @@
 <div id="easter-overlay" role="dialog" aria-modal="true" aria-labelledby="easter-heading">
   <div id="easter-box">
     <button class="egg-close" id="easter-close" aria-label="Close">&times;</button>
-    <h2 id="easter-heading"> You found the HANDSOME MANS</h2>
+    <h2 id="easter-heading"> You found the HANDSOME MEN😎</h2>
     <p class="egg-subtitle">Meet the team behind DepEd LRMDS</p>
 
     <div class="egg-team">
