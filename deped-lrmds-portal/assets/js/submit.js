@@ -1,255 +1,164 @@
-// DepEd LRMDS – submit.js
-// Handles all interactivity for the multi-step submission wizard.
+/**
+ * DepEd LRMDS – submit.js (v3)
+ * Handles:
+ *   1. Gateway screen (choose resource vs news)
+ *   2. Learning Resource multi-step wizard  → api/upload-resource.php
+ *   3. News / Memorandum form               → api/submit-news.php
+ */
 (function () {
   'use strict';
 
-  // Guard: only run if the wizard is present on this page
-  if (!document.getElementById('panel-0')) return;
-
-  /* ── Helpers ── */
   const qs  = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  /* ── State ── */
-  let currentStep = 0;
-  const TOTAL_STEPS = 5; // panels 0-4, plus panel-success
-  let uploadedFile = null;
+  /* ═══════════════════════════════════════════
+     0.  SCREEN ROUTER
+  ═══════════════════════════════════════════ */
+  const gatewayScreen  = qs('#gateway-screen');
+  const resourceScreen = qs('#resource-screen');
+  const newsScreen     = qs('#news-screen');
 
-  /* ── Element refs ── */
-  const progressItems = qsa('.ps-item');
-  const panels        = qsa('.wizard-panel:not(#panel-success)');
-  const successPanel  = qs('#panel-success');
-  const prevBtn       = qs('#prev-btn');
-  const nextBtn       = qs('#next-btn');
-  const wizardNav     = qs('#wizard-nav');
-
-  /* ════════════════════════════════
-     STEP NAVIGATION
-  ════════════════════════════════ */
-  function goTo(idx) {
-    if (idx < 0 || idx >= TOTAL_STEPS) return;
-
-    // Validate before advancing
-    if (idx > currentStep && !validatePanel(currentStep)) return;
-
-    // Mark old step done
-    if (idx > currentStep) {
-      progressItems[currentStep]?.classList.add('done');
-      progressItems[currentStep]?.classList.remove('active');
-    } else {
-      // Going back – undo done only for current
-      progressItems[currentStep]?.classList.remove('done', 'active');
-    }
-
-    currentStep = idx;
-
-    // Update panels
-    panels.forEach((p, i) => {
-      p.classList.toggle('active', i === currentStep);
-      p.hidden = i !== currentStep;
+  function showScreen(screen) {
+    [gatewayScreen, resourceScreen, newsScreen].forEach(s => {
+      if (!s) return;
+      s.hidden = (s !== screen);
     });
-
-    // Update progress bar
-    progressItems.forEach((item, i) => {
-      item.classList.toggle('active', i === currentStep);
-      if (i < currentStep) item.classList.add('done');
-    });
-
-    // Update buttons
-    prevBtn.disabled = currentStep === 0;
-    if (currentStep === TOTAL_STEPS - 1) {
-      nextBtn.style.display = 'none';
-      buildReview();
-    } else {
-      nextBtn.style.display = '';
-      nextBtn.innerHTML = currentStep === TOTAL_STEPS - 2
-        ? 'Review <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>'
-        : 'Next <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
-    }
-
-    // Scroll to top of section
-    qs('section.section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  prevBtn.addEventListener('click', () => goTo(currentStep - 1));
-  nextBtn.addEventListener('click', () => goTo(currentStep + 1));
-
-  // Clicking a completed progress step navigates to it
-  progressItems.forEach((item, i) => {
-    item.addEventListener('click', () => {
-      if (i <= currentStep || item.classList.contains('done')) goTo(i);
+  qsa('[data-goto]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.goto === 'resource') showScreen(resourceScreen);
+      if (btn.dataset.goto === 'news')     showScreen(newsScreen);
     });
   });
 
-  /* ════════════════════════════════
-     PANEL 0 – FILE UPLOAD
-  ════════════════════════════════ */
-  const dropzone    = qs('#dropzone');
-  const fileInput   = qs('#file-input');
-  const filePreview = qs('#file-preview');
-  const fpName      = qs('#fp-name');
-  const fpSize      = qs('#fp-size');
-  const fpIcon      = qs('#fp-icon');
-  const fpRemove    = qs('#fp-remove');
+  qsa('.back-to-gateway').forEach(btn => {
+    btn.addEventListener('click', () => showScreen(gatewayScreen));
+  });
+
+
+  /* ═══════════════════════════════════════════
+     1.  LEARNING RESOURCE WIZARD
+  ═══════════════════════════════════════════ */
+  const RES_TOTAL = 5;
+  let resStep = 0;
+  let resFile = null;
+
+  const resPanels   = qsa('#resource-screen .wizard-panel:not(#res-panel-success)');
+  const resPrgItems = qsa('#resource-screen .ps-item');
+  const resPrevBtn  = qs('#res-prev-btn');
+  const resNextBtn  = qs('#res-next-btn');
+  const resWizNav   = qs('#res-wizard-nav');
+  const resSuccess  = qs('#res-panel-success');
 
   const FILE_ICONS = { pdf:'📄', docx:'📝', pptx:'📊', mp4:'🎬', mp3:'🎵', zip:'📦', html:'🌐' };
-  const formatSize = bytes => bytes < 1024 * 1024
-    ? (bytes / 1024).toFixed(1) + ' KB'
-    : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  const fmtSize    = b => b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB';
 
-  function showFile(file) {
-    uploadedFile = file;
+  function showResFile(file) {
+    resFile = file;
     const ext = file.name.split('.').pop().toLowerCase();
-    fpIcon.textContent = FILE_ICONS[ext] || '📄';
-    fpName.textContent = file.name;
-    fpSize.textContent = formatSize(file.size);
-    dropzone.hidden = true;
-    filePreview.hidden = false;
+    qs('#res-fp-icon').textContent = FILE_ICONS[ext] || '📄';
+    qs('#res-fp-name').textContent = file.name;
+    qs('#res-fp-size').textContent = fmtSize(file.size);
+    qs('#res-dropzone').hidden     = true;
+    qs('#res-file-preview').hidden = false;
   }
 
-  dropzone.addEventListener('click', () => fileInput.click());
-  dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
-  fileInput.addEventListener('change', () => { if (fileInput.files[0]) showFile(fileInput.files[0]); });
-
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-  dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('dragover');
-    if (e.dataTransfer.files[0]) showFile(e.dataTransfer.files[0]);
-  });
-
-  fpRemove.addEventListener('click', () => {
-    uploadedFile = null;
-    fileInput.value = '';
-    filePreview.hidden = true;
-    dropzone.hidden = false;
-  });
-
-  /* ════════════════════════════════
-     PANEL 1 – DESCRIPTION COUNTER
-  ════════════════════════════════ */
-  const descArea  = qs('#meta-desc');
-  const descCount = qs('#desc-count');
-  if (descArea && descCount) {
-    descArea.addEventListener('input', () => {
-      const len = descArea.value.length;
-      descCount.textContent = len;
-      descCount.style.color = len > 450 ? '#DC2626' : '#9CA3AF';
+  const resDZ = qs('#res-dropzone');
+  const resFI = qs('#res-file-input');
+  if (resDZ && resFI) {
+    resDZ.addEventListener('click',   () => resFI.click());
+    resDZ.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') resFI.click(); });
+    resFI.addEventListener('change',  () => { if (resFI.files[0]) showResFile(resFI.files[0]); });
+    resDZ.addEventListener('dragover', e => { e.preventDefault(); resDZ.classList.add('dragover'); });
+    resDZ.addEventListener('dragleave', () => resDZ.classList.remove('dragover'));
+    resDZ.addEventListener('drop', e => {
+      e.preventDefault(); resDZ.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) showResFile(e.dataTransfer.files[0]);
     });
   }
 
-  /* ════════════════════════════════
-     PANEL 2 – MELC ENTRIES
-  ════════════════════════════════ */
-  let melcCount = 0;
+  qs('#res-fp-remove')?.addEventListener('click', () => {
+    resFile = null;
+    if (resFI) resFI.value = '';
+    qs('#res-file-preview').hidden = true;
+    qs('#res-dropzone').hidden = false;
+  });
 
-  function addMelcEntry() {
+  // Description counter
+  const resDesc = qs('#res-desc');
+  const resDC   = qs('#res-desc-count');
+  resDesc?.addEventListener('input', () => {
+    const len = resDesc.value.length;
+    resDC.textContent = len;
+    resDC.style.color = len > 450 ? '#DC2626' : '#9CA3AF';
+  });
+
+  // MELC entries
+  let melcCount = 0;
+  function addMelc() {
     melcCount++;
     const id = melcCount;
-    const entry = document.createElement('div');
-    entry.className = 'melc-entry';
-    entry.dataset.melcId = id;
-    entry.innerHTML = `
-      <button class="remove-btn" type="button" aria-label="Remove MELC ${id}" ${id === 1 ? 'style="display:none"' : ''}>
+    const el = document.createElement('div');
+    el.className = 'melc-entry';
+    el.innerHTML = `
+      <button class="remove-btn" type="button" aria-label="Remove MELC" ${id===1?'style="display:none"':''}>
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6l12 12"/></svg>
       </button>
       <div class="form-row">
-        <div class="field flex-2">
-          <label>MELC Code</label>
-          <input class="input" type="text" name="melc-code" placeholder="e.g., M6NS-Ia-1"/>
-        </div>
-        <div class="field">
-          <label>Quarter</label>
-          <select class="select" name="melc-quarter">
-            <option value="">All</option>
-            <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Week</label>
-          <input class="input" type="text" name="melc-week" placeholder="e.g. Week 1"/>
-        </div>
+        <div class="field flex-2"><label>MELC Code</label><input class="input" type="text" name="melc-code" placeholder="e.g., M6NS-Ia-1"/></div>
+        <div class="field"><label>Quarter</label><select class="select" name="melc-quarter"><option value="">All</option><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
+        <div class="field"><label>Week</label><input class="input" type="text" name="melc-week" placeholder="e.g. Week 1"/></div>
       </div>
-      <div class="field">
-        <label>Competency Description</label>
-        <input class="input" type="text" name="melc-desc" placeholder="Brief description of the competency…"/>
-      </div>`;
-    qs('#melc-list').appendChild(entry);
-    entry.querySelector('.remove-btn').addEventListener('click', () => {
-      entry.remove();
+      <div class="field"><label>Competency Description</label><input class="input" type="text" name="melc-desc" placeholder="Brief description…"/></div>`;
+    qs('#melc-list').appendChild(el);
+    el.querySelector('.remove-btn').addEventListener('click', () => {
+      el.remove();
       const entries = qsa('.melc-entry');
       if (entries.length === 1) entries[0].querySelector('.remove-btn').style.display = 'none';
     });
   }
-
-  addMelcEntry(); // start with one
-  qs('#add-melc').addEventListener('click', () => {
-    addMelcEntry();
+  addMelc();
+  qs('#add-melc')?.addEventListener('click', () => {
+    addMelc();
     qsa('.melc-entry .remove-btn').forEach(b => b.style.display = '');
   });
 
-  /* ════════════════════════════════
-     PANEL 3 – AUTHOR ENTRIES
-  ════════════════════════════════ */
+  // Author entries
   let authorCount = 0;
-
-  function addAuthorEntry() {
+  function addAuthor() {
     authorCount++;
     const id = authorCount;
-    const entry = document.createElement('div');
-    entry.className = 'author-entry';
-    entry.dataset.authorId = id;
-    entry.innerHTML = `
-      <button class="remove-btn" type="button" aria-label="Remove author ${id}" ${id === 1 ? 'style="display:none"' : ''}>
+    const el = document.createElement('div');
+    el.className = 'author-entry';
+    el.innerHTML = `
+      <button class="remove-btn" type="button" aria-label="Remove author" ${id===1?'style="display:none"':''}>
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6l12 12"/></svg>
       </button>
       <div class="form-row">
-        <div class="field">
-          <label>First Name</label>
-          <input class="input" type="text" name="author-first" placeholder="Juan"/>
-        </div>
-        <div class="field">
-          <label>Last Name</label>
-          <input class="input" type="text" name="author-last" placeholder="dela Cruz"/>
-        </div>
-        <div class="field flex-2">
-          <label>Email (optional)</label>
-          <input class="input" type="email" name="author-email" placeholder="jdelacruz@deped.gov.ph"/>
-        </div>
+        <div class="field"><label>First Name</label><input class="input" type="text" name="author-first" placeholder="Juan"/></div>
+        <div class="field"><label>Last Name</label><input class="input" type="text" name="author-last" placeholder="dela Cruz"/></div>
+        <div class="field flex-2"><label>Email (optional)</label><input class="input" type="email" name="author-email" placeholder="jdelacruz@deped.gov.ph"/></div>
       </div>
       <div class="form-row">
-        <div class="field">
-          <label>Role</label>
-          <select class="select" name="author-role">
-            <option>Author</option>
-            <option>Co-Author</option>
-            <option>Editor</option>
-            <option>Illustrator</option>
-            <option>Reviewer</option>
-            <option>Translator</option>
-          </select>
-        </div>
-        <div class="field flex-2">
-          <label>Position / Designation</label>
-          <input class="input" type="text" name="author-position" placeholder="e.g. Teacher III, T-III"/>
-        </div>
+        <div class="field"><label>Role</label><select class="select" name="author-role"><option>Author</option><option>Co-Author</option><option>Editor</option><option>Illustrator</option><option>Reviewer</option><option>Translator</option></select></div>
+        <div class="field flex-2"><label>Position / Designation</label><input class="input" type="text" name="author-position" placeholder="e.g. Teacher III"/></div>
       </div>`;
-    qs('#author-list').appendChild(entry);
-    entry.querySelector('.remove-btn').addEventListener('click', () => {
-      entry.remove();
+    qs('#author-list').appendChild(el);
+    el.querySelector('.remove-btn').addEventListener('click', () => {
+      el.remove();
       const entries = qsa('.author-entry');
       if (entries.length === 1) entries[0].querySelector('.remove-btn').style.display = 'none';
     });
   }
-
-  addAuthorEntry();
-  qs('#add-author').addEventListener('click', () => {
-    addAuthorEntry();
+  addAuthor();
+  qs('#add-author')?.addEventListener('click', () => {
+    addAuthor();
     qsa('.author-entry .remove-btn').forEach(b => b.style.display = '');
   });
 
-  /* ── License card toggle ── */
+  // License cards
   qsa('.license-card').forEach(card => {
     card.addEventListener('click', () => {
       qsa('.license-card').forEach(c => c.classList.remove('active'));
@@ -257,128 +166,393 @@
     });
   });
 
-  /* ════════════════════════════════
-     PANEL 4 – REVIEW
-  ════════════════════════════════ */
-  function buildReview() {
-    const grid = qs('#review-grid');
-    if (!grid) return;
-
-    const val  = id => (qs('#' + id)?.value || '').trim();
-    const sVal = id => { const el = qs('#' + id); return el?.options[el.selectedIndex]?.text || ''; };
-
-    const melcCodes = qsa('[name="melc-code"]').map(i => i.value).filter(Boolean).join(', ');
-    const authors   = qsa('.author-entry').map(e => {
-      const f = e.querySelector('[name="author-first"]')?.value || '';
-      const l = e.querySelector('[name="author-last"]')?.value || '';
-      return (f + ' ' + l).trim();
-    }).filter(Boolean).join('; ');
-
-    const license  = qs('input[name="license"]:checked')?.value || '—';
-    const fileName = uploadedFile ? uploadedFile.name : (val('resource-url') || '—');
-
-    const rows = [
-      ['File / URL',      fileName],
-      ['Title',           val('meta-title')      || '—'],
-      ['Type',            sVal('meta-type')       || '—'],
-      ['Grade',           sVal('meta-grade')      || '—'],
-      ['Learning Area',   sVal('meta-subject')    || '—'],
-      ['Language',        sVal('meta-lang')       || '—'],
-      ['Quarter',         sVal('meta-quarter')    || '—'],
-      ['School Year',     val('meta-sy')          || '—'],
-      ['SHS Track',       sVal('meta-track')      || 'N/A'],
-      ['MELC Code(s)',    melcCodes               || '—'],
-      ['Author(s)',       authors                 || '—'],
-      ['License',         license],
-      ['Region',          sVal('rights-region')   || '—'],
-      ['Division/School', val('rights-division')  || '—'],
-    ];
-
-    grid.innerHTML = rows.map(([label, value]) => `
-      <div class="review-label">${label}</div>
-      <div class="review-value${value === '—' || value === 'N/A' ? ' empty' : ''}">${value}</div>
-    `).join('');
-  }
-
-  /* ── Final submit ── */
-  qs('#submit-final')?.addEventListener('click', () => {
-    const agreeBox = qs('#review-agree');
-    if (!agreeBox?.checked) {
-      agreeBox.closest('.field').querySelector('label').style.color = '#DC2626';
-      agreeBox.focus();
-      return;
-    }
-    // Simulate submission
-    panels.forEach(p => { p.hidden = true; p.classList.remove('active'); });
-    successPanel.hidden = false;
-    successPanel.classList.add('active');
-    wizardNav.style.display = 'none';
-    qs('.wizard-progress')?.style.setProperty('display', 'none');
-    // Generate fake ref ID
-    const ref = 'LRMDS-2026-' + String(Math.floor(Math.random() * 90000) + 10000);
-    qs('#ref-id').textContent = ref;
-    successPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-
-  /* ════════════════════════════════
-     VALIDATION
-  ════════════════════════════════ */
-  function clearErrors(panel) {
+  // Validation
+  function clearResErrors(panel) {
     qsa('.error', panel).forEach(el => el.classList.remove('error'));
     qsa('.error-msg', panel).forEach(el => el.remove());
   }
-
-  function markError(el, msg) {
+  function markResError(el, msg) {
     el.classList.add('error');
-    const hint = document.createElement('p');
-    hint.className = 'error-msg';
-    hint.textContent = msg;
-    el.parentElement.appendChild(hint);
+    const p = document.createElement('p');
+    p.className = 'error-msg';
+    p.textContent = msg;
+    el.parentElement.appendChild(p);
+  }
+  function validateResPanel(idx) {
+    const panel = resPanels[idx];
+    clearResErrors(panel);
+    let ok = true;
+    if (idx === 0) {
+      const url = qs('#res-url')?.value?.trim();
+      if (!resFile && !url) {
+        resDZ.style.borderColor = '#DC2626';
+        setTimeout(() => resDZ.style.borderColor = '', 2000);
+        ok = false;
+      }
+    }
+    if (idx === 1) {
+      ['res-title','res-type','res-grade','res-subject','res-lang','res-desc'].forEach(id => {
+        const el = qs('#'+id);
+        if (!el?.value?.trim()) { markResError(el, 'This field is required.'); ok = false; }
+      });
+    }
+    if (idx === 3) {
+      const orig = qs('#res-original');
+      const priv = qs('#res-privacy');
+      if (!orig.checked) { orig.closest('label').style.color='#DC2626'; ok=false; }
+      if (!priv.checked) { priv.closest('label').style.color='#DC2626'; ok=false; }
+    }
+    return ok;
   }
 
-  function validatePanel(idx) {
-    const panel = panels[idx];
-    clearErrors(panel);
-    let valid = true;
+  // Build review grid
+  function buildResReview() {
+    const grid = qs('#res-review-grid');
+    if (!grid) return;
+    const v  = id => (qs('#'+id)?.value||'').trim();
+    const sv = id => { const el=qs('#'+id); return el?.options[el.selectedIndex]?.text||''; };
+    const melcCodes = qsa('[name="melc-code"]').map(i=>i.value).filter(Boolean).join(', ');
+    const authors   = qsa('.author-entry').map(e=>{
+      const f=e.querySelector('[name="author-first"]')?.value||'';
+      const l=e.querySelector('[name="author-last"]')?.value||'';
+      return (f+' '+l).trim();
+    }).filter(Boolean).join('; ');
+    const license  = qs('input[name="license"]:checked')?.value||'—';
+    const fileName = resFile ? resFile.name : (v('res-url')||'—');
+    const rows = [
+      ['File / URL', fileName], ['Title', v('res-title')||'—'],
+      ['Type', sv('res-type')||'—'], ['Grade', sv('res-grade')||'—'],
+      ['Learning Area', sv('res-subject')||'—'], ['Language', sv('res-lang')||'—'],
+      ['Quarter', sv('res-quarter')||'—'], ['School Year', v('res-sy')||'—'],
+      ['MELC Code(s)', melcCodes||'—'], ['Author(s)', authors||'—'],
+      ['License', license], ['Division', v('res-division')||'—'],
+    ];
+    grid.innerHTML = rows.map(([l,v2])=>`
+      <div class="review-label">${l}</div>
+      <div class="review-value${v2==='—'?' empty':''}">${v2}</div>
+    `).join('');
+  }
 
-    if (idx === 0) {
-      const url = qs('#resource-url')?.value?.trim();
-      if (!uploadedFile && !url) {
-        dropzone.style.borderColor = '#DC2626';
-        setTimeout(() => dropzone.style.borderColor = '', 2000);
-        // Gentle shake
-        dropzone.style.animation = 'none';
-        dropzone.offsetHeight; // reflow
-        dropzone.style.animation = 'shake .3s ease';
-        valid = false;
+  // Step navigation
+  function resGoTo(idx) {
+    if (idx < 0 || idx >= RES_TOTAL) return;
+    if (idx > resStep && !validateResPanel(resStep)) return;
+
+    if (idx > resStep) {
+      resPrgItems[resStep]?.classList.add('done');
+      resPrgItems[resStep]?.classList.remove('active');
+    } else {
+      resPrgItems[resStep]?.classList.remove('done','active');
+    }
+    resStep = idx;
+
+    resPanels.forEach((p,i) => { p.classList.toggle('active',i===resStep); p.hidden=i!==resStep; });
+    resPrgItems.forEach((item,i) => {
+      item.classList.toggle('active',i===resStep);
+      if (i<resStep) item.classList.add('done');
+    });
+
+    resPrevBtn.disabled = resStep === 0;
+    if (resStep === RES_TOTAL - 1) {
+      resNextBtn.style.display = 'none';
+      buildResReview();
+    } else {
+      resNextBtn.style.display = '';
+      resNextBtn.innerHTML = resStep===RES_TOTAL-2
+        ? 'Review <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>'
+        : 'Next <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>';
+    }
+    qs('#resource-screen .section')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  resPrevBtn?.addEventListener('click', () => resGoTo(resStep-1));
+  resNextBtn?.addEventListener('click', () => resGoTo(resStep+1));
+  resPrgItems.forEach((item,i) => {
+    item.addEventListener('click', () => { if (i<=resStep||item.classList.contains('done')) resGoTo(i); });
+  });
+
+  // ── Resource final submit ─────────────────────────────────────────────
+  qs('#res-submit-final')?.addEventListener('click', async () => {
+    if (!qs('#res-agree')?.checked) {
+      qs('#res-agree').closest('label').style.color='#DC2626';
+      return;
+    }
+
+    const submitBtn = qs('#res-submit-final');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span style="margin-right:8px">⏳</span>Uploading…';
+
+    // Collect MELC entries
+    const melcEntries = qsa('.melc-entry').map(e => ({
+      code    : e.querySelector('[name="melc-code"]')?.value    || '',
+      quarter : e.querySelector('[name="melc-quarter"]')?.value || '',
+      week    : e.querySelector('[name="melc-week"]')?.value    || '',
+      desc    : e.querySelector('[name="melc-desc"]')?.value    || '',
+    })).filter(m => m.code);
+
+    // Collect author entries
+    const authorEntries = qsa('.author-entry').map(e => ({
+      first    : e.querySelector('[name="author-first"]')?.value    || '',
+      last     : e.querySelector('[name="author-last"]')?.value     || '',
+      email    : e.querySelector('[name="author-email"]')?.value    || '',
+      role     : e.querySelector('[name="author-role"]')?.value     || '',
+      position : e.querySelector('[name="author-position"]')?.value || '',
+    })).filter(a => a.first || a.last);
+
+    const fd = new FormData();
+    if (resFile) fd.append('file', resFile);
+    fd.append('title',    qs('#res-title')?.value    || '');
+    fd.append('type',     qs('#res-type')?.value     || '');
+    fd.append('grade',    qs('#res-grade')?.value    || '');
+    fd.append('subject',  qs('#res-subject')?.value  || '');
+    fd.append('language', qs('#res-lang')?.value     || '');
+    fd.append('quarter',  qs('#res-quarter')?.value  || '');
+    fd.append('sy',       qs('#res-sy')?.value       || '');
+    fd.append('desc',     qs('#res-desc')?.value     || '');
+    fd.append('url',      qs('#res-url')?.value      || '');
+    fd.append('version',  qs('#res-version')?.value  || '1.0');
+    fd.append('license',  qs('input[name="license"]:checked')?.value || 'DepEd');
+    fd.append('region',   qs('#res-region')?.value   || '');
+    fd.append('division', qs('#res-division')?.value || '');
+    melcEntries.forEach((m, i) => {
+      fd.append(`melcs[${i}]`, JSON.stringify(m));
+    });
+    authorEntries.forEach((a, i) => {
+      fd.append(`authors[${i}]`, JSON.stringify(a));
+    });
+
+    try {
+      const resp = await fetch('api/upload-resource.php', { method: 'POST', body: fd });
+      const data = await resp.json();
+
+      if (!data.ok) {
+        alert('Upload failed: ' + data.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Submit Resource';
+        return;
+      }
+
+      // Show success
+      resPanels.forEach(p => { p.hidden=true; p.classList.remove('active'); });
+      resSuccess.hidden = false;
+      resSuccess.classList.add('active');
+      resWizNav.style.display = 'none';
+      qs('#resource-screen .wizard-progress')?.style.setProperty('display','none');
+      qs('#res-ref-id').textContent = data.ref_id || 'LRMDS-' + Date.now();
+      resSuccess.scrollIntoView({ behavior:'smooth', block:'center' });
+
+    } catch (err) {
+      alert('Network error: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Submit Resource';
+    }
+  });
+
+  resGoTo(0);
+
+
+  /* ═══════════════════════════════════════════
+     2.  NEWS / MEMORANDUM FORM
+  ═══════════════════════════════════════════ */
+  let newsType = 'announcement';
+
+  qsa('.ntc').forEach(btn => {
+    btn.addEventListener('click', () => {
+      qsa('.ntc').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      newsType = btn.dataset.ntype;
+
+      const memoFields  = qs('#memo-fields');
+      const eventFields = qs('#event-fields');
+      const attachNote  = qs('#attach-required-note');
+
+      memoFields.style.display  = newsType==='memo'  ? '' : 'none';
+      eventFields.style.display = newsType==='event' ? '' : 'none';
+      attachNote.style.display  = newsType==='memo'  ? '' : 'none';
+    });
+  });
+
+  // News file dropzone
+  let newsFile = null;
+  const newsDZ = qs('#news-dropzone');
+  const newsFI = qs('#news-file-input');
+
+  function showNewsFile(file) {
+    newsFile = file;
+    const ext = file.name.split('.').pop().toLowerCase();
+    qs('#news-fp-icon').textContent = FILE_ICONS[ext] || '📄';
+    qs('#news-fp-name').textContent = file.name;
+    qs('#news-fp-size').textContent = fmtSize(file.size);
+    newsDZ.hidden = true;
+    qs('#news-file-preview').hidden = false;
+  }
+
+  if (newsDZ && newsFI) {
+    newsDZ.addEventListener('click',   () => newsFI.click());
+    newsDZ.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') newsFI.click(); });
+    newsFI.addEventListener('change',  () => { if (newsFI.files[0]) showNewsFile(newsFI.files[0]); });
+    newsDZ.addEventListener('dragover', e => { e.preventDefault(); newsDZ.classList.add('dragover'); });
+    newsDZ.addEventListener('dragleave', () => newsDZ.classList.remove('dragover'));
+    newsDZ.addEventListener('drop', e => {
+      e.preventDefault(); newsDZ.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) showNewsFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  qs('#news-fp-remove')?.addEventListener('click', () => {
+    newsFile = null;
+    if (newsFI) newsFI.value = '';
+    qs('#news-file-preview').hidden = true;
+    newsDZ.hidden = false;
+  });
+
+  // Character counter
+  const newsSummary = qs('#news-summary');
+  const newsCCount  = qs('#news-char-count');
+  newsSummary?.addEventListener('input', () => {
+    const len = newsSummary.value.length;
+    newsCCount.textContent = len;
+    newsCCount.style.color = len > 1800 ? '#DC2626' : '#9CA3AF';
+  });
+
+  // News validation
+  function validateNewsForm() {
+    let ok = true;
+    const required = [
+      { el: qs('#news-title'),        msg: 'Title is required.' },
+      { el: qs('#news-date'),         msg: 'Date is required.' },
+      { el: qs('#news-summary'),      msg: 'Summary / body is required.' },
+      { el: qs('#news-poster-name'),  msg: 'Your name is required.' },
+      { el: qs('#news-poster-role'),  msg: 'Your role is required.' },
+      { el: qs('#news-poster-email'), msg: 'Your email is required.' },
+    ];
+    required.forEach(({ el, msg }) => {
+      if (!el) return;
+      el.classList.remove('error');
+      el.parentElement.querySelector('.error-msg')?.remove();
+      if (!el.value.trim()) {
+        el.classList.add('error');
+        const p = document.createElement('p');
+        p.className = 'error-msg';
+        p.textContent = msg;
+        el.parentElement.appendChild(p);
+        ok = false;
+      }
+    });
+
+    if (newsType === 'memo') {
+      const mn = qs('#memo-number');
+      mn.classList.remove('error');
+      mn.parentElement.querySelector('.error-msg')?.remove();
+      if (!mn.value.trim()) {
+        mn.classList.add('error');
+        const p = document.createElement('p');
+        p.className = 'error-msg';
+        p.textContent = 'Memorandum number is required.';
+        mn.parentElement.appendChild(p);
+        ok = false;
+      }
+      if (!newsFile) {
+        newsDZ.style.borderColor = '#DC2626';
+        newsDZ.style.background  = '#FEF2F2';
+        setTimeout(() => { newsDZ.style.borderColor=''; newsDZ.style.background=''; }, 2500);
+        ok = false;
       }
     }
 
-    if (idx === 1) {
-      const required = ['meta-title', 'meta-type', 'meta-grade', 'meta-subject', 'meta-lang', 'meta-desc'];
-      required.forEach(id => {
-        const el = qs('#' + id);
-        if (!el?.value?.trim()) { markError(el, 'This field is required.'); valid = false; }
-      });
+    if (!qs('#news-agree')?.checked) {
+      qs('#news-agree').closest('label').style.color = '#DC2626';
+      ok = false;
     }
 
-    if (idx === 3) {
-      const originalBox = qs('#rights-original');
-      const privacyBox  = qs('#rights-privacy');
-      if (!originalBox?.checked) originalBox.closest('label').style.color = '#DC2626';
-      if (!privacyBox?.checked)  privacyBox.closest('label').style.color = '#DC2626';
-      if (!originalBox?.checked || !privacyBox?.checked) valid = false;
-    }
-
-    return valid;
+    return ok;
   }
 
-  /* ── Add shake keyframe ── */
-  const shakeStyle = document.createElement('style');
-  shakeStyle.textContent = `@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }`;
-  document.head.appendChild(shakeStyle);
+  // ── News submit handler (real fetch) ─────────────────────────────────
+  async function submitNewsForm(isDraft) {
+    if (!isDraft && !validateNewsForm()) return;
 
-  /* ── Init ── */
-  goTo(0);
+    const submitArea = qs('#news-submit-area');
+    const successDiv = qs('#news-success');
+    const submitBtn  = qs('#news-submit-btn');
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span style="margin-right:8px">⏳</span>Uploading…';
+
+    const fd = new FormData();
+    fd.append('type',      newsType);
+    fd.append('title',     qs('#news-title')?.value       || '');
+    fd.append('date',      qs('#news-date')?.value        || '');
+    fd.append('summary',   qs('#news-summary')?.value     || '');
+    fd.append('poster',    qs('#news-poster-name')?.value || '');
+    fd.append('email',     qs('#news-poster-email')?.value|| '');
+    fd.append('isDraft',   isDraft ? '1' : '0');
+    fd.append('audience',  qs('#news-audience')?.value    || 'all');
+    fd.append('pin',       qs('#news-pin')?.value         || '0');
+    fd.append('tags',      qs('#news-tags')?.value        || '');
+
+    // Memo fields
+    if (newsType === 'memo') {
+      fd.append('memo_number',  qs('#memo-number')?.value  || '');
+      fd.append('memo_series',  qs('#memo-series')?.value  || '');
+      fd.append('memo_to',      qs('#memo-to')?.value      || '');
+      fd.append('memo_from',    qs('#memo-from')?.value    || '');
+      fd.append('memo_urgency', qs('#memo-urgency')?.value || 'routine');
+    }
+
+    // Event fields
+    if (newsType === 'event') {
+      fd.append('event_start',    qs('#event-start')?.value    || '');
+      fd.append('event_end',      qs('#event-end')?.value      || '');
+      fd.append('event_venue',    qs('#event-venue')?.value    || '');
+      fd.append('event_register', qs('#event-register')?.value || '');
+    }
+
+    // File attachment
+    if (newsFile) fd.append('attachment', newsFile);
+
+    try {
+      const resp = await fetch('api/submit-news.php', { method: 'POST', body: fd });
+      const data = await resp.json();
+
+      if (!data.ok) {
+        alert('Submission failed: ' + data.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Publish Post';
+        return;
+      }
+
+      submitArea.hidden = true;
+      successDiv.hidden = false;
+      qs('#news-ref-id').textContent = data.ref_id || 'NEWS-' + Date.now();
+
+      if (isDraft) {
+        qs('#news-success-title').textContent = 'Draft Saved!';
+        qs('#news-success-msg').textContent   = 'Your post has been saved as a draft. You can edit and publish it from the admin panel.';
+      }
+
+      successDiv.scrollIntoView({ behavior:'smooth', block:'center' });
+
+    } catch (err) {
+      alert('Network error: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Publish Post';
+    }
+  }
+
+  qs('#news-submit-btn')?.addEventListener('click', () => submitNewsForm(false));
+  qs('#news-draft-btn')?.addEventListener('click',  () => submitNewsForm(true));
+
+  // Default today's date
+  const newsDateInput = qs('#news-date');
+  if (newsDateInput) newsDateInput.value = new Date().toISOString().slice(0,10);
+
+  // Shake + fade keyframes
+  const shakeStyle = document.createElement('style');
+  shakeStyle.textContent = `
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+    @keyframes fadeSlideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  `;
+  document.head.appendChild(shakeStyle);
 
 })();

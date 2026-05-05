@@ -4,23 +4,43 @@
  * Handles POST from register.php.
  * Returns JSON: { "success": true, "redirect": "..." }
  *                or { "success": false, "errors": {...} }
- *
- * Registration status matrix:
- *   learner / parent  → status = 'email_pending'  (must verify email to activate)
- *   teacher / school-head / developer → status = 'pending' + TOTP setup (admin activates)
  */
+
+// ── Buffer everything so PHP warnings never corrupt JSON output ──
+ob_start();
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
+
+// Fatal-error safety net → always return JSON
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        ob_clean();
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Server error: ' . $e['message'] . ' in ' . basename($e['file']) . ' line ' . $e['line'],
+        ]);
+    }
+});
 
 session_start();
 
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
+ob_clean(); // discard any buffered warnings before our headers
+
+
 require_once __DIR__ . '/../lib/env.php';
 
 define('DB_CHARSET', 'utf8mb4');
 
 // Roles that go through TOTP setup (inserted to DB after TOTP confirmed)
-define('TOTP_ROLES', ['teacher', 'school-head', 'developer']);
+define('TOTP_ROLES', ['teacher', 'school-head', 'psds', 'eps', 'eps-sgod', 'ces', 'ces-sgod', 'specialist', 'specialist-sgod', 'asds', 'sds', 'pdo', 'developer']);
 
 // Roles that must verify their email before their account becomes active
 define('EMAIL_VERIFY_ROLES', ['learner', 'parent']);
@@ -52,6 +72,8 @@ $position     = trim($_POST['position']     ?? '');
 $affiliation  = trim($_POST['affiliation']  ?? '');
 $dev_position = trim($_POST['dev_position'] ?? '');
 $dev_types    = trim($_POST['dev_types']    ?? '');
+$cluster      = trim($_POST['cluster']      ?? '');
+$division_unit = trim($_POST['division_unit'] ?? '');
 
 /* ── Validation ─────────────────────────────────────────────────────────── */
 $errors = [];
@@ -78,7 +100,7 @@ if ($fname === '') $errors['fname']  = 'First name is required.';
 if ($lname === '') $errors['lname']  = 'Last name is required.';
 if ($region === '') $errors['region'] = 'Please select your region.';
 
-$allowed_roles = ['teacher', 'learner', 'parent', 'school-head', 'developer'];
+$allowed_roles = ['teacher', 'learner', 'parent', 'school-head', 'psds', 'eps', 'eps-sgod', 'ces', 'ces-sgod', 'specialist', 'specialist-sgod', 'asds', 'sds', 'pdo', 'developer'];
 if (!in_array($role, $allowed_roles, true)) {
     $errors['role'] = 'Please select a valid role.';
 }
@@ -130,16 +152,18 @@ $password_hash = password_hash($password, PASSWORD_BCRYPT);
 
 /* ── Meta JSON ──────────────────────────────────────────────────────────── */
 $meta = [];
-if ($grade_level)  $meta['grade_level']  = $grade_level;
-if ($subjects)     $meta['subjects']     = $subjects;
-if ($school_name)  $meta['school_name']  = $school_name;
-if ($lrn)          $meta['lrn']          = $lrn;
-if ($child_grade)  $meta['child_grade']  = $child_grade;
-if ($child_school) $meta['child_school'] = $child_school;
-if ($position)     $meta['position']     = $position;
-if ($affiliation)  $meta['affiliation']  = $affiliation;
-if ($dev_position) $meta['dev_position'] = $dev_position;
-if ($dev_types)    $meta['dev_types']    = $dev_types;
+if ($grade_level)   $meta['grade_level']   = $grade_level;
+if ($subjects)      $meta['subjects']      = $subjects;
+if ($school_name)   $meta['school_name']   = $school_name;
+if ($lrn)           $meta['lrn']           = $lrn;
+if ($child_grade)   $meta['child_grade']   = $child_grade;
+if ($child_school)  $meta['child_school']  = $child_school;
+if ($position)      $meta['position']      = $position;
+if ($affiliation)   $meta['affiliation']   = $affiliation;
+if ($dev_position)  $meta['dev_position']  = $dev_position;
+if ($dev_types)     $meta['dev_types']     = $dev_types;
+if ($cluster)       $meta['cluster']       = $cluster;
+if ($division_unit) $meta['division_unit'] = $division_unit;
 $meta_json = !empty($meta) ? json_encode($meta) : null;
 
 /* ══════════════════════════════════════════════════════════════════════════

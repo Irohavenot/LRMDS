@@ -218,19 +218,110 @@
           Are you DepEd staff or a content partner? ▾
         </button>
         <div class="rf-staff-roles" id="staff-roles-panel" aria-hidden="true">
-          <p class="staff-notice"><strong>Note:</strong> Staff and content partner accounts require verification. Your account will be reviewed before full access is granted.</p>
-          <div class="rf-role-grid">
-            <label class="rf-role-card" data-role="school-head">
+          <p class="staff-notice"><strong>Note:</strong> Staff and content partner accounts require admin verification. Your account will be reviewed before full access is granted.</p>
+
+          <!-- School-Level -->
+          <p style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 6px;">School Level</p>
+          <div class="rf-role-grid" style="grid-template-columns:1fr 1fr;">
+            <label class="rf-role-card" data-role="school-head" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
               <input type="radio" name="role" value="school-head" hidden/>
-              <span class="rrc-icon"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-              <span class="rrc-name">School Head / Curriculum</span>
-              <span class="rrc-desc">Access policies, QA templates, tracking, and analytics summaries.</span>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">School Head</span>
+                <span class="rrc-desc">Principal or Head Teacher leading a school.</span>
+              </span>
             </label>
-            <label class="rf-role-card" data-role="developer">
+          </div>
+
+          <!-- District Level -->
+          <p style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">District Level</p>
+          <div class="rf-role-grid" style="grid-template-columns:1fr;">
+            <label class="rf-role-card" data-role="psds" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
+              <input type="radio" name="role" value="psds" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">Public Schools District Supervisor (PSDS)</span>
+                <span class="rrc-desc">Oversees schools and teachers within a district cluster.</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Division Level -->
+          <p style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">Division Level (SDO)</p>
+          <div class="rf-role-grid" style="grid-template-columns:1fr 1fr;">
+
+            <label class="rf-role-card" data-role="eps" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
+              <input type="radio" name="role" value="eps" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h10M7 11h7"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">Education Program Supervisor (EPS)</span>
+                <span class="rrc-desc">CID or SGOD program supervision.</span>
+              </span>
+            </label>
+
+            <label class="rf-role-card" data-role="ces" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
+              <input type="radio" name="role" value="ces" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">Chief Education Supervisor (CES)</span>
+                <span class="rrc-desc">Division chief of CID or SGOD.</span>
+              </span>
+            </label>
+
+            <label class="rf-role-card" data-role="specialist" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
+              <input type="radio" name="role" value="specialist" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">CID / SGOD Specialist</span>
+                <span class="rrc-desc">Specialist role within the division office.</span>
+              </span>
+            </label>
+
+            <label class="rf-role-card" data-role="asds" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
+              <input type="radio" name="role" value="asds" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/><circle cx="12" cy="12" r="3"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">ASDS</span>
+                <span class="rrc-desc">Assistant Schools Division Superintendent.</span>
+              </span>
+            </label>
+
+            <label class="rf-role-card" data-role="sds" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;grid-column:1/-1;">
+              <input type="radio" name="role" value="sds" hidden/>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/><path d="M18 14l2 2 4-4"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">Schools Division Superintendent (SDS)</span>
+                <span class="rrc-desc">Head of the Schools Division Office.</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Content & Partners -->
+          <p style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;">Content &amp; Partners</p>
+          <div class="rf-role-grid" style="grid-template-columns:1fr;">
+            <label class="rf-role-card" data-role="developer" style="flex-direction:row;align-items:center;gap:10px;padding:10px 12px;">
               <input type="radio" name="role" value="developer" hidden/>
-              <span class="rrc-icon"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
-              <span class="rrc-name">Content Developer / Partner</span>
-              <span class="rrc-desc">Access submission guidelines, QA rubrics, templates, and the upload workflow.</span>
+              <span class="rrc-icon" style="flex-shrink:0;">
+                <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rrc-name">Content Developer / Partner</span>
+                <span class="rrc-desc">Submit and manage learning materials. Includes PDOs, curriculum writers, illustrators, and partner organizations.</span>
+              </span>
             </label>
           </div>
         </div>
@@ -295,10 +386,11 @@
           </div>
           <div class="rf-group">
             <label class="rf-label" for="reg-division">Division <span class="rf-req">*</span></label>
-            <select class="rf-select" id="reg-division" name="division" required>
-              <option value="">Select division…</option>
-            </select>
-            <span class="rf-hint" id="reg-division-hint">Select your region first.</span>
+            <input class="rf-input" type="text" id="reg-division" name="division"
+                   list="reg-division-list" autocomplete="off"
+                   placeholder="Type or select your division…" required/>
+            <datalist id="reg-division-list"></datalist>
+            <span class="rf-hint" id="reg-division-hint">Select your region first, or type your division name.</span>
             <span class="rf-error" id="reg-division-err" role="alert"></span>
           </div>
         </div>
@@ -376,30 +468,31 @@
           var DEFAULT_DIVISION = 'Division of Carcar';
 
           var regionSel   = document.getElementById('reg-region');
-          var divisionSel = document.getElementById('reg-division');
+          var divisionInput = document.getElementById('reg-division');
+          var divisionList  = document.getElementById('reg-division-list');
           var divHint     = document.getElementById('reg-division-hint');
 
           function populateDivisions(region, preselectValue) {
-            divisionSel.innerHTML = '<option value="">Select division…</option>';
+            divisionList.innerHTML = '';
             var list = DIVISIONS[region];
             if (!list) {
-              divHint.textContent = 'Select your region first.';
+              divHint.textContent = 'Select your region first, or type your division name.';
               return;
             }
             list.forEach(function (d) {
               var opt = document.createElement('option');
               opt.value = d;
-              opt.textContent = d;
-              if (d === preselectValue) opt.selected = true;
-              divisionSel.appendChild(opt);
+              divisionList.appendChild(opt);
             });
-            divHint.textContent = list.length + ' division' + (list.length !== 1 ? 's' : '') + ' available.';
+            if (preselectValue) divisionInput.value = preselectValue;
+            divHint.textContent = list.length + ' division' + (list.length !== 1 ? 's' : '') + ' available — or type to search.';
           }
 
           /* Initial load — pre-select Region VII + Division of Carcar */
           populateDivisions(DEFAULT_REGION, DEFAULT_DIVISION);
 
           regionSel.addEventListener('change', function () {
+            divisionInput.value = '';
             populateDivisions(this.value, '');
           });
         })();
@@ -418,19 +511,82 @@
           </div>
 
           <div class="rf-group">
-            <label class="rf-label" for="reg-grade-level">Grade Level(s) You Teach <span class="rf-req">*</span></label>
-            <select class="rf-select" id="reg-grade-level" name="grade_level">
-              <option value="">Select grade level…</option>
-              <option value="kinder">Kindergarten</option>
-              <option value="g1">Grade 1</option><option value="g2">Grade 2</option>
-              <option value="g3">Grade 3</option><option value="g4">Grade 4</option>
-              <option value="g5">Grade 5</option><option value="g6">Grade 6</option>
-              <option value="g7">Grade 7</option><option value="g8">Grade 8</option>
-              <option value="g9">Grade 9</option><option value="g10">Grade 10</option>
-              <option value="g11">Grade 11 (SHS)</option><option value="g12">Grade 12 (SHS)</option>
-              <option value="multi">Multiple / Advisory</option>
-            </select>
-            <span class="rf-hint">We use this to personalize your resource feed.</span>
+            <label class="rf-label">Advisory / Grade Level(s) <span class="rf-req">*</span></label>
+            <span class="rf-hint" style="margin-bottom:8px;">Click a grade to add it. You can type the section name for each advisory class you handle.</span>
+
+            <!-- Grade toggle buttons -->
+            <div id="advisory-grade-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+              <button type="button" class="advisory-grade-btn" data-grade="kinder" data-label="Kindergarten">Kinder</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g1"     data-label="Grade 1">G1</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g2"     data-label="Grade 2">G2</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g3"     data-label="Grade 3">G3</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g4"     data-label="Grade 4">G4</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g5"     data-label="Grade 5">G5</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g6"     data-label="Grade 6">G6</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g7"     data-label="Grade 7">G7</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g8"     data-label="Grade 8">G8</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g9"     data-label="Grade 9">G9</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g10"    data-label="Grade 10">G10</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g11"    data-label="Grade 11 (SHS)">G11</button>
+              <button type="button" class="advisory-grade-btn" data-grade="g12"    data-label="Grade 12 (SHS)">G12</button>
+            </div>
+
+            <!-- Selected advisory list -->
+            <div id="advisory-list" style="display:flex;flex-direction:column;gap:6px;min-height:36px;">
+              <span id="advisory-empty" style="font-size:12px;color:#9CA3AF;padding:6px 0;">No grades selected yet — tap a grade above to add it.</span>
+            </div>
+
+            <div style="font-size:12px;color:#6B7280;margin-top:6px;display:flex;align-items:center;gap:6px;">
+              Advisory classes added: <strong id="advisory-count">0</strong>
+            </div>
+            <input type="hidden" id="reg-advisory-data" name="grade_levels"/>
+            <span class="rf-error" id="reg-grade-err" role="alert"></span>
+          </div>
+
+          <style>
+            .advisory-grade-btn {
+              padding: 6px 12px; border: 1.5px solid #D1D5DB; border-radius: 20px;
+              background: #fff; font-size: 12px; font-weight: 700; color: #374151;
+              cursor: pointer; font-family: inherit; transition: border-color .15s, background .15s, color .15s;
+            }
+            .advisory-grade-btn:hover { border-color: #93C5FD; background: #F0F9FF; color: #0B4F9C; }
+            .advisory-grade-btn.active { border-color: #0B4F9C; background: #0B4F9C; color: #fff; }
+            .advisory-row {
+              display: grid; grid-template-columns: 110px 1fr 32px; gap: 6px; align-items: center;
+            }
+            .advisory-row-grade {
+              font-size: 12px; font-weight: 700; color: #374151;
+              background: #EFF6FF; border-radius: 6px; padding: 5px 8px; text-align: center;
+            }
+            .advisory-row-section {
+              padding: 6px 10px; border: 1.5px solid #E5E7EB; border-radius: 7px;
+              font-size: 13px; font-family: inherit; color: #111827; outline: none;
+              transition: border-color .15s;
+            }
+            .advisory-row-section:focus { border-color: #0B4F9C; }
+            .advisory-row-remove {
+              width: 28px; height: 28px; border: none; background: #FEE2E2; border-radius: 6px;
+              color: #DC2626; font-size: 14px; cursor: pointer; display: flex;
+              align-items: center; justify-content: center; flex-shrink: 0;
+              transition: background .15s;
+            }
+            .advisory-row-remove:hover { background: #FECACA; }
+          </style>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-teacher-school">School Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-teacher-school" name="school_name" placeholder="e.g. Calinog National High School"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-teacher-cluster">Cluster / District</label>
+            <div style="display:flex;align-items:center;gap:0;">
+              <span style="padding:10px 12px;background:#F3F4F6;border:1.5px solid #D1D5DB;border-right:none;border-radius:9px 0 0 9px;font-size:14px;color:#6B7280;white-space:nowrap;font-weight:600;">CLUSTER-</span>
+              <input class="rf-input" type="text" id="reg-teacher-cluster" name="cluster"
+                     placeholder="e.g. 1 or 4B"
+                     style="border-radius:0 9px 9px 0;border-left:none;"/>
+            </div>
+            <span class="rf-hint">Optional. Enter the cluster number or code assigned to your school.</span>
           </div>
 
           <div class="rf-group">
@@ -553,10 +709,10 @@
         </div>
 
         <!-- ════════════════════════════
-             SCHOOL HEAD / CURRICULUM
+             SCHOOL HEAD
         ════════════════════════════ -->
         <div class="role-fields" id="fields-school-head">
-          <p class="rf-section-title">Position &amp; Assignment</p>
+          <p class="rf-section-title">Position &amp; School Assignment</p>
 
           <div class="rf-group">
             <label class="rf-label" for="reg-employee-id-sh">Employee ID <span class="rf-req">*</span></label>
@@ -565,29 +721,280 @@
           </div>
 
           <div class="rf-group">
-            <label class="rf-label" for="reg-position">Position / Designation <span class="rf-req">*</span></label>
-            <select class="rf-select" id="reg-position" name="position">
-              <option value="">Select position…</option>
-              <option value="principal-1">Principal I</option>
-              <option value="principal-2">Principal II</option>
-              <option value="principal-3">Principal III</option>
-              <option value="principal-4">Principal IV</option>
-              <option value="head-teacher-1">Head Teacher I</option>
-              <option value="head-teacher-2">Head Teacher II</option>
-              <option value="head-teacher-3">Head Teacher III</option>
-              <option value="head-teacher-4">Head Teacher IV</option>
-              <option value="head-teacher-5">Head Teacher V</option>
-              <option value="head-teacher-6">Head Teacher VI</option>
-              <option value="eps">Education Program Supervisor (EPS)</option>
-              <option value="chief-eps">Chief EPS / Curriculum</option>
-              <option value="asds">ASDS / SDS</option>
-              <option value="other-admin">Other Administrative</option>
+            <label class="rf-label" for="reg-position-sh">Designation <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-position-sh" name="position">
+              <option value="">Select designation…</option>
+              <optgroup label="Principal">
+                <option value="principal-1">Principal I</option>
+                <option value="principal-2">Principal II</option>
+                <option value="principal-3">Principal III</option>
+                <option value="principal-4">Principal IV</option>
+              </optgroup>
+              <optgroup label="Head Teacher">
+                <option value="head-teacher-1">Head Teacher I</option>
+                <option value="head-teacher-2">Head Teacher II</option>
+                <option value="head-teacher-3">Head Teacher III</option>
+                <option value="head-teacher-4">Head Teacher IV</option>
+                <option value="head-teacher-5">Head Teacher V</option>
+                <option value="head-teacher-6">Head Teacher VI</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="school-head-other">Other School Head Position</option>
+              </optgroup>
+            </select>
+            <span class="rf-error" id="reg-position-sh-err" role="alert"></span>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-sh-school">School Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-sh-school" name="school_name" placeholder="e.g. Calinog National High School"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-sh-cluster">Cluster / District</label>
+            <div style="display:flex;align-items:center;">
+              <span style="padding:10px 12px;background:#F3F4F6;border:1.5px solid #D1D5DB;border-right:none;border-radius:9px 0 0 9px;font-size:14px;color:#6B7280;white-space:nowrap;font-weight:600;">CLUSTER-</span>
+              <input class="rf-input" type="text" id="reg-sh-cluster" name="cluster"
+                     placeholder="e.g. 1 or 3A"
+                     style="border-radius:0 9px 9px 0;border-left:none;"/>
+            </div>
+            <span class="rf-hint">Optional. Enter the cluster or district number your school belongs to.</span>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             PSDS (District Supervisor)
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-psds">
+          <p class="rf-section-title">District Supervisor Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-psds">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-psds" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-psds-office">Division / SDO Office <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-psds-office" name="school_name" placeholder="e.g. SDO Iloilo – Calinog District"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-psds-cluster">Cluster Handled <span class="rf-req">*</span></label>
+            <div style="display:flex;align-items:center;">
+              <span style="padding:10px 12px;background:#F3F4F6;border:1.5px solid #D1D5DB;border-right:none;border-radius:9px 0 0 9px;font-size:14px;color:#6B7280;white-space:nowrap;font-weight:600;">CLUSTER-</span>
+              <input class="rf-input" type="text" id="reg-psds-cluster" name="cluster"
+                     placeholder="e.g. 2"
+                     style="border-radius:0 9px 9px 0;border-left:none;"/>
+            </div>
+            <span class="rf-hint">Enter the cluster number or code assigned to you.</span>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             EPS (Education Program Supervisor)
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-eps">
+          <p class="rf-section-title">EPS Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-eps">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-eps" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-eps-division">Division / SDO <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-eps-division" name="division_unit">
+              <option value="">Select division unit…</option>
+              <option value="cid">CID – Curriculum Implementation Division</option>
+              <option value="sgod">SGOD – School Governance and Operations Division</option>
             </select>
           </div>
 
           <div class="rf-group">
-            <label class="rf-label" for="reg-sh-school">School / Office Name <span class="rf-req">*</span></label>
-            <input class="rf-input" type="text" id="reg-sh-school" name="school_name" placeholder="e.g. Calinog NHS / SDO Iloilo"/>
+            <label class="rf-label" for="reg-eps-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-eps-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-eps-area">Learning Area / Program Focus</label>
+            <input class="rf-input" type="text" id="reg-eps-area" name="affiliation" placeholder="e.g. Mathematics, English, SPED"/>
+            <span class="rf-hint">Optional. Area or program you supervise.</span>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             CES (Chief Education Supervisor)
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-ces">
+          <p class="rf-section-title">Chief Education Supervisor Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-ces">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-ces" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-ces-division">Division Headed <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-ces-division" name="division_unit">
+              <option value="">Select division…</option>
+              <option value="cid">CID – Curriculum Implementation Division</option>
+              <option value="sgod">SGOD – School Governance and Operations Division</option>
+            </select>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-ces-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-ces-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             SPECIALIST (CID / SGOD)
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-specialist">
+          <p class="rf-section-title">Specialist Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-spec">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-spec" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-spec-unit">Division Unit <span class="rf-req">*</span></label>
+            <select class="rf-select" id="reg-spec-unit" name="division_unit">
+              <option value="">Select unit…</option>
+              <option value="cid">CID – Curriculum Implementation Division</option>
+              <option value="sgod">SGOD – School Governance and Operations Division</option>
+            </select>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-spec-position">Specialist Designation</label>
+            <input class="rf-input" type="text" id="reg-spec-position" name="position" placeholder="e.g. Administrative Officer II, Librarian I"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-spec-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-spec-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             EPS – SGOD
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-eps-sgod">
+          <p class="rf-section-title">EPS – SGOD Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-eps-sgod">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-eps-sgod" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-eps-sgod-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-eps-sgod-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-eps-sgod-area">Program / Governance Focus</label>
+            <input class="rf-input" type="text" id="reg-eps-sgod-area" name="affiliation" placeholder="e.g. School Safety, DRRM, Child Protection"/>
+            <span class="rf-hint">Optional. Governance area or program you oversee.</span>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             CES – SGOD
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-ces-sgod">
+          <p class="rf-section-title">CES – SGOD Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-ces-sgod">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-ces-sgod" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-ces-sgod-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-ces-sgod-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             SPECIALIST – SGOD
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-specialist-sgod">
+          <p class="rf-section-title">Specialist – SGOD Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-spec-sgod">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-spec-sgod" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-spec-sgod-position">Specialist Designation</label>
+            <input class="rf-input" type="text" id="reg-spec-sgod-position" name="position" placeholder="e.g. Administrative Officer II, Librarian I"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-spec-sgod-office">SDO Office Name <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-spec-sgod-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             PDO (Project Development Officer)
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-pdo">
+          <p class="rf-section-title">Project Development Officer Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-pdo">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-pdo" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-pdo-office">Office / Division Assignment <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-pdo-office" name="school_name" placeholder="e.g. SDO Iloilo – CID, Regional Office VI"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-pdo-program">Project / Program Focus</label>
+            <input class="rf-input" type="text" id="reg-pdo-program" name="affiliation" placeholder="e.g. Learning Resource Development, LRMDS Portal"/>
+            <span class="rf-hint">Optional. Describe the project or program you manage.</span>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             ASDS
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-asds">
+          <p class="rf-section-title">ASDS Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-asds">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-asds" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-asds-office">Schools Division Office <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-asds-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
+          </div>
+        </div>
+
+        <!-- ════════════════════════════
+             SDS
+        ════════════════════════════ -->
+        <div class="role-fields" id="fields-sds">
+          <p class="rf-section-title">SDS Details</p>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-employee-id-sds">Employee ID <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-employee-id-sds" name="employee_id" placeholder="e.g. 1234567"/>
+          </div>
+
+          <div class="rf-group">
+            <label class="rf-label" for="reg-sds-office">Schools Division Office <span class="rf-req">*</span></label>
+            <input class="rf-input" type="text" id="reg-sds-office" name="school_name" placeholder="e.g. SDO Iloilo"/>
           </div>
         </div>
 
@@ -608,6 +1015,7 @@
             <label class="rf-label" for="reg-dev-position">Role / Designation</label>
             <select class="rf-select" id="reg-dev-position" name="dev_position">
               <option value="">Select…</option>
+              <option value="pdo">Project Development Officer (PDO)</option>
               <option value="teacher-dev">Teacher / Content Author</option>
               <option value="eps-dev">Education Program Supervisor</option>
               <option value="curriculum-writer">Curriculum Writer</option>
@@ -615,9 +1023,38 @@
               <option value="instructional-designer">Instructional Designer</option>
               <option value="ict-coordinator">ICT Coordinator</option>
               <option value="partner-org">Partner Organization Representative</option>
-              <option value="other">Other</option>
+              <option value="other">Other / Not listed</option>
             </select>
           </div>
+
+          <div class="rf-group" id="rfg-dev-specify">
+            <label class="rf-label" for="reg-dev-specify">
+              Specify Role <span class="rf-req" id="dev-specify-req" style="display:none">*</span>
+            </label>
+            <input class="rf-input" type="text" id="reg-dev-specify" name="dev_position_specify"
+                   placeholder="e.g. Administrative Officer II, Librarian I, …"/>
+            <span class="rf-hint">Type your exact position title if it's not in the list above, or add more detail to your selection.</span>
+            <span class="rf-error" id="reg-dev-specify-err" role="alert"></span>
+          </div>
+          <script>
+          (function () {
+            var sel    = document.getElementById('reg-dev-position');
+            var box    = document.getElementById('rfg-dev-specify');
+            var req    = document.getElementById('dev-specify-req');
+            var input  = document.getElementById('reg-dev-specify');
+            function toggle() {
+              var isOther = sel.value === 'other';
+              // Always visible, but mark required & highlight when "Other" chosen
+              req.style.display   = isOther ? '' : 'none';
+              input.placeholder   = isOther
+                ? 'Required — describe your position'
+                : 'e.g. Administrative Officer II, Librarian I, …';
+              if (isOther) input.focus();
+            }
+            sel.addEventListener('change', toggle);
+            toggle();
+          })();
+          </script>
 
           <div class="rf-group">
             <label class="rf-label">Resource Types You Plan to Submit</label>
@@ -669,6 +1106,19 @@
                  autocomplete="email" aria-describedby="reg-email-err" required/>
           <span class="rf-hint">Use your official DepEd email if available.</span>
           <span class="rf-error" id="reg-email-err" role="alert"></span>
+        </div>
+
+        <div class="rf-group" id="rfg-contact">
+          <label class="rf-label" for="reg-contact">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Contact Number
+            <span style="font-size:11px;font-weight:400;color:#9CA3AF;margin-left:4px;">(optional)</span>
+          </label>
+          <input class="rf-input" type="tel" id="reg-contact" name="contact_number"
+                 placeholder="e.g. 09171234567 or +63 917 123 4567"
+                 autocomplete="tel"/>
+          <span class="rf-hint">A mobile number where DepEd can reach you if needed.</span>
+          <span class="rf-error" id="reg-contact-err" role="alert"></span>
         </div>
 
         <div class="rf-group" id="rfg-pw">
@@ -784,9 +1234,11 @@
           <div class="rv-row"><span class="rv-label">Region</span><span class="rv-value" id="rv-region">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-division"><span class="rv-label">Division</span><span class="rv-value" id="rv-division">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-employee-id"><span class="rv-label">Employee ID</span><span class="rv-value" id="rv-employee-id">-</span></div>
-          <div class="rv-row rv-optional" id="rv-row-grade-level"><span class="rv-label">Grade Level</span><span class="rv-value" id="rv-grade-level">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-grade-level"><span class="rv-label">Grade Level(s)</span><span class="rv-value" id="rv-grade-level">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-subjects"><span class="rv-label">Subjects</span><span class="rv-value" id="rv-subjects">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-school-name"><span class="rv-label">School / Office</span><span class="rv-value" id="rv-school-name">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-cluster"><span class="rv-label">Cluster</span><span class="rv-value" id="rv-cluster">-</span></div>
+          <div class="rv-row rv-optional" id="rv-row-division-unit"><span class="rv-label">Division Unit</span><span class="rv-value" id="rv-division-unit">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-lrn"><span class="rv-label">LRN</span><span class="rv-value" id="rv-lrn">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-child-grade"><span class="rv-label">Child's Grade</span><span class="rv-value" id="rv-child-grade">-</span></div>
           <div class="rv-row rv-optional" id="rv-row-child-school"><span class="rv-label">Child's School</span><span class="rv-value" id="rv-child-school">-</span></div>
@@ -805,7 +1257,19 @@
             <button type="button" class="rv-edit-btn" data-goto="2">Edit</button>
           </div>
           <div class="rv-row"><span class="rv-label">Email Address</span><span class="rv-value" id="rv-email">-</span></div>
-          <div class="rv-row"><span class="rv-label">Password</span><span class="rv-value">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</span></div>
+          <div class="rv-row" style="align-items:center;">
+            <span class="rv-label">Password</span>
+            <span class="rv-value" style="display:flex;align-items:center;gap:8px;">
+              <span id="rv-pw-dots">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</span>
+              <button type="button" id="rv-pw-peek"
+                aria-label="Peek at password"
+                style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#9CA3AF;display:flex;align-items:center;border-radius:4px;transition:color .15s;"
+                title="Hold to peek">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </span>
+          </div>
+          <div class="rv-row rv-optional" id="rv-row-contact"><span class="rv-label">Contact No.</span><span class="rv-value" id="rv-contact">-</span></div>
         </div>
 
         <div class="rv-confirm-wrap">
@@ -927,7 +1391,7 @@
   });
 })();
 
-/* ── Strong password requirement checker ── */
+/* ── Strong password requirement checker (role-aware) ── */
 (function () {
   var pwInput   = document.getElementById('reg-pw');
   if (!pwInput) return;
@@ -942,6 +1406,20 @@
     { id: 'req-number',  test: function (v) { return /[0-9]/.test(v); } },
     { id: 'req-special', test: function (v) { return /[^A-Za-z0-9]/.test(v); } },
   ];
+
+  /* Roles that only need 4/5 (Strong) — learner and parent */
+  var SIMPLE_ROLES = ['learner', 'parent'];
+
+  function getSelectedRole() {
+    var checked = document.querySelector('input[name="role"]:checked');
+    return checked ? checked.value : '';
+  }
+
+  function getRequiredMet(val) {
+    var role = getSelectedRole();
+    var required = SIMPLE_ROLES.indexOf(role) !== -1 ? 4 : 5;
+    return required;
+  }
 
   function updateReqs(val) {
     var metCount = 0;
@@ -960,22 +1438,61 @@
     updateReqs(this.value);
   });
 
-  /* Override the Continue/Review button to enforce strong password */
+  /* Override the Continue/Review button to enforce role-aware password strength */
   var nextBtn = document.getElementById('reg-next-2');
   if (nextBtn) {
     nextBtn.addEventListener('click', function (e) {
       var val = pwInput.value;
-      var unmet = rules.filter(function (r) { return !r.test(val); });
-      if (unmet.length > 0) {
+      var role = getSelectedRole();
+      var needed = (SIMPLE_ROLES.indexOf(role) !== -1) ? 4 : 5;
+      var metCount = rules.filter(function (r) { return r.test(val); }).length;
+      if (metCount < needed) {
         e.stopImmediatePropagation();
         var errEl = document.getElementById('reg-pw-err');
         if (errEl) {
-          errEl.textContent = 'Your password must meet all the requirements listed above.';
+          errEl.textContent = needed === 4
+            ? 'Your password must meet at least 4 of the 5 requirements above (Strong or better).'
+            : 'Your password must meet all 5 requirements listed above.';
         }
         pwInput.focus();
       }
-    }, true); /* capture phase — runs before register.js handlers */
+    }, true);
   }
+})();
+
+/* ── Review panel: password peek blink ── */
+(function () {
+  var peekBtn = document.getElementById('rv-pw-peek');
+  var dotsEl  = document.getElementById('rv-pw-dots');
+  var pwInput = document.getElementById('reg-pw');
+  if (!peekBtn || !dotsEl || !pwInput) return;
+
+  var hideTimer = null;
+
+  function showPw() {
+    dotsEl.textContent = pwInput.value || '(empty)';
+    peekBtn.style.color = '#0B4F9C';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hidePw, 1500); // auto-hide after 1.5s
+  }
+  function hidePw() {
+    dotsEl.innerHTML = '&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;';
+    peekBtn.style.color = '#9CA3AF';
+  }
+
+  peekBtn.addEventListener('click', function () {
+    if (dotsEl.textContent.includes('•') || dotsEl.innerHTML.includes('&#8226;')) {
+      showPw();
+    } else {
+      hidePw();
+    }
+  });
+  /* Also support hold-to-peek */
+  peekBtn.addEventListener('mousedown', showPw);
+  peekBtn.addEventListener('touchstart', function(e){ e.preventDefault(); showPw(); });
+  peekBtn.addEventListener('mouseup', hidePw);
+  peekBtn.addEventListener('mouseleave', hidePw);
+  peekBtn.addEventListener('touchend', hidePw);
 })();
 </script>
 </body>

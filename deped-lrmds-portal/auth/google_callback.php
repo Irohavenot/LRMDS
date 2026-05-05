@@ -134,11 +134,20 @@ if ($user) {
     }
 
     // Check account status — same messages as signin_handler.php
+    if ($user['status'] === 'email_pending') {
+        // Account was registered via email/password but never verified.
+        // Google sign-in cannot bypass the email verification requirement.
+        $resend = urlencode('resend_verification.php?email=' . urlencode($user['email']));
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=email_pending&resend=' . $resend);
+        exit;
+    }
     if ($user['status'] === 'suspended') {
-        fail('Your account has been suspended. Please contact the LRMDS helpdesk.');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=suspended');
+        exit;
     }
     if ($user['status'] === 'pending') {
-        fail('Your account is pending administrator verification. You will be notified once approved.');
+        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=pending');
+        exit;
     }
 
     // ── TOTP check — mirrors signin_handler.php exactly ──────
