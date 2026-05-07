@@ -1,5 +1,16 @@
+Main Page: 
+Inig change role dapat ma refresh and ma log out ang user na gi change ang role. 
 Footer: 
 Ang redirects sa mga links didto 
+
+Register: 
+Division should be typable
+Password should be atleast Strong not Excellent for learners and parents, except for Teachers and Accounts above
+quick blink eye preview on the password on step 4
+Children can be linked to parents. (by id?)
+Contact Number for Parents and students(optional)
+
+
 
 Train and Support: 
 Kani rang Duha ang paganahon sa:
@@ -7,13 +18,16 @@ Kani rang Duha ang paganahon sa:
 *Ang Open Feedback form kay dapat mu redirect sa CSM link sa QR sa office
 *(Ang Comments ug kaya)
 
+Profile Page: 
+Walay Kinder sa Teacher role nga Grade level Handled, dapat multiple sad na kay nay multi role na teachers(refer sa Registration)
+Walay Grade na choices sa Learner. 
+Naay Enable 2fa sa parent ug learner profile. 
+
+
+Manage Page: 
+When Changing from Guest to Role that requires ToTp dapat nay temporary password for changing password(like name lang niya). If walay password then disable change password lang?? since what if guest then nag log in with google ra biya na sila so walay password inputted.
 Register Page: 
-Auto Capslock for first letter of Names
-Atleast Strong Password Dapat
-Bug nga Dili muregister basta dili huwaton mugawas ang qr sa teacher-developer (tangtangon dapat ang go to sign in para ma redirect jud ang user sa 2FA)
 
-
-Wala pay Profile Page
 
 
 Manage Page: 
