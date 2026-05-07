@@ -9,6 +9,24 @@ $actor_role = $_SESSION['user_role'] ?? 'guest';
 $actor_name = htmlspecialchars($_SESSION['user_name'] ?? 'User');
 $actor_init = strtoupper(substr($_SESSION['user_name'] ?? 'U', 0, 2));
 
+// Fetch avatar from DB so the dashboard always shows the latest photo
+$actor_avatar = null;
+try {
+    $mgr_pdo = new PDO(
+        'mysql:host=localhost;dbname=lrmds;charset=utf8mb4',
+        'root', '',
+        [PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+         PDO::ATTR_EMULATE_PREPARES   => false]
+    );
+    $mgr_s = $mgr_pdo->prepare('SELECT avatar FROM users WHERE id = ? LIMIT 1');
+    $mgr_s->execute([(int)($_SESSION['user_id'] ?? 0)]);
+    $mgr_row = $mgr_s->fetch();
+    if (!empty($mgr_row['avatar'])) {
+        $actor_avatar = htmlspecialchars($mgr_row['avatar']);
+    }
+} catch (PDOException $e) { /* silently fallback to initials */ }
+
 // Roles that can access manage.php at all
 $manage_roles = ['admin', 'developer', 'school-head'];
 if (!in_array($actor_role, $manage_roles)) {
@@ -235,7 +253,13 @@ include 'includes/profile_panel.php';
 
     <div class="sidebar-footer">
       <div class="user-chip">
-        <div class="user-avatar"><?= $actor_init ?></div>
+        <div class="user-avatar" style="overflow:hidden">
+          <?php if ($actor_avatar): ?>
+            <img src="<?= $actor_avatar ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
+          <?php else: ?>
+            <?= $actor_init ?>
+          <?php endif; ?>
+        </div>
         <div>
           <div class="user-name"><?= $actor_name ?></div>
           <div class="user-role"><?= htmlspecialchars($actor_role) ?></div>
@@ -269,15 +293,15 @@ include 'includes/profile_panel.php';
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
           <span class="btn-label">New Submission</span>
         </button>
-        <?php if (isset($initials)): ?>
         <button class="topbar-profile-btn" id="hdr-account-btn" aria-label="Your profile">
-          <div class="hdr-avatar-mini"><?= $initials ?? $actor_init ?></div>
+          <div class="hdr-avatar-mini" style="overflow:hidden">
+            <?php if ($actor_avatar): ?>
+              <img src="<?= $actor_avatar ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">
+            <?php else: ?>
+              <?= $actor_init ?>
+            <?php endif; ?>
+          </div>
         </button>
-        <?php else: ?>
-        <button class="topbar-profile-btn" id="hdr-account-btn" aria-label="Your profile">
-          <div class="hdr-avatar-mini"><?= $actor_init ?></div>
-        </button>
-        <?php endif; ?>
       </div>
     </div>
 
