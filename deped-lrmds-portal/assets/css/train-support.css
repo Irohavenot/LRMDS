@@ -861,7 +861,7 @@ body {
 .hd-meta { font-size: 13px; color: var(--ts-muted); display: flex; flex-direction: column; gap: 4px; }
 .hd-meta strong { color: #1A2332; }
 .helpdesk-card.featured .hd-meta { color: rgba(255,255,255,.6); }
-.helpdesk-card.featured .hd-meta strong { color: #fff; }
+.helpdesk-card.featured .hd-meta strong { color: #000000; }
 
 .hd-row {
   display: flex;
@@ -890,6 +890,16 @@ body {
 
 .hd-input::placeholder { color: rgba(255,255,255,.4); }
 .hd-input:focus { outline: none; border-color: rgba(255,255,255,.6); }
+
+/* Blue styling for the Issue Category select — options only */
+select.hd-input option {
+  background-color: #064389cf;
+  color: #fff;
+}
+
+select.hd-input option:first-child {
+  color: rgba(255,255,255,.6);
+}
 
 .hd-textarea { resize: vertical; min-height: 80px; }
 

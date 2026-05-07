@@ -1,3 +1,144 @@
+<?php
+// ─── Helpdesk Ticket Submission ───────────────────────────────────────────────
+session_start();
+
+// DB config
+$db_host = '127.0.0.1';
+$db_name = 'lrmds';
+$db_user = 'root';
+$db_pass = '';
+
+// ── Require a logged-in registered account ───────────────────────────────────
+// Your app stores the logged-in user's id in $_SESSION['user_id']
+$logged_in_user_id = $_SESSION['user_id'] ?? null;
+
+$current_user = null;
+$tickets_used = 0;
+
+if ($logged_in_user_id) {
+    try {
+        $pdo = new PDO(
+            "mysql:host={$db_host};dbname={$db_name};charset=utf8mb4",
+            $db_user, $db_pass,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        // Pull name + email straight from the users table
+        $u = $pdo->prepare("
+            SELECT `id`, `first_name`, `last_name`, `email`, `status`
+            FROM `users`
+            WHERE `id` = :id AND `status` = 'active'
+            LIMIT 1
+        ");
+        $u->execute([':id' => $logged_in_user_id]);
+        $current_user = $u->fetch(PDO::FETCH_ASSOC);
+
+        if ($current_user) {
+            // Create support_tickets table if needed (now includes user_id)
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS `support_tickets` (
+                    `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    `user_id`    INT UNSIGNED NOT NULL,
+                    `name`       VARCHAR(150) NOT NULL,
+                    `email`      VARCHAR(255) NOT NULL,
+                    `category`   VARCHAR(100) NOT NULL,
+                    `message`    TEXT         NOT NULL,
+                    `status`     ENUM('open','in_progress','resolved','closed')
+                                 NOT NULL DEFAULT 'open',
+                    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `idx_user_id` (`user_id`),
+                    KEY `idx_status`  (`status`),
+                    KEY `idx_created` (`created_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+
+            // How many tickets has this account submitted today?
+            $chk = $pdo->prepare("
+                SELECT COUNT(*) FROM `support_tickets`
+                WHERE `user_id` = :uid AND `created_at` >= CURDATE()
+            ");
+            $chk->execute([':uid' => $current_user['id']]);
+            $tickets_used = (int) $chk->fetchColumn();
+        }
+
+    } catch (PDOException $e) {
+        // DB unavailable — handled gracefully below
+    }
+}
+
+// ── Handle POST ──────────────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hd_submit'])) {
+
+    $error = '';
+
+    if (!$current_user) {
+        // Not logged in or account not active — reject silently via redirect
+        $error = 'You must be signed in with a registered account to submit a ticket.';
+    } elseif ($tickets_used >= 2) {
+        $error = 'Your account has already reached the 2-ticket daily limit. '
+               . 'Please wait until tomorrow or call us at (02) 8636-1663.';
+    } else {
+        $category = trim($_POST['hd_category'] ?? '');
+        $message  = trim($_POST['hd_message']  ?? '');
+
+        if ($category === '' || $message === '') {
+            $error = 'Please fill in all fields before submitting.';
+        } else {
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO `support_tickets`
+                        (`user_id`, `name`, `email`, `category`, `message`)
+                    VALUES
+                        (:uid, :name, :email, :category, :message)
+                ");
+                $stmt->execute([
+                    ':uid'      => $current_user['id'],
+                    ':name'     => $current_user['first_name'] . ' ' . $current_user['last_name'],
+                    ':email'    => $current_user['email'],
+                    ':category' => $category,
+                    ':message'  => $message,
+                ]);
+                $tickets_used++; // update count for immediate UI feedback
+            } catch (PDOException $e) {
+                $error = 'Could not save your ticket. Please try again later.';
+                // $error .= ' (' . $e->getMessage() . ')'; // dev only
+            }
+        }
+    }
+
+    // POST-Redirect-GET — prevents re-submit on refresh
+    if ($error === '') {
+        $_SESSION['hd_result'] = 'success';
+    } else {
+        $_SESSION['hd_result']   = 'error';
+        $_SESSION['hd_error']    = $error;
+        $_SESSION['hd_category'] = trim($_POST['hd_category'] ?? '');
+        $_SESSION['hd_message']  = trim($_POST['hd_message']  ?? '');
+    }
+
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?') . '#helpdesk');
+    exit;
+}
+
+// ── Read session flash on GET ─────────────────────────────────────────────────
+$ticket_success = false;
+$ticket_error   = '';
+$old = [];
+
+if (isset($_SESSION['hd_result'])) {
+    if ($_SESSION['hd_result'] === 'success') {
+        $ticket_success = true;
+    } else {
+        $ticket_error        = $_SESSION['hd_error']    ?? '';
+        $old['category']     = $_SESSION['hd_category'] ?? '';
+        $old['message']      = $_SESSION['hd_message']  ?? '';
+    }
+    unset($_SESSION['hd_result'], $_SESSION['hd_error'],
+          $_SESSION['hd_category'], $_SESSION['hd_message']);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -452,21 +593,78 @@
       <div class="hd-desc">
         Describe your concern and a support specialist will respond within 2 business hours.
       </div>
-      <div class="hd-form">
-        <input class="hd-input" type="text"  name="hd-name"    placeholder="Your name"       autocomplete="name">
-        <input class="hd-input" type="email" name="hd-email"   placeholder="Email address"   autocomplete="email">
-        <select class="hd-input" name="hd-category" style="-webkit-appearance:none;">
-          <option value="">Issue category…</option>
-          <option>Account &amp; Login</option>
-          <option>Search &amp; Browse</option>
-          <option>Downloads</option>
-          <option>Submissions &amp; QA</option>
-          <option>Technical / Bug</option>
-          <option>Other</option>
-        </select>
-        <textarea class="hd-input hd-textarea" name="hd-message" placeholder="Describe your issue…"></textarea>
-        <button class="btn-gold-sm" type="button">Submit Ticket</button>
-      </div>
+      <?php if (!$current_user): ?>
+        <!-- Not logged in -->
+        <div class="hd-alert hd-alert-error" style="margin-top:16px;">
+          🔒 You must be <a href="login.php" style="color:inherit;font-weight:700;">signed in</a>
+          with a registered LRMDS account to submit a support ticket.
+        </div>
+
+      <?php elseif ($tickets_used >= 2): ?>
+        <!-- Daily limit reached -->
+        <div class="hd-alert hd-alert-error" style="margin-top:16px;">
+          ⛔ Your account (<strong><?= htmlspecialchars($current_user['email']) ?></strong>)
+          has used both tickets for today. The limit resets at midnight.
+          For urgent concerns call <strong>(02) 8636-1663</strong>.
+        </div>
+
+      <?php else: ?>
+        <form class="hd-form" method="post" action="<?= htmlspecialchars(strtok($_SERVER['REQUEST_URI'], '?')) ?>">
+
+          <?php if ($ticket_success): ?>
+            <div class="hd-alert hd-alert-success">
+              ✅ Ticket submitted! We'll respond within 2 business hours.
+              <?php if ($tickets_used < 2): ?>
+                You have <strong><?= 2 - $tickets_used ?></strong> ticket<?= (2 - $tickets_used) === 1 ? '' : 's' ?> remaining today.
+              <?php endif; ?>
+            </div>
+          <?php elseif ($ticket_error !== ''): ?>
+            <div class="hd-alert hd-alert-error">
+              ⚠️ <?= htmlspecialchars($ticket_error) ?>
+            </div>
+          <?php endif; ?>
+
+          <!-- Name & email are read from the registered account, not user-typed -->
+          <input class="hd-input" type="text"
+                 value="<?= htmlspecialchars($current_user['first_name'] . ' ' . $current_user['last_name']) ?>"
+                 disabled style="opacity:.6;cursor:not-allowed;">
+
+          <input class="hd-input" type="email"
+                 value="<?= htmlspecialchars($current_user['email']) ?>"
+                 disabled style="opacity:.6;cursor:not-allowed;">
+
+          <select class="hd-input" name="hd_category" style="-webkit-appearance:none;" required>
+            <option value="">Issue category…</option>
+            <?php
+            $categories = [
+                'Account & Login',
+                'Search & Browse',
+                'Downloads',
+                'Submissions & QA',
+                'Technical / Bug',
+                'Other',
+            ];
+            foreach ($categories as $cat):
+                $sel = (($old['category'] ?? '') === $cat) ? 'selected' : '';
+            ?>
+              <option value="<?= htmlspecialchars($cat) ?>" <?= $sel ?>><?= htmlspecialchars($cat) ?></option>
+            <?php endforeach; ?>
+          </select>
+
+          <textarea class="hd-input hd-textarea" name="hd_message"
+                    placeholder="Describe your issue…" required><?= htmlspecialchars($old['message'] ?? '') ?></textarea>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <button class="btn-gold-sm" type="submit" name="hd_submit" value="1">
+              Submit Ticket
+            </button>
+            <span style="font-size:13px;color:#ffffff;">
+              <?= 2 - $tickets_used ?> of 2 tickets remaining today
+            </span>
+          </div>
+
+        </form>
+      <?php endif; ?>
     </div>
 
     <!-- Other channels -->
@@ -740,7 +938,7 @@
         <p style="font-size:14px;color:#5A6779;margin-bottom:14px;line-height:1.6;">
           Help us improve LRMDS. Tell us what's working and what we can do better.
         </p>
-        <a href="#" class="button primary" style="display:block;text-align:center;">
+        <a href="https://bit.ly/SDOCarcarCSM2024" target="_blank" rel="noopener noreferrer" class="button primary" style="display:block;text-align:center;">
           Open Feedback Form
         </a>
       </div>
