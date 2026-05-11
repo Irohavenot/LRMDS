@@ -31,7 +31,7 @@ const loginRequest = {
 // ── State ─────────────────────────────────────────────────────
 let currentItemId    = null;
 let folderHistory    = [];
-let allFilesCache    = null;
+let allItemsCache    = null;   // holds both files AND folders after deep crawl
 let deepCachePromise = null;
 let activeFilters    = { subject: '', grade: '', type: '', q: '' };
 let accessToken      = null;
@@ -587,7 +587,7 @@ function loadScript(src) {
 async function loadFolder(itemId, folderName) {
   if (currentItemId !== itemId) clearPreviewCache();
   currentItemId    = itemId;
-  allFilesCache    = null;
+  allItemsCache    = null;
   deepCachePromise = null;
 
   renderLoading();
@@ -606,28 +606,63 @@ async function loadFolder(itemId, folderName) {
 
 // ── Background deep-cache ─────────────────────────────────────
 function startBackgroundDeepCache(itemId) {
-  if (allFilesCache) return;
-  deepCachePromise = collectAllFilesDeepParallel(itemId)
-    .then(files => {
-      allFilesCache = files;
-      console.log(`[LRMDS] Cache ready: ${files.length} files indexed.`);
+  if (allItemsCache) return;
+  deepCachePromise = collectAllItemsDeepParallel(itemId)
+    .then(items => {
+      allItemsCache = items;
+      const fc = items.filter(i => i.file).length;
+      const dc = items.filter(i => i.folder).length;
+      console.log(`[LRMDS] Cache ready: ${fc} files + ${dc} folders indexed.`);
     })
     .catch(err => { console.warn('[LRMDS] Cache failed:', err.message); deepCachePromise = null; });
 }
 
-async function collectAllFilesDeepParallel(itemId) {
+// Collects BOTH files and folders, tagging each with its path in the tree.
+async function collectAllItemsDeepParallel(itemId, _pathSegments) {
+  const pathSegments = _pathSegments || [];
   const data    = await graphGet(buildChildrenUrl(itemId));
   const items   = data.value || [];
   const files   = items.filter(i => i.file);
   const folders = items.filter(i => i.folder);
-  const sub     = await Promise.all(folders.map(f => collectAllFilesDeepParallel(f.id)));
-  return files.concat(...sub);
+
+  // Tag files with the folder path that contains them
+  files.forEach(f => {
+    f._folderPath     = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
+    f._folderPathStr  = f._folderPath.join(' › ');
+    f._parentFolderId = itemId;
+  });
+
+  // Tag folders with the path to their parent, and their own full path
+  folders.forEach(d => {
+    d._parentPath    = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
+    d._parentPathStr = d._parentPath.join(' › ');
+    d._parentId      = itemId;
+    d._fullPath      = [...d._parentPath, d.name];
+    d._fullPathStr   = d._fullPath.join(' › ');
+  });
+
+  const sub = await Promise.all(
+    folders.map(f => collectAllItemsDeepParallel(f.id, [...pathSegments, f.name]))
+  );
+  // Return folders of this level PLUS everything from sub-levels
+  return files.concat(folders, ...sub);
 }
 
 // ── Filter / search ───────────────────────────────────────────
+// Files: match on name/title/melc + optional metadata dropdowns.
+// Folders: match on name only; dropdown-only filters (no keyword) skip folders
+//          since grade/subject/type don't apply to folder names.
 function itemMatchesFilters(item) {
   const { q, grade, subject, type } = activeFilters;
   if (!q && !grade && !subject && !type) return true;
+
+  if (item.folder) {
+    // Folders only match when there is a keyword query
+    if (!q) return false;
+    return item.name.toLowerCase().includes(q.toLowerCase());
+  }
+
+  // File matching (unchanged)
   const meta = item._meta || parseFileMeta(item);
   item._meta = meta;
   const s = (meta.title + ' ' + item.name + ' ' + meta.melc).toLowerCase();
@@ -647,20 +682,20 @@ async function applySearch() {
   const isFiltering = activeFilters.q || activeFilters.grade || activeFilters.subject || activeFilters.type;
   if (!isFiltering) { loadFolder(currentItemId, resultsTitleEl.textContent); return; }
 
-  if (allFilesCache) { renderItems(allFilesCache.filter(itemMatchesFilters), 'Search Results', true); return; }
+  if (allItemsCache) { renderItems(allItemsCache.filter(itemMatchesFilters), 'Search Results', true); return; }
 
   renderLoading('Searching all folders…');
   try {
     if (deepCachePromise) await deepCachePromise;
-    else allFilesCache = await collectAllFilesDeepParallel(null);
-    renderItems(allFilesCache.filter(itemMatchesFilters), 'Search Results', true);
+    else allItemsCache = await collectAllItemsDeepParallel(null);
+    renderItems(allItemsCache.filter(itemMatchesFilters), 'Search Results', true);
   } catch (e) { renderError(e.message); }
 }
 
 function clearSearch() {
   searchInput.value = filterGrade.value = filterSubject.value = filterType.value = '';
   activeFilters = { subject:'', grade:'', type:'', q:'' };
-  currentItemId = null; folderHistory = []; allFilesCache = null; deepCachePromise = null;
+  currentItemId = null; folderHistory = []; allItemsCache = null; deepCachePromise = null;
   loadFolder(null, ONEDRIVE_ROOT_FOLDER);
 }
 
@@ -716,21 +751,110 @@ function renderItems(items, titleText, isSearch = false) {
     return;
   }
 
-  resultsMetaEl.textContent = isSearch
-    ? `${files.length} file${files.length !== 1 ? 's' : ''} matched across all folders`
-    : `${items.length} item${items.length !== 1 ? 's' : ''} · ${folders.length} folder${folders.length !== 1 ? 's' : ''}, ${files.length} file${files.length !== 1 ? 's' : ''}`;
+  if (isSearch) {
+    const foldersHit = folders.length;
+    const filesHit   = files.length;
+    const parts = [];
+    if (foldersHit) parts.push(`${foldersHit} folder${foldersHit !== 1 ? 's' : ''}`);
+    if (filesHit)   parts.push(`${filesHit} file${filesHit !== 1 ? 's' : ''}`);
+    resultsMetaEl.textContent = parts.join(' + ') + ' matched';
+  } else {
+    resultsMetaEl.textContent =
+      `${items.length} item${items.length !== 1 ? 's' : ''} · ${folders.length} folder${folders.length !== 1 ? 's' : ''}, ${files.length} file${files.length !== 1 ? 's' : ''}`;
+  }
 
-  for (const item of items) resultsGrid.appendChild(item.folder ? buildFolderCard(item) : buildFileCard(item));
+  if (isSearch) {
+    // ── Section 1: Matched folders ────────────────────────────
+    if (folders.length) {
+      const folderSectionLabel = document.createElement('div');
+      folderSectionLabel.className = 'search-section-label';
+      folderSectionLabel.innerHTML = `
+        <span class="ssl-icon">📁</span>
+        Folders
+        <span class="ssl-count">${folders.length}</span>`;
+      resultsGrid.appendChild(folderSectionLabel);
+
+      for (const folder of folders) {
+        resultsGrid.appendChild(buildFolderCard(folder, true));
+      }
+    }
+
+    // ── Section 2: Matched files grouped by folder ────────────
+    if (files.length) {
+      const fileSectionLabel = document.createElement('div');
+      fileSectionLabel.className = 'search-section-label';
+      fileSectionLabel.innerHTML = `
+        <span class="ssl-icon">📄</span>
+        Files
+        <span class="ssl-count">${files.length}</span>`;
+      resultsGrid.appendChild(fileSectionLabel);
+
+      // Group files by their folder path
+      const groups = new Map();
+      for (const item of files) {
+        const key = item._folderPathStr || ONEDRIVE_ROOT_FOLDER;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            pathArr:  item._folderPath  || [ONEDRIVE_ROOT_FOLDER],
+            parentId: item._parentFolderId || null,
+            files:    []
+          });
+        }
+        groups.get(key).files.push(item);
+      }
+
+      for (const [, group] of groups) {
+        const header = document.createElement('div');
+        header.className = 'search-folder-group-header';
+        const folderName = group.pathArr[group.pathArr.length - 1];
+        const pathStr    = group.pathArr.join(' › ');
+        header.innerHTML = `
+          <div class="sfg-left">
+            <span class="sfg-icon">📁</span>
+            <div class="sfg-path-wrap">
+              <span class="sfg-folder-name">${escHtml(folderName)}</span>
+              <span class="sfg-path-trail">${escHtml(pathStr)}</span>
+            </div>
+            <span class="sfg-count">${group.files.length} file${group.files.length !== 1 ? 's' : ''}</span>
+          </div>
+          <button class="button ghost small sfg-open-btn" data-id="${escHtml(group.parentId || '')}"
+                  data-name="${escHtml(folderName)}">Open folder ›</button>`;
+        header.querySelector('.sfg-open-btn').addEventListener('click', e => {
+          const btn  = e.currentTarget;
+          const id   = btn.dataset.id   || null;
+          const name = btn.dataset.name || 'Folder';
+          folderHistory.push({ id: currentItemId, name: resultsTitleEl.textContent });
+          loadFolder(id || null, name);
+        });
+        resultsGrid.appendChild(header);
+        for (const file of group.files) resultsGrid.appendChild(buildFileCard(file, true));
+      }
+    }
+
+  } else {
+    for (const item of items) {
+      resultsGrid.appendChild(item.folder ? buildFolderCard(item, false) : buildFileCard(item, false));
+    }
+  }
   updateSidebar(files);
 }
 
-function buildFolderCard(item) {
+function buildFolderCard(item, isSearch = false) {
   const div = document.createElement('div');
   div.className = 'folder-card';
   div.setAttribute('role', 'button'); div.setAttribute('tabindex', '0');
+
+  // In search results, show where this folder lives
+  const pathTrailHtml = (isSearch && item._parentPathStr)
+    ? `<div class="folder-path-trail" title="Inside: ${escHtml(item._parentPathStr)}">
+         <span>📍</span><span>${escHtml(item._parentPathStr)}</span>
+       </div>`
+    : '';
+
   div.innerHTML = `
     <div class="folder-icon-wrap">📁</div>
     <div class="folder-name">${escHtml(item.name)}</div>
+    ${pathTrailHtml}
     <div class="folder-meta"><span style="margin-left:auto;">${item.folder.childCount ?? '?'} items ›</span></div>`;
   const open = () => navigateTo(item.id, item.name);
   div.addEventListener('click', open);
@@ -738,13 +862,24 @@ function buildFolderCard(item) {
   return div;
 }
 
-function buildFileCard(item) {
+function buildFileCard(item, isSearch = false) {
   item._meta = item._meta || parseFileMeta(item);
   const meta       = item._meta;
   const ext        = (item.name.split('.').pop() || '').toUpperCase();
   const icon       = mimeIcon(item.file?.mimeType);
   const size       = formatSize(item.size);
   const canPreview = !!getPreviewType(item);
+
+  // Build folder location pill (shown only in search mode)
+  let locationHtml = '';
+  if (isSearch && item._folderPath && item._folderPath.length) {
+    const trail = item._folderPath.join(' › ');
+    locationHtml = `
+      <div class="card-location" title="Located in: ${escHtml(trail)}">
+        <span class="card-location-icon">📁</span>
+        <span class="card-location-trail">${escHtml(trail)}</span>
+      </div>`;
+  }
 
   const div = document.createElement('div');
   div.className = 'result-card' + (canPreview ? ' previewable' : '');
@@ -755,6 +890,7 @@ function buildFileCard(item) {
       ${canPreview ? `<div class="preview-hint">👁 Preview</div>` : ''}
     </div>
     <div class="card-body">
+      ${locationHtml}
       <div class="tag-row">
         ${meta.grade   ? `<span class="tag">${escHtml(meta.grade)}</span>` : ''}
         ${meta.subject ? `<span class="tag secondary">${escHtml(meta.subject)}</span>` : ''}

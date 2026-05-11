@@ -805,3 +805,123 @@ body {
   border-top: 1px solid #FDE68A;
   flex-shrink: 0;
 }
+/* ══════════════════════════════════════════════════════
+   SEARCH RESULTS — Folder group headers
+══════════════════════════════════════════════════════ */
+.search-folder-group-header {
+  grid-column: 1 / -1;           /* span full grid width */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-top: 18px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.search-folder-group-header:first-child { margin-top: 0; }
+
+.sfg-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.sfg-icon { font-size: 20px; flex-shrink: 0; }
+
+.sfg-path-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sfg-folder-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sfg-path-trail {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+.sfg-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  background: #BFDBFE;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.sfg-open-btn { flex-shrink: 0; }
+
+/* ── File card location trail (shown in search mode) ── */
+.card-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  padding: 3px 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+.card-location-icon { font-size: 12px; flex-shrink: 0; }
+.card-location-trail {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font);
+}
+/* ── Search results section labels (Folders / Files) ── */
+.search-section-label {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  margin-top: 20px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+}
+.search-section-label:first-child { margin-top: 0; }
+.ssl-icon { font-size: 15px; }
+.ssl-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--border);
+  color: var(--muted);
+  padding: 1px 7px;
+  border-radius: 20px;
+}
+
+/* ── Folder card parent path trail (shown in search mode) ── */
+.folder-path-trail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.folder-path-trail span:first-child { flex-shrink: 0; }
