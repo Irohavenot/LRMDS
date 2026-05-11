@@ -135,7 +135,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user && empty($errors)) {
 
     // Role-specific meta
     $new_meta = $meta; // preserve any existing keys we don't touch
-    $new_meta['grade_level']  = trim($_POST['grade_level']  ?? '');
+    // grade_level is a multi-value checkbox array for teacher/school-head,
+    // or a single select value for learner/parent — normalise to JSON string
+    $raw_gl = $_POST['grade_level'] ?? '';
+    if (is_array($raw_gl)) {
+        $filtered_gl = array_values(array_filter(array_map('trim', $raw_gl)));
+        $new_meta['grade_level'] = !empty($filtered_gl) ? json_encode($filtered_gl) : '';
+    } else {
+        $new_meta['grade_level'] = trim($raw_gl);
+    }
     $new_meta['subjects']     = trim($_POST['subjects']      ?? '');
     $new_meta['school_name']  = trim($_POST['school_name']  ?? '');
     $new_meta['lrn']          = trim($_POST['lrn']           ?? '');
@@ -604,6 +612,52 @@ body {
 }
 .pe-avatar-edit-btn:hover { background: #4338CA; transform: scale(1.1); }
 .pe-avatar-edit-btn svg { pointer-events: none; }
+
+/* ── Grade-level multi-select chip grid ─────────────────── */
+.pe-grade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: .45rem;
+  margin-top: .2rem;
+}
+
+.pe-grade-chip {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem .65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s, box-shadow .12s;
+  user-select: none;
+  line-height: 1;
+}
+.pe-grade-chip input[type="checkbox"] {
+  width: 14px; height: 14px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.pe-grade-chip:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.pe-grade-chip.is-checked {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(79,70,229,.12);
+}
+@media (max-width: 400px) {
+  .pe-grade-grid { grid-template-columns: repeat(3, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -795,10 +849,13 @@ body {
 
     <!-- ── Role-specific extra fields ── -->
     <?php
-    $show_teacher     = in_array($role, ['teacher', 'school-head']);
-    $show_learner     = $role === 'learner';
-    $show_parent      = $role === 'parent';
-    $show_extra       = $show_teacher || $show_learner || $show_parent;
+    $show_teacher = in_array($role, ['teacher', 'school-head']);
+    $show_learner = $role === 'learner';
+    $show_parent  = $role === 'parent';
+    $show_extra   = $show_teacher || $show_learner || $show_parent;
+    // Defined here (outside all role blocks) so learner & parent can access it too
+    $grades = ['Kinder','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6',
+               'Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
     if ($show_extra):
     ?>
     <div class="pe-card">
@@ -817,22 +874,39 @@ body {
             <input id="school_name" name="school_name" type="text" class="pe-input"
                    value="<?= $vm('school_name') ?>" placeholder="e.g. Bacolod City National High School">
           </div>
-          <div class="pe-field">
-            <label class="pe-label" for="grade_level">Grade Level Handled</label>
-            <select id="grade_level" name="grade_level" class="pe-select">
-              <option value="">— Select —</option>
-              <?php
-              $grades = ['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6',
-                         'Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
-              $sel_gl = $vm('grade_level');
-              foreach ($grades as $g):
-                  $v_g = strtolower(str_replace(' ', '-', $g));
+          <div class="pe-field pe-col-full">
+            <label class="pe-label">Grade Level(s) Handled</label>
+            <?php
+            // Decode saved value — may be a JSON array, a dash-slug, or empty
+            $raw_saved_gl = $meta['grade_level'] ?? '';
+            $sel_gls = [];
+            if ($raw_saved_gl !== '') {
+                $decoded = json_decode($raw_saved_gl, true);
+                if (is_array($decoded)) {
+                    $sel_gls = $decoded;
+                } else {
+                    $sel_gls = [$raw_saved_gl]; // legacy single value
+                }
+            }
+            // If this is a POST re-render, use the posted array
+            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['grade_level'])) {
+                $sel_gls = is_array($_POST['grade_level']) ? $_POST['grade_level'] : [$_POST['grade_level']];
+            }
+            ?>
+            <div class="pe-grade-grid">
+              <?php foreach ($grades as $g):
+                $v_g = strtolower(str_replace(' ', '-', $g));
+                $is_checked = in_array($v_g, $sel_gls);
               ?>
-                <option value="<?= $v_g ?>" <?= strcasecmp($sel_gl, $v_g) === 0 ? 'selected' : '' ?>>
-                  <?= $g ?>
-                </option>
+              <label class="pe-grade-chip <?= $is_checked ? 'is-checked' : '' ?>">
+                <input type="checkbox" name="grade_level[]" value="<?= $v_g ?>"
+                       <?= $is_checked ? 'checked' : '' ?>
+                       onchange="this.closest('label').classList.toggle('is-checked',this.checked);updateGradeSummary();">
+                <?= htmlspecialchars($g) ?>
+              </label>
               <?php endforeach; ?>
-            </select>
+            </div>
+            <span class="pe-hint" id="pe-grade-summary" style="margin-top:.35rem;display:block"></span>
           </div>
           <div class="pe-field pe-col-full">
             <label class="pe-label" for="subjects">Subjects Taught</label>
@@ -905,7 +979,7 @@ body {
           <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
         <h2>Account Security</h2>
-        <?php if ($user['totp_enabled']): ?>
+        <?php if ($user['totp_enabled'] && $role !== 'learner'): ?>
         <span class="pe-2fa-on">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
             <path d="M20 6 9 17l-5-5"/>
@@ -916,8 +990,9 @@ body {
       </div>
       <div class="pe-card-body">
         <p style="font-size:.85rem;color:var(--muted);margin-bottom:1rem;line-height:1.6">
-          Manage your password and two-factor authentication from the links below.
-          These are handled on separate, dedicated pages for security.
+          <?= $role === 'learner'
+            ? 'Change your password from the link below.'
+            : 'Manage your password and two-factor authentication from the links below. These are handled on separate, dedicated pages for security.' ?>
         </p>
         <div class="pe-security-links">
           <a href="change_password.php" class="pe-sec-link">
@@ -929,6 +1004,7 @@ body {
               <span class="pe-sec-sub">Update your login password</span>
             </span>
           </a>
+          <?php if ($role !== 'learner'): ?>
           <a href="totp_setup.php" class="pe-sec-link">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
@@ -938,6 +1014,7 @@ body {
               <span class="pe-sec-sub"><?= $user['totp_enabled'] ? 'View / revoke authenticator' : 'Add authenticator app' ?></span>
             </span>
           </a>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -1114,6 +1191,22 @@ document.getElementById('pe-form').addEventListener('submit', function(e) {
   btn.disabled = true;
 }); 
 
+// ── Grade-level summary hint ──────────────────────────────
+function updateGradeSummary() {
+  const summary = document.getElementById('pe-grade-summary');
+  if (!summary) return;
+  const checked = Array.from(
+    document.querySelectorAll('.pe-grade-grid input[type="checkbox"]:checked')
+  ).map(cb => cb.closest('label').textContent.trim());
+  if (checked.length === 0) {
+    summary.textContent = 'No grade levels selected yet.';
+  } else {
+    summary.textContent = checked.length + ' selected: ' + checked.join(', ');
+  }
+}
+// Run once on load
+updateGradeSummary();
+
 // ── Save Changes: enable only when something changed ────────
 (function () {
   var form   = document.getElementById('pe-form');
@@ -1125,11 +1218,17 @@ document.getElementById('pe-form').addEventListener('submit', function(e) {
     form.querySelectorAll('input:not([type=file]):not([type=hidden]), select, textarea')
   );
 
-  // Snapshot original values on page load
-  var originals = new Map(fields.map(function(f) { return [f, f.value]; }));
+  // Snapshot original values on page load (checkboxes use .checked)
+  var originals = new Map(fields.map(function(f) {
+    return [f, f.type === 'checkbox' ? f.checked : f.value];
+  }));
 
   function hasChanged() {
-    return fields.some(function(f) { return f.value !== originals.get(f); });
+    return fields.some(function(f) {
+      return f.type === 'checkbox'
+        ? f.checked !== originals.get(f)
+        : f.value !== originals.get(f);
+    });
   }
 
   function updateBtn() {
@@ -1140,7 +1239,7 @@ document.getElementById('pe-form').addEventListener('submit', function(e) {
     f.addEventListener('input',  updateBtn);
     f.addEventListener('change', updateBtn);
   });
-})();
+})()
 
 // Auto-dismiss success alert after 5s
 const peAlert = document.querySelector('.pe-alert.is-success');

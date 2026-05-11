@@ -147,7 +147,7 @@ if (!empty($pu_meta['child_school'])) $extra_fields["Child's School"] = htmlspec
         <span class="pp-badge" style="color:<?= $status_info['color'] ?>;background:<?= $status_info['bg'] ?>">
           <?= $status_info['label'] ?>
         </span>
-        <?php if ($pu_totp): ?>
+        <?php if ($pu_totp && $pu_role !== 'learner'): ?>
         <span class="pp-badge" style="color:#065F46;background:#D1FAE5" title="Two-factor authentication is enabled">
           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="vertical-align:middle">
             <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -261,12 +261,14 @@ if (!empty($pu_meta['child_school'])) $extra_fields["Child's School"] = htmlspec
           </svg>
           Change Password
         </a>
+        <?php if ($pu_role !== 'learner'): ?>
         <a href="auth/totp_setup.php?manage=1" class="pp-action-btn">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
           </svg>
           <?= $pu_totp ? 'Manage 2FA' : 'Enable 2FA' ?>
         </a>
+        <?php endif; ?>
         <?php if ($pu_role === 'admin' || $pu_role === 'developer'): ?>
         <a href="manage.php" class="pp-action-btn">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
