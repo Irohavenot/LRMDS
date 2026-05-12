@@ -1,12 +1,17 @@
 /* =============================================================
-   prototype2 — app.js  (v3 – blob cache + paginated DOCX viewer)
+   prototype2 — app.js  (v4 – Shares API so any MS account works)
    Microsoft Graph API + OneDrive folder browser + search + preview
    ============================================================= */
 
 // ── ① CONFIGURATION ───────────────────────────────────────────
 const AZURE_CLIENT_ID      = '39df8466-7cab-47d9-93b8-49760dfc2c0e';
 const ONEDRIVE_ROOT_FOLDER = 'deped';
-const ONEDRIVE_OWNER_UPN   = '';
+const ONEDRIVE_OWNER_UPN   = 'depedlrmdsonedrive@gmail.com';
+
+// ► Paste your OneDrive share link for the "deped" folder here.
+//   In OneDrive: right-click the deped folder → Share →
+//   "Anyone with the link" → Copy link  (e.g. https://1drv.ms/f/s!Abc…)
+const SHARED_FOLDER_URL = 'https://1drv.ms/f/c/08ca0a09e3f0f5ec/IgDZ4Ku9gqVJS5pwdr72dFqeAb5y0yQuHG3h8Bhva8UVFKs?e=itEVtt';
 // ──────────────────────────────────────────────────────────────
 
 const REDIRECT_URI = window.location.origin + window.location.pathname;
@@ -16,7 +21,7 @@ const GRAPH_BASE   = 'https://graph.microsoft.com/v1.0';
 const msalConfig = {
   auth: {
     clientId:    AZURE_CLIENT_ID,
-    authority:   'https://login.microsoftonline.com/consumers',
+    authority:   'https://login.microsoftonline.com/common',
     redirectUri: REDIRECT_URI,
   },
   cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
@@ -31,16 +36,17 @@ const loginRequest = {
 // ── State ─────────────────────────────────────────────────────
 let currentItemId    = null;
 let folderHistory    = [];
-let allItemsCache    = null;   // holds both files AND folders after deep crawl
+let allItemsCache    = null;
 let deepCachePromise = null;
 let activeFilters    = { subject: '', grade: '', type: '', q: '' };
 let accessToken      = null;
 let currentUser      = null;
 let isListView       = false;
 
-// ── Blob preview cache (itemId → { blobUrl, arrayBuffer?, docxHtml? })
-// Survives open/close of modal so re-opening the same file is instant.
-// Cleared when navigating to a different folder.
+// Cached shared-folder root (driveId + itemId), resolved once on first use
+let sharedRootCache  = null;
+
+// ── Blob preview cache ────────────────────────────────────────
 const previewCache = new Map();
 const MAX_CACHE    = 20;
 
@@ -114,17 +120,60 @@ async function graphGet(url) {
   return res.json();
 }
 
-function driveBase() {
-  return ONEDRIVE_OWNER_UPN
-    ? `${GRAPH_BASE}/users/${encodeURIComponent(ONEDRIVE_OWNER_UPN)}/drive`
-    : `${GRAPH_BASE}/me/drive`;
+// ── Shares API helpers ────────────────────────────────────────
+// Encodes a share URL into the base64url format Graph requires.
+function encodeShareUrl(url) {
+  // Graph requires base64url of the raw URL, properly encoded
+  const b64 = btoa(unescape(encodeURIComponent(url)))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return 'u!' + b64;
 }
-function buildChildrenUrl(itemId) {
-  if (itemId === null)
-    return `${driveBase()}/root:/${encodeURIComponent(ONEDRIVE_ROOT_FOLDER)}:/children?$top=500&$orderby=name`;
-  return `${driveBase()}/items/${itemId}/children?$top=500&$orderby=name`;
+
+// Resolves the shared folder once, then caches driveId + itemId.
+// This is the key fix: we read files via the SHARED item, not the
+// owner's personal /users/{upn}/drive — so any signed-in MS account works.
+async function getSharedRoot() {
+  if (sharedRootCache) return sharedRootCache;
+
+  if (!SHARED_FOLDER_URL || SHARED_FOLDER_URL === 'PASTE_YOUR_SHARE_LINK_HERE') {
+    throw new Error(
+      'No share link configured. Paste your OneDrive "Anyone" link into SHARED_FOLDER_URL in prototype2.js.'
+    );
+  }
+
+  const encoded = encodeShareUrl(SHARED_FOLDER_URL);
+  const data    = await graphGet(`${GRAPH_BASE}/shares/${encoded}/driveItem`);
+// AFTER — handles both same-tenant and cross-tenant
+    sharedRootCache = {
+      driveId: (data.remoteItem?.parentReference?.driveId) || data.parentReference?.driveId,
+      itemId:  data.remoteItem?.id || data.id,
+    };
+  return sharedRootCache;
 }
-function buildDownloadUrl(itemId) { return `${driveBase()}/items/${itemId}/content`; }
+
+// Builds the children URL using the shared drive context.
+// itemId === null  →  list the shared root folder itself
+// itemId !== null  →  list a subfolder by its Graph item ID
+async function buildChildrenUrl(itemId) {
+  const root = await getSharedRoot();
+  const id   = itemId === null ? root.itemId : itemId;
+  return `${GRAPH_BASE}/drives/${root.driveId}/items/${id}/children?$top=500&$orderby=name`;
+}
+
+// Downloads a file using the same shared drive context.
+function buildDownloadUrl(itemId) {
+  // We can't use a simple async here (called from sync contexts),
+  // so we rely on sharedRootCache being already populated by the
+  // time any file card download is triggered.
+  if (sharedRootCache) {
+    return `${GRAPH_BASE}/drives/${sharedRootCache.driveId}/items/${itemId}/content`;
+  }
+  // Fallback: encode the share link directly for this item
+  const encoded = encodeShareUrl(SHARED_FOLDER_URL);
+  return `${GRAPH_BASE}/shares/${encoded}/driveItem/children/${itemId}/content`;
+}
 
 // ── Parse metadata from filename ─────────────────────────────
 function parseFileMeta(item) {
@@ -165,7 +214,6 @@ function parseFileMeta(item) {
 async function getOrFetchBlob(itemId, needArrayBuffer = false) {
   if (previewCache.has(itemId)) {
     const cached = previewCache.get(itemId);
-    // Refresh LRU position
     previewCache.delete(itemId);
     previewCache.set(itemId, cached);
     if (needArrayBuffer && !cached.arrayBuffer) {
@@ -187,7 +235,6 @@ async function getOrFetchBlob(itemId, needArrayBuffer = false) {
 
   const entry = { blobUrl, arrayBuffer };
 
-  // Evict oldest when over limit
   if (previewCache.size >= MAX_CACHE) {
     const oldestKey = previewCache.keys().next().value;
     URL.revokeObjectURL(previewCache.get(oldestKey).blobUrl);
@@ -273,7 +320,6 @@ async function openPreview(item) {
   const previewBody = document.getElementById('preview-body');
 
   if (fromCache) {
-    // Render immediately — no spinner
     try { await renderPreviewContent(previewBody, item, previewType); }
     catch (e) { showPreviewError(previewBody, item, e); }
     return;
@@ -331,7 +377,6 @@ async function renderPreviewContent(previewBody, item, previewType) {
 
     const entry = await getOrFetchBlob(item.id, true);
 
-    // Cache the mammoth conversion result too
     if (entry.docxHtml === undefined) {
       const result       = await mammoth.convertToHtml({ arrayBuffer: entry.arrayBuffer });
       entry.docxHtml     = result.value;
@@ -378,14 +423,12 @@ function showPreviewError(previewBody, item, e) {
 //   DOCX PAGINATED VIEWER
 // ══════════════════════════════════════════════════════════════
 function renderDocxViewer(previewBody, html, messages, item) {
-  // Parse mammoth HTML into block nodes
   const tmp   = document.createElement('div');
   tmp.innerHTML = html;
   const nodes = Array.from(tmp.childNodes).filter(n =>
     n.nodeType === Node.ELEMENT_NODE || (n.nodeType === Node.TEXT_NODE && n.textContent.trim())
   );
 
-  // Split nodes across simulated pages (~900 px each)
   const pages   = [];
   let pageNodes = [];
   let pageH     = 0;
@@ -415,11 +458,10 @@ function renderDocxViewer(previewBody, html, messages, item) {
     pageH += h;
   }
   if (pageNodes.length) pages.push(pageNodes);
-  if (!pages.length) pages.push([]); // empty doc
+  if (!pages.length) pages.push([]);
 
   const total = pages.length;
 
-  // ── Toolbar ────────────────────────────────────────────────
   const toolbar = document.createElement('div');
   toolbar.className = 'docx-toolbar';
   toolbar.innerHTML = `
@@ -441,20 +483,16 @@ function renderDocxViewer(previewBody, html, messages, item) {
       <button class="docx-zoom-btn" id="docx-zoom-in" title="Zoom in">+</button>
     </div>`;
 
-  // ── Canvas ─────────────────────────────────────────────────
   const canvas = document.createElement('div');
   canvas.className = 'docx-canvas';
 
-  // Build page elements
   const pageEls = pages.map((nodes, idx) => {
     const wrap = document.createElement('div');
     wrap.className = 'docx-page' + (idx === 0 ? ' active' : '');
 
-    // A4 paper shadow card
     const paper = document.createElement('div');
     paper.className = 'docx-paper';
 
-    // Margin guides (top decorative bar)
     const marginBar = document.createElement('div');
     marginBar.className = 'docx-margin-bar';
     marginBar.innerHTML = `
@@ -463,13 +501,11 @@ function renderDocxViewer(previewBody, html, messages, item) {
       <div class="docx-margin-label">1 in margin ▶</div>`;
     paper.appendChild(marginBar);
 
-    // Content body
     const body = document.createElement('div');
     body.className = 'docx-paper-body';
     for (const n of nodes) body.appendChild(n.cloneNode(true));
     paper.appendChild(body);
 
-    // Page number footer
     const footer = document.createElement('div');
     footer.className = 'docx-page-num';
     footer.innerHTML = `<span>— ${idx + 1} —</span>`;
@@ -480,7 +516,6 @@ function renderDocxViewer(previewBody, html, messages, item) {
     return wrap;
   });
 
-  // Dots
   const dotsEl = toolbar.querySelector('#docx-dots');
   const dots = pages.map((_, idx) => {
     const d = document.createElement('button');
@@ -491,7 +526,6 @@ function renderDocxViewer(previewBody, html, messages, item) {
     return d;
   });
 
-  // ── State & navigation ─────────────────────────────────────
   let currentPage = 0;
   let zoom = 100;
 
@@ -515,8 +549,7 @@ function renderDocxViewer(previewBody, html, messages, item) {
       const paper = p.querySelector('.docx-paper');
       paper.style.transform       = `scale(${zoom / 100})`;
       paper.style.transformOrigin = 'top center';
-      // Adjust wrap height so scrollable area is correct
-      const scaled = 1123 * (zoom / 100); // A4 height px
+      const scaled = 1123 * (zoom / 100);
       p.style.minHeight = scaled + 'px';
     });
   }
@@ -526,7 +559,6 @@ function renderDocxViewer(previewBody, html, messages, item) {
   toolbar.querySelector('#docx-zoom-out').addEventListener('click', () => setZoom(zoom - 10));
   toolbar.querySelector('#docx-zoom-in').addEventListener('click',  () => setZoom(zoom + 10));
 
-  // Keyboard nav (only while modal is open; avoid hijacking Escape)
   const keyNav = (e) => {
     const modal = document.getElementById('preview-modal');
     if (!modal?.classList.contains('visible')) return;
@@ -537,7 +569,6 @@ function renderDocxViewer(previewBody, html, messages, item) {
   document.addEventListener('keydown', keyNav);
   canvas._keyNav = keyNav;
 
-  // ── Assemble ───────────────────────────────────────────────
   previewBody.innerHTML = '';
   previewBody.classList.add('docx-mode');
   previewBody.appendChild(toolbar);
@@ -558,7 +589,6 @@ function closePreview() {
   document.body.style.overflow = '';
   modal.querySelectorAll('video, audio').forEach(el => el.pause());
 
-  // Remove docx keyboard nav listener
   const canvas = modal.querySelector('.docx-canvas');
   if (canvas?._keyNav) {
     document.removeEventListener('keydown', canvas._keyNav);
@@ -595,7 +625,8 @@ async function loadFolder(itemId, folderName) {
   updateBackBar(folderName);
 
   try {
-    const data  = await graphGet(buildChildrenUrl(itemId));
+    const url  = await buildChildrenUrl(itemId);   // ← now awaited (async)
+    const data = await graphGet(url);
     const items = data.value || [];
     renderItems(items, folderName || ONEDRIVE_ROOT_FOLDER);
     startBackgroundDeepCache(itemId);
@@ -617,22 +648,20 @@ function startBackgroundDeepCache(itemId) {
     .catch(err => { console.warn('[LRMDS] Cache failed:', err.message); deepCachePromise = null; });
 }
 
-// Collects BOTH files and folders, tagging each with its path in the tree.
 async function collectAllItemsDeepParallel(itemId, _pathSegments) {
   const pathSegments = _pathSegments || [];
-  const data    = await graphGet(buildChildrenUrl(itemId));
-  const items   = data.value || [];
-  const files   = items.filter(i => i.file);
+  const url    = await buildChildrenUrl(itemId);
+  const data   = await graphGet(url);
+  const items  = data.value || [];
+  const files  = items.filter(i => i.file);
   const folders = items.filter(i => i.folder);
 
-  // Tag files with the folder path that contains them
   files.forEach(f => {
     f._folderPath     = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
     f._folderPathStr  = f._folderPath.join(' › ');
     f._parentFolderId = itemId;
   });
 
-  // Tag folders with the path to their parent, and their own full path
   folders.forEach(d => {
     d._parentPath    = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
     d._parentPathStr = d._parentPath.join(' › ');
@@ -644,25 +673,19 @@ async function collectAllItemsDeepParallel(itemId, _pathSegments) {
   const sub = await Promise.all(
     folders.map(f => collectAllItemsDeepParallel(f.id, [...pathSegments, f.name]))
   );
-  // Return folders of this level PLUS everything from sub-levels
   return files.concat(folders, ...sub);
 }
 
 // ── Filter / search ───────────────────────────────────────────
-// Files: match on name/title/melc + optional metadata dropdowns.
-// Folders: match on name only; dropdown-only filters (no keyword) skip folders
-//          since grade/subject/type don't apply to folder names.
 function itemMatchesFilters(item) {
   const { q, grade, subject, type } = activeFilters;
   if (!q && !grade && !subject && !type) return true;
 
   if (item.folder) {
-    // Folders only match when there is a keyword query
     if (!q) return false;
     return item.name.toLowerCase().includes(q.toLowerCase());
   }
 
-  // File matching (unchanged)
   const meta = item._meta || parseFileMeta(item);
   item._meta = meta;
   const s = (meta.title + ' ' + item.name + ' ' + meta.melc).toLowerCase();
@@ -764,7 +787,6 @@ function renderItems(items, titleText, isSearch = false) {
   }
 
   if (isSearch) {
-    // ── Section 1: Matched folders ────────────────────────────
     if (folders.length) {
       const folderSectionLabel = document.createElement('div');
       folderSectionLabel.className = 'search-section-label';
@@ -779,7 +801,6 @@ function renderItems(items, titleText, isSearch = false) {
       }
     }
 
-    // ── Section 2: Matched files grouped by folder ────────────
     if (files.length) {
       const fileSectionLabel = document.createElement('div');
       fileSectionLabel.className = 'search-section-label';
@@ -789,7 +810,6 @@ function renderItems(items, titleText, isSearch = false) {
         <span class="ssl-count">${files.length}</span>`;
       resultsGrid.appendChild(fileSectionLabel);
 
-      // Group files by their folder path
       const groups = new Map();
       for (const item of files) {
         const key = item._folderPathStr || ONEDRIVE_ROOT_FOLDER;
@@ -844,7 +864,6 @@ function buildFolderCard(item, isSearch = false) {
   div.className = 'folder-card';
   div.setAttribute('role', 'button'); div.setAttribute('tabindex', '0');
 
-  // In search results, show where this folder lives
   const pathTrailHtml = (isSearch && item._parentPathStr)
     ? `<div class="folder-path-trail" title="Inside: ${escHtml(item._parentPathStr)}">
          <span>📍</span><span>${escHtml(item._parentPathStr)}</span>
@@ -870,7 +889,6 @@ function buildFileCard(item, isSearch = false) {
   const size       = formatSize(item.size);
   const canPreview = !!getPreviewType(item);
 
-  // Build folder location pill (shown only in search mode)
   let locationHtml = '';
   if (isSearch && item._folderPath && item._folderPath.length) {
     const trail = item._folderPath.join(' › ');
