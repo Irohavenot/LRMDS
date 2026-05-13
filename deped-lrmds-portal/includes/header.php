@@ -46,7 +46,7 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
     <!-- Desktop nav -->
     <nav class="nav" aria-label="Main">
       <a href="index.php">Home</a>
-      <a href="search.php">Resources</a>
+      <a href="resources.php">Resources</a>
       <?php if ($canDevelop): ?>
         <a href="submit.php">Develop</a>
       <?php endif; ?>
@@ -143,7 +143,7 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
     <a href="index.php">
       <img src="assets/icons/house.svg" alt=""> Home
     </a>
-    <a href="search.php">
+    <a href="resources.php">
       <img src="assets/icons/folders.svg" alt=""> Resources
     </a>
     <?php if ($canDevelop): ?>
@@ -201,7 +201,7 @@ $canManage  = $isSignedIn && in_array($userRole, ['school-head','partner','devel
     <span>Home</span>
   </a>
 
-  <a class="mob-nav-item" href="search.php">
+  <a class="mob-nav-item" href="resources.php">
     <span class="mob-icon-wrap"><img src="assets/icons/magnifying-glass.svg" alt=""></span>
     <span>Search</span>
   </a>
