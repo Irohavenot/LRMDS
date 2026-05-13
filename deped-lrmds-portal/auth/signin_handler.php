@@ -125,7 +125,7 @@ unset($_SESSION[$attempt_key], $_SESSION[$lockout_key]);
 // ── Check account status ──────────────────────────────────────
 if ($user['status'] === 'email_pending') {
     // Account exists but email not yet verified — block sign-in and show resend link
-    $resend_url = '../registration/resend_verification.php?email=' . urlencode($user['email']);
+    $resend_url = '/LRMDS/deped-lrmds-portal/registration/resend_verification.php?email=' . urlencode($user['email']);
     echo json_encode([
         'ok'    => false,
         'field' => 'general',

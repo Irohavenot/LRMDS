@@ -18,7 +18,7 @@ if (!empty($_SESSION['flash_success'])) {
 $err_param = $_GET['err'] ?? '';
 $err_banner = '';
 if ($err_param === 'email_pending') {
-    $resend_url = htmlspecialchars(urldecode($_GET['resend'] ?? 'resend_verification.php'));
+    $resend_url = htmlspecialchars(urldecode($_GET['resend'] ?? '/LRMDS/deped-lrmds-portal/registration/resend_verification.php'));
     $err_banner = 'Please verify your email address before signing in. '
                 . 'Check your inbox for the verification link, or '
                 . '<a href="' . $resend_url . '" style="color:#0B4F9C;font-weight:700;">request a new one</a>.';
