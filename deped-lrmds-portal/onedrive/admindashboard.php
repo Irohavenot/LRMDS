@@ -12,15 +12,90 @@
 <!-- Dashboard styles -->
 <link rel="stylesheet" href="../assets/css/admindashboard.css"/>
 
-<!-- Chart.js (required by admindashboard.js) -->
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+/* ── File path under filename in Top Files ── */
+.file-path {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
+/* ── Extension badge ── */
+.ext-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: middle;
+  letter-spacing: .03em;
+  background: #E5E7EB;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+}
+.ext-badge.ext-pdf  { background:#FEE2E2; color:#991B1B; border-color:#FECACA; }
+.ext-badge.ext-docx,
+.ext-badge.ext-doc  { background:#DBEAFE; color:#1D4ED8; border-color:#BFDBFE; }
+.ext-badge.ext-mp4,
+.ext-badge.ext-mov,
+.ext-badge.ext-mkv  { background:#F3E8FF; color:#7C3AED; border-color:#E9D5FF; }
+.ext-badge.ext-pptx,
+.ext-badge.ext-ppt  { background:#FFEDD5; color:#C2410C; border-color:#FED7AA; }
+.ext-badge.ext-xlsx,
+.ext-badge.ext-xls  { background:#DCFCE7; color:#15803D; border-color:#BBF7D0; }
+.ext-badge.ext-mp3,
+.ext-badge.ext-wav  { background:#FEF3C7; color:#92400E; border-color:#FDE68A; }
+
+/* ── User chip with stacked name + email ── */
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.user-chip-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.user-chip-name  { font-size: 12px; font-weight: 500; color: var(--text-1); }
+.user-chip-email { font-size: 10px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+
+/* ── Folder path in log table ── */
+.folder-path-sm {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+</style>
 </head>
 <body>
+
+<!-- Mobile sidebar overlay (tap to close) -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <div class="layout">
 
   <!-- ══ Sidebar ══ -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
       <div class="brand-logo">
         <div class="brand-shield">
@@ -102,7 +177,7 @@
 
     <div class="sidebar-footer">
       <span class="status-text"><span class="status-dot"></span>Live · tracker.php</span>
-      <span style="margin-top:4px">v1.0 · <span id="db-size">—</span></span>
+      <span style="margin-top:4px">v1.1 · <span id="db-size">—</span></span>
     </div>
   </aside>
 
@@ -111,6 +186,15 @@
 
     <!-- Topbar -->
     <div class="topbar">
+      <!-- Hamburger (mobile only) -->
+      <button class="hamburger-btn" id="hamburger-btn" onclick="openSidebar()" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <div class="topbar-left">
         <h1>Analytics Dashboard</h1>
         <p>Portal usage, file activity, and learning resource trends</p>
@@ -131,7 +215,7 @@
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
             <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
           </svg>
-          Refresh
+          <span>Refresh</span>
         </button>
       </div>
     </div>
@@ -245,7 +329,7 @@
             <div class="legend-item"><span class="legend-dot" style="background:#2563EB"></span>Downloads</div>
             <div class="legend-item"><span class="legend-dot" style="background:#16A34A"></span>Views</div>
           </div>
-          <div style="position:relative;width:100%;height:200px">
+          <div class="chart-wrap" style="height:200px">
             <canvas id="trend-chart" role="img" aria-label="Line chart showing daily file views and downloads"></canvas>
           </div>
         </div>
@@ -258,7 +342,7 @@
             </div>
           </div>
           <div class="legend" id="type-legend"></div>
-          <div style="position:relative;width:100%;height:160px">
+          <div class="chart-wrap" style="height:160px">
             <canvas id="type-chart" role="img" aria-label="Donut chart of downloads by resource type"></canvas>
           </div>
         </div>
@@ -283,7 +367,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>#</th><th>File</th><th>Type</th><th>Count</th><th>Bar</th>
+                  <th>#</th><th>File &amp; Path</th><th>Type / Ext</th><th>Count</th><th>Bar</th>
                 </tr>
               </thead>
               <tbody id="top-files-body"></tbody>
@@ -295,19 +379,23 @@
           <div class="card-head">
             <div>
               <div class="card-title">Top folders</div>
-              <div class="card-subtitle">Folders by views and downloads</div>
+              <div class="card-subtitle">
+                Folders by activity — shows full path including nested subfolders
+              </div>
             </div>
           </div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Folder path</th>
-                <th style="text-align:right">Views</th>
-                <th style="text-align:right">DLs</th>
-              </tr>
-            </thead>
-            <tbody id="folder-body"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Folder path</th>
+                  <th style="text-align:right">Views</th>
+                  <th style="text-align:right">DLs</th>
+                </tr>
+              </thead>
+              <tbody id="folder-body"></tbody>
+            </table>
+          </div>
         </div>
 
       </div><!-- /tables-row -->
@@ -342,14 +430,61 @@
               <div class="card-subtitle">Horizontal breakdown</div>
             </div>
           </div>
-          <div style="position:relative;width:100%;height:200px">
+          <div class="chart-wrap" style="height:200px">
             <canvas id="subject-chart" role="img" aria-label="Horizontal bar chart of downloads by subject"></canvas>
           </div>
         </div>
 
       </div><!-- /bottom-row -->
 
+      <!-- ── Download Log ── -->
+      <div class="card" style="margin-bottom:20px" id="download-log-card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">
+              Download Log
+              <span class="log-live-badge">● Live</span>
+            </div>
+            <div class="card-subtitle">
+              Every file download with the signed-in user's name · filtered by the date range above
+              (<span id="log-count">—</span> records)
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <input id="log-search" type="search"
+              placeholder="Filter by user, file, type…"
+              style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:12px;font-family:inherit;background:var(--surface);color:var(--text-1);width:200px"/>
+            <button class="btn" onclick="loadDownloadLog()" title="Refresh log">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User (Microsoft Account)</th>
+                <th>File</th>
+                <th>Type / Ext</th>
+                <th>Folder Path</th>
+              </tr>
+            </thead>
+            <tbody id="log-body">
+              <tr><td colspan="5" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- ── Instructions ── -->
+      <!-- COMMENTED OUT: All endpoints are already implemented in tracker.php (v1.1).
+           ?top, ?folders, ?trend, ?by_type, ?searches, ?by_grade, ?by_subject are all live.
+           Keeping markup below as a reference comment only — not rendered to users.
       <div class="card" style="margin-bottom:20px">
         <div class="card-head">
           <div>
@@ -436,13 +571,31 @@ if (isset($_GET['by_subject'])) {
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
 }</pre>
       </div>
+      -->
 
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /layout -->
 
-<!-- Dashboard logic — Chart.js loaded in <head>, this comes after the DOM -->
-<script src="../assets/js/admindashboard.js"></script>
+<!-- Sidebar toggle script (must be inline so it's available immediately) -->
+<script>
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+// Close sidebar on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeSidebar();
+});
+</script>
 
+<!-- Dashboard logic -->
+<script src="../assets/js/admindashboard.js"></script>
 </body>
 </html>

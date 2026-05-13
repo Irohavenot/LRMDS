@@ -335,8 +335,24 @@ async function openPreview(item) {
 }
 
 async function renderPreviewContent(previewBody, item, previewType) {
+  // Helper: fire file_view only on first successful load per item per session.
+  // Called at the END of each branch, after the blob/content is actually ready.
+  function _trackView() {
+    if (!_viewTracked.has(item.id)) {
+      _viewTracked.add(item.id);
+      _track('file_view', {
+        item_id:   item.id,
+        item_name: item.name,
+        item_type: _guessType(item.name),
+        file_ext:  _fileExt(item.name),
+      });
+    }
+  }
+
   if (previewType === 'image') {
     const { blobUrl } = await getOrFetchBlob(item.id);
+    // Track after blob is fetched; actual render is near-instant from here
+    _trackView();
     previewBody.innerHTML = `
       <div class="preview-img-wrap">
         <img src="${blobUrl}" alt="${escHtml(item.name)}" class="preview-img"
@@ -345,6 +361,7 @@ async function renderPreviewContent(previewBody, item, previewType) {
 
   } else if (previewType === 'video') {
     const { blobUrl } = await getOrFetchBlob(item.id);
+    _trackView();
     previewBody.innerHTML = `
       <div class="preview-video-wrap">
         <video controls autoplay class="preview-video" src="${blobUrl}"></video>
@@ -352,6 +369,7 @@ async function renderPreviewContent(previewBody, item, previewType) {
 
   } else if (previewType === 'audio') {
     const { blobUrl } = await getOrFetchBlob(item.id);
+    _trackView();
     previewBody.innerHTML = `
       <div class="preview-audio-wrap">
         <div class="preview-audio-icon">🎵</div>
@@ -361,6 +379,7 @@ async function renderPreviewContent(previewBody, item, previewType) {
 
   } else if (previewType === 'pdf') {
     const { blobUrl } = await getOrFetchBlob(item.id);
+    _trackView();
     previewBody.innerHTML = `
       <object class="preview-iframe" data="${blobUrl}#toolbar=1&navpanes=0" type="application/pdf">
         <div class="preview-error">
@@ -383,9 +402,12 @@ async function renderPreviewContent(previewBody, item, previewType) {
       entry.docxMessages = result.messages;
     }
 
+    _trackView(); // blob converted and HTML ready
     renderDocxViewer(previewBody, entry.docxHtml, entry.docxMessages || [], item);
 
   } else if (previewType === 'office-sheet' || previewType === 'office-ppt') {
+    // No blob fetch for office formats — track when the error/fallback UI shows
+    _trackView();
     const ext = (item.name.split('.').pop() || '').toUpperCase();
     previewBody.innerHTML = `
       <div class="preview-error">
@@ -402,6 +424,7 @@ async function renderPreviewContent(previewBody, item, previewType) {
     const { blobUrl } = await getOrFetchBlob(item.id);
     const res  = await fetch(blobUrl);
     const text = await res.text();
+    _trackView(); // full text read into memory
     previewBody.innerHTML = `<pre class="preview-text">${escHtml(text)}</pre>`;
   }
 }
@@ -938,13 +961,35 @@ function buildFileCard(item, isSearch = false) {
 }
 
 // ── Download ──────────────────────────────────────────────────
+// Guards: track each event only once per item per session
+const _viewTracked = new Set();   // file_view  — fires after content loads
+// Guard: track only once per item, even if the user clicks Download
+// from both the card AND the preview modal in the same session.
+const _dlTracked = new Set();
+
 async function downloadFile(itemId, fileName) {
   showToast(`Preparing download: ${fileName}`);
   try {
+    // Wait until the blob is fully fetched — THEN trigger the save
     const { blobUrl } = await getOrFetchBlob(itemId);
     const a = document.createElement('a');
-    a.href = blobUrl; a.download = fileName; a.click();
+    a.href = blobUrl; a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     showToast(`Downloaded: ${fileName}`);
+
+    // Track only after the browser has actually initiated the save,
+    // and only once per file per session (prevents card + modal double-fire).
+    if (!_dlTracked.has(itemId)) {
+      _dlTracked.add(itemId);
+      _track('file_download', {
+        item_id:   itemId,
+        item_name: fileName,
+        item_type: _guessType(fileName),
+        file_ext:  _fileExt(fileName),
+      });
+    }
   } catch (e) { showToast(`Download failed: ${e.message}`); }
 }
 
@@ -1036,3 +1081,111 @@ function showToast(msg) {
   toastEl.classList.add('show');
   setTimeout(() => toastEl.classList.remove('show'), 2800);
 }
+// ══════════════════════════════════════════════════════════════
+//   ANALYTICS — fires events to tracker.php
+//   All events include the real signed-in user (name + OID).
+// ══════════════════════════════════════════════════════════════
+
+const _TRACKER_URL = (function () {
+  const loc = window.location.pathname;
+  const dir = loc.substring(0, loc.lastIndexOf('/') + 1);
+  return dir + 'tracker.php';
+})();
+
+const _SESSION_ID = (function () {
+  let id = sessionStorage.getItem('lrmds_sid');
+  if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('lrmds_sid', id); }
+  return id;
+})();
+
+function _guessType(name) {
+  const u = (name || '').toUpperCase();
+  if (u.startsWith('SLM'))    return 'SLM';
+  if (u.startsWith('TG'))     return 'TG';
+  if (u.startsWith('DLL'))    return 'DLL';
+  if (u.startsWith('ASSESS')) return 'Assessment';
+  if (u.startsWith('VIDEO'))  return 'Video';
+  return 'Resource';
+}
+
+function _fileExt(name) {
+  const parts = (name || '').split('.');
+  return parts.length > 1 ? parts.pop().toLowerCase() : '';
+}
+
+function _folderPath() {
+  const parts = [ONEDRIVE_ROOT_FOLDER];
+  folderHistory.forEach(h => { if (h.name) parts.push(h.name); });
+  const cur = resultsTitleEl && resultsTitleEl.textContent;
+  if (cur && cur !== ONEDRIVE_ROOT_FOLDER && cur !== parts[parts.length - 1]) parts.push(cur);
+  return parts.join(' \u203a ');
+}
+
+function _track(event, extra) {
+  if (!currentUser) return;
+  // Prefer the full display name from the MS account token claims
+  const _uName = currentUser.idTokenClaims?.name
+    || currentUser.name
+    || currentUser.username
+    || '';
+  const payload = Object.assign({
+    event,
+    session_id:  _SESSION_ID,
+    user_oid:    currentUser.localAccountId || currentUser.homeAccountId || '',
+    user_name:   _uName,
+    user_email:  currentUser.username || '',   // always the UPN/email
+    folder_path: _folderPath(),
+    filters:     { grade: activeFilters.grade, subject: activeFilters.subject, type: activeFilters.type },
+  }, extra || {});
+
+  if (event === 'session_end' && navigator.sendBeacon) {
+    navigator.sendBeacon(_TRACKER_URL, JSON.stringify(payload));
+  } else {
+    fetch(_TRACKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(function(){});
+  }
+}
+
+// Fire page_view after sign-in
+var _origShowApp = showApp;
+showApp = function () {
+  _origShowApp();
+  _track('page_view');
+};
+
+// Fire folder_open on navigation
+var _origNavigateTo = navigateTo;
+navigateTo = function (itemId, folderName) {
+  _origNavigateTo(itemId, folderName);
+  _track('folder_open', { item_id: itemId, item_name: folderName });
+};
+
+// file_view is now tracked from inside renderPreviewContent (after blob loads),
+// guarded by _viewTracked so re-opening a cached file doesn't re-count.
+// The wrapper is intentionally removed to prevent double-firing.
+
+// Fire search event
+var _origApplySearch = applySearch;
+applySearch = function () {
+  _origApplySearch();
+  var q = (searchInput && searchInput.value && searchInput.value.trim()) || '';
+  var g = (filterGrade && filterGrade.value) || '';
+  var s = (filterSubject && filterSubject.value) || '';
+  var t = (filterType && filterType.value) || '';
+  if (q || g || s || t) {
+    _track('search', {
+      search_query: q,
+      filters: { grade: g, subject: s, type: t },
+    });
+  }
+};
+
+// Fire session_end on unload
+var _sessionStart = Date.now();
+window.addEventListener('pagehide', function () {
+  _track('session_end', { duration_sec: Math.round((Date.now() - _sessionStart) / 1000) });
+});

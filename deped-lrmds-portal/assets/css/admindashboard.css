@@ -1,6 +1,6 @@
 /* ============================================================
    LRMDS Admin Dashboard – DepEd Carcar City
-   admindashboard.css
+   admindashboard.css  (v1.1 – responsive + mobile sidebar)
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,6 +31,7 @@
   --radius-lg: 14px;
   --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
   --shadow:    0 4px 12px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.05);
+  --sidebar-w: 220px;
 }
 
 body {
@@ -45,9 +46,24 @@ body {
 /* ── Layout ── */
 .layout { display: flex; min-height: 100vh; }
 
+/* ── Sidebar overlay (mobile) ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 9;
+  opacity: 0;
+  transition: opacity .25s;
+}
+.sidebar-overlay.visible {
+  display: block;
+  opacity: 1;
+}
+
 /* ── Sidebar ── */
 .sidebar {
-  width: 220px;
+  width: var(--sidebar-w);
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
@@ -56,6 +72,7 @@ body {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   z-index: 10;
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
 }
 .sidebar-brand {
   padding: 20px 18px 16px;
@@ -77,7 +94,7 @@ body {
 .brand-name { font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--text-1); }
 .brand-sub  { font-size: 11px; color: var(--text-3); }
 
-.sidebar-nav { padding: 12px 10px; flex: 1; }
+.sidebar-nav { padding: 12px 10px; flex: 1; overflow-y: auto; }
 .nav-section-label {
   font-size: 10px; font-weight: 600; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-3);
@@ -108,19 +125,37 @@ body {
 .sidebar-footer span { display: block; }
 
 /* ── Main ── */
-.main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; }
+.main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
+/* ── Topbar ── */
 .topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 14px 28px;
   display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 5;
+  gap: 12px;
 }
 .topbar-left h1 { font-size: 16px; font-weight: 600; }
 .topbar-left p  { font-size: 12px; color: var(--text-3); margin-top: 1px; }
-.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
+/* Hamburger button (hidden on desktop) */
+.hamburger-btn {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border: 1px solid var(--border-md);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.hamburger-btn svg { width: 18px; height: 18px; }
+.hamburger-btn:hover { background: var(--surface2); }
+
+/* ── Buttons ── */
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 14px;
@@ -132,6 +167,7 @@ body {
   color: var(--text-1);
   transition: background .15s;
   font-family: inherit;
+  white-space: nowrap;
 }
 .btn:hover { background: var(--surface2); }
 .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
@@ -212,10 +248,25 @@ select.select {
   border-radius: var(--radius-lg);
   padding: 18px 20px;
   box-shadow: var(--shadow-sm);
+  /* Critical: prevent canvas from overflowing its grid cell */
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Chart wrapper — constrains the canvas strictly within the card */
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.chart-wrap canvas {
+  display: block;
+  max-width: 100%;
 }
 .card-head {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 16px;
+  gap: 12px;
 }
 .card-title { font-size: 14px; font-weight: 600; }
 .card-subtitle { font-size: 12px; color: var(--text-3); margin-top: 2px; }
@@ -242,7 +293,7 @@ select.select {
 .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
 /* ── Tabs ── */
-.tabs { display: flex; gap: 4px; }
+.tabs { display: flex; gap: 4px; flex-shrink: 0; }
 .tab {
   font-size: 12px; font-weight: 500;
   padding: 5px 12px;
@@ -253,17 +304,20 @@ select.select {
   cursor: pointer;
   font-family: inherit;
   transition: all .15s;
+  white-space: nowrap;
 }
 .tab:hover { background: var(--surface2); }
 .tab.active { background: var(--blue-lt); color: var(--blue); border-color: rgba(37,99,235,.15); }
 
 /* ── Data table ── */
-.data-table { width: 100%; border-collapse: collapse; }
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; min-width: 320px; }
 .data-table th {
   text-align: left; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em;
   color: var(--text-3); padding: 0 8px 10px;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .data-table td {
   padding: 9px 8px;
@@ -279,12 +333,14 @@ select.select {
   max-width: 180px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
   font-weight: 500;
+  display: block;
 }
 .file-type-badge {
   display: inline-block; font-size: 10px; font-weight: 600;
   padding: 2px 7px; border-radius: 5px;
   font-family: 'DM Mono', monospace;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .badge-SLM        { background: var(--blue-lt);   color: var(--blue);   }
 .badge-TG         { background: var(--green-lt);  color: var(--green);  }
@@ -308,17 +364,30 @@ select.select {
   flex: 1; height: 5px;
   background: var(--surface2);
   border-radius: 3px; overflow: hidden;
-  min-width: 60px;
+  min-width: 40px;
 }
 .bar-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
 
-/* ── Folder table ── */
+/* ── Folder path — supports deep paths ── */
 .folder-path {
   font-size: 12px; color: var(--text-2);
-  max-width: 170px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
+  display: block;
+  word-break: break-word;   /* allow long › chains to wrap */
+  line-height: 1.4;
+  max-width: 220px;
 }
-.folder-icon { color: var(--amber); margin-right: 5px; }
+/* Each › separator gets a subtle visual hint */
+.folder-path .path-sep {
+  color: var(--text-3);
+  margin: 0 2px;
+  font-size: 11px;
+}
+/* Last segment (the deepest folder) is bolded */
+.folder-path .path-leaf {
+  font-weight: 600;
+  color: var(--text-1);
+}
+.folder-icon { color: var(--amber); margin-right: 5px; flex-shrink: 0; vertical-align: -2px; }
 
 /* ── Search tags ── */
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -378,7 +447,7 @@ select.select {
 .empty { text-align: center; padding: 28px 0; color: var(--text-3); font-size: 13px; }
 
 /* ── Last updated ── */
-.last-updated { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+.last-updated { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; white-space: nowrap; }
 
 /* ── Instructions code block ── */
 .instructions-pre {
@@ -392,14 +461,108 @@ select.select {
   color: var(--text-1);
 }
 
-/* ── Responsive ── */
-@media (max-width: 1100px) {
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+══════════════════════════════════════════════════════════ */
+
+/* ── 1280px: tighten 5-column metrics ── */
+@media (max-width: 1280px) {
   .metrics-grid { grid-template-columns: repeat(3, 1fr); }
-  .bottom-row   { grid-template-columns: 1fr 1fr; }
 }
+
+/* ── 1100px: stack some columns ── */
+@media (max-width: 1100px) {
+  .bottom-row { grid-template-columns: 1fr 1fr; }
+  .charts-row { grid-template-columns: 1fr; }
+}
+
+/* ── 860px: hide sidebar, show hamburger ── */
 @media (max-width: 860px) {
-  .sidebar { display: none; }
-  .main    { margin-left: 0; }
-  .charts-row, .tables-row, .bottom-row { grid-template-columns: 1fr; }
+  .sidebar {
+    transform: translateX(calc(-1 * var(--sidebar-w)));
+    box-shadow: var(--shadow);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .main { margin-left: 0; }
+
+  .hamburger-btn { display: flex; }
+
+  .topbar { padding: 12px 16px; }
+  .content { padding: 16px; }
+
+  .tables-row  { grid-template-columns: 1fr; }
+  .bottom-row  { grid-template-columns: 1fr; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .topbar-right .last-updated { display: none; } /* save space */
+}
+
+/* ── 520px: single column metrics, tighter topbar ── */
+@media (max-width: 520px) {
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric-value { font-size: 20px; }
+  .topbar-left p { display: none; }
+  .btn span { display: none; } /* icon-only refresh button */
+  select.select { font-size: 12px; padding: 6px 8px; }
+  .content { padding: 12px; }
+}
+/* ── Download Log extras ── */
+.log-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  background: var(--green-lt);
+  border: 1px solid rgba(22,163,74,.2);
+  border-radius: 20px;
+  padding: 2px 8px;
+  margin-left: 8px;
+  vertical-align: middle;
+  letter-spacing: .03em;
+}
+
+/* User chip in the log table */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.user-avatar-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.user-chip-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Small folder path in log */
+.folder-path-sm {
+  font-size: 11px;
+  color: var(--text-3);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  font-family: 'DM Mono', monospace;
 }

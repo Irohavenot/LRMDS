@@ -26,6 +26,9 @@
  */
 
 declare(strict_types=1);
+// Prevent PHP notices/warnings from corrupting JSON output
+error_reporting(0);
+ini_set('display_errors', '0');
 header('Content-Type: application/json');
 
 // ── CORS: only allow same origin (adjust if you host on a subdomain) ──────────
@@ -68,7 +71,9 @@ $pdo->exec(<<<SQL
         item_id      TEXT,               -- OneDrive item ID
         item_name    TEXT,               -- filename or folder name
         item_type    TEXT,               -- SLM | TG | DLL | Video | Assessment | Resource
+        file_ext     TEXT,               -- actual file extension: pdf, docx, mp4 …
         folder_path  TEXT,               -- breadcrumb trail at time of event
+        user_email   TEXT,               -- UPN / email from Microsoft account
         search_query TEXT,               -- for search events
         filters      TEXT,               -- JSON: {grade, subject, type}
         duration_sec INTEGER,            -- for session_end events
@@ -117,10 +122,25 @@ $pdo->exec(<<<SQL
     CREATE INDEX IF NOT EXISTS idx_events_ts       ON events(ts);
 SQL);
 
+// Migrate existing databases — ADD COLUMN is idempotent via try/catch
+foreach (['ALTER TABLE events ADD COLUMN file_ext TEXT', 'ALTER TABLE events ADD COLUMN user_email TEXT'] as $_sql) {
+    try { $pdo->exec($_sql); } catch (Exception $_e) { /* column already exists */ }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 //  GET  tracker.php?counts&item_id=XXX   →  { views, downloads }
 //  GET  tracker.php?top&limit=10         →  top downloaded/viewed files
 // ═════════════════════════════════════════════════════════════════════════════
+
+// ── Shared helper: build a WHERE clause fragment for the days filter ─────────
+// Returns ['AND ts >= ?', $ts_cutoff] or ['', null] for all-time.
+function days_filter(): array {
+    $days = isset($_GET['days']) ? (int)$_GET['days'] : 0;
+    if ($days <= 0) return ['', null];
+    $cutoff = time() - ($days * 86400);
+    return ['AND ts >= ?', $cutoff];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if (isset($_GET['counts']) && !empty($_GET['item_id'])) {
@@ -131,29 +151,195 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    if (isset($_GET['top'])) {
-        $limit = min((int)($_GET['limit'] ?? 10), 100);
-        $by    = ($_GET['by'] ?? 'downloads') === 'views' ? 'views' : 'downloads';
-        $stmt  = $pdo->prepare(
-            "SELECT item_id, item_name, views, downloads FROM file_stats ORDER BY {$by} DESC LIMIT ?"
-        );
-        $stmt->execute([$limit]);
+    // ── Per-user download log  →  tracker.php?log&days=30&limit=200 ───────────
+    // Returns one row per download event with user name, file, timestamp.
+    // Used by the "Download Log" tab in the admin dashboard.
+    if (isset($_GET['log'])) {
+        $limit = min((int)($_GET['limit'] ?? 200), 1000);
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff, $limit] : [$limit];
+        $stmt = $pdo->prepare("
+            SELECT
+                datetime(ts,'unixepoch','localtime') AS downloaded_at,
+                ts,
+                user_name,
+                user_email,
+                item_name,
+                item_type,
+                file_ext,
+                folder_path,
+                session_id
+            FROM events
+            WHERE event = 'file_download' {$df}
+            ORDER BY ts DESC
+            LIMIT ?
+        ");
+        $stmt->execute($params);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
-    // Default: return aggregated summary for a dashboard
-    $summary = $pdo->query("
+
+    if (isset($_GET['top'])) {
+        $limit    = min((int)($_GET['limit'] ?? 10), 100);
+        $by       = ($_GET['by'] ?? 'downloads') === 'views' ? 'views' : 'downloads';
+        $withpath = isset($_GET['withpath']);   // include folder_path + file_ext when set
+        [$df, $cutoff] = days_filter();
+
+        // Extra columns: most-recent folder_path and file_ext for this item
+        $extraCols = $withpath
+            ? ", (SELECT folder_path FROM events e2 WHERE e2.item_id=e.item_id AND e2.event='file_download' ORDER BY e2.ts DESC LIMIT 1) AS folder_path
+               , (SELECT file_ext   FROM events e3 WHERE e3.item_id=e.item_id AND e3.event='file_download' AND e3.file_ext IS NOT NULL ORDER BY e3.ts DESC LIMIT 1) AS file_ext"
+            : '';
+
+        if ($cutoff) {
+            $stmt = $pdo->prepare("
+                SELECT item_id, item_name,
+                       SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
+                       SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
+                       {$extraCols}
+                FROM events e
+                WHERE item_id IS NOT NULL {$df}
+                GROUP BY item_id, item_name
+                ORDER BY {$by} DESC LIMIT ?
+            ");
+            $stmt->execute([$cutoff, $limit]);
+        } else {
+            // All-time: join file_stats with a subquery for path/ext
+            if ($withpath) {
+                $stmt = $pdo->prepare("
+                    SELECT fs.item_id, fs.item_name, fs.views, fs.downloads,
+                           (SELECT folder_path FROM events e2 WHERE e2.item_id=fs.item_id AND e2.event='file_download' ORDER BY e2.ts DESC LIMIT 1) AS folder_path,
+                           (SELECT file_ext   FROM events e3 WHERE e3.item_id=fs.item_id AND e3.event='file_download' AND e3.file_ext IS NOT NULL ORDER BY e3.ts DESC LIMIT 1) AS file_ext
+                    FROM file_stats fs ORDER BY {$by} DESC LIMIT ?
+                ");
+            } else {
+                $stmt = $pdo->prepare(
+                    "SELECT item_id, item_name, views, downloads FROM file_stats ORDER BY {$by} DESC LIMIT ?"
+                );
+            }
+            $stmt->execute([$limit]);
+        }
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Folder activity  →  tracker.php?folders ───────────────────────────────
+    if (isset($_GET['folders'])) {
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff] : [];
+        $stmt = $pdo->prepare("
+            SELECT folder_path,
+                   SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
+                   SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
+            FROM events
+            WHERE folder_path IS NOT NULL AND folder_path != '' {$df}
+            GROUP BY folder_path
+            ORDER BY (views + downloads) DESC LIMIT 10
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Daily trend  →  tracker.php?trend&days=30 ─────────────────────────────
+    if (isset($_GET['trend'])) {
+        $days = isset($_GET['days']) && (int)$_GET['days'] > 0
+            ? min((int)$_GET['days'], 365) : 90;
+        $stmt = $pdo->prepare("
+            SELECT date(ts,'unixepoch') AS day,
+                   SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
+                   SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
+            FROM events
+            WHERE ts >= strftime('%s','now','-'||?||' days')
+            GROUP BY day ORDER BY day
+        ");
+        $stmt->execute([$days]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Resource type breakdown  →  tracker.php?by_type ───────────────────────
+    if (isset($_GET['by_type'])) {
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff] : [];
+        $stmt = $pdo->prepare("
+            SELECT item_type, COUNT(*) AS downloads
+            FROM events
+            WHERE event='file_download' AND item_type IS NOT NULL AND item_type != '' {$df}
+            GROUP BY item_type ORDER BY downloads DESC
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Top search queries  →  tracker.php?searches ───────────────────────────
+    if (isset($_GET['searches'])) {
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff] : [];
+        $stmt = $pdo->prepare("
+            SELECT search_query, COUNT(*) AS count
+            FROM events
+            WHERE event='search' AND search_query IS NOT NULL AND search_query != '' {$df}
+            GROUP BY search_query ORDER BY count DESC LIMIT 20
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Downloads by grade  →  tracker.php?by_grade ───────────────────────────
+    if (isset($_GET['by_grade'])) {
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff] : [];
+        $stmt = $pdo->prepare("
+            SELECT json_extract(filters,'$.grade') AS grade, COUNT(*) AS downloads
+            FROM events
+            WHERE event='file_download' AND filters IS NOT NULL
+              AND json_extract(filters,'$.grade') IS NOT NULL
+              AND json_extract(filters,'$.grade') != '' {$df}
+            GROUP BY grade ORDER BY downloads DESC
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // ── Downloads by subject  →  tracker.php?by_subject ───────────────────────
+    if (isset($_GET['by_subject'])) {
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff] : [];
+        $stmt = $pdo->prepare("
+            SELECT json_extract(filters,'$.subject') AS subject, COUNT(*) AS downloads
+            FROM events
+            WHERE event='file_download' AND filters IS NOT NULL
+              AND json_extract(filters,'$.subject') IS NOT NULL
+              AND json_extract(filters,'$.subject') != '' {$df}
+            GROUP BY subject ORDER BY downloads DESC
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+    // Default: return aggregated summary for a dashboard (with optional days filter)
+    [$df, $cutoff] = days_filter();
+    $params = $cutoff ? [$cutoff, $cutoff, $cutoff, $cutoff, $cutoff] : [];
+    $w = $df; // WHERE fragment
+    $summary = $pdo->prepare("
         SELECT
-            (SELECT COUNT(DISTINCT session_id) FROM events) AS total_sessions,
-            (SELECT COUNT(*) FROM events WHERE event = 'file_view') AS total_views,
-            (SELECT COUNT(*) FROM events WHERE event = 'file_download') AS total_downloads,
-            (SELECT COUNT(*) FROM events WHERE event = 'search') AS total_searches,
-            (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL) AS unique_users
-    ")->fetch(PDO::FETCH_ASSOC);
-    echo json_encode($summary);
+            (SELECT COUNT(DISTINCT session_id) FROM events WHERE 1=1 {$w}) AS total_sessions,
+            (SELECT COUNT(*) FROM events WHERE event = 'file_view' {$w}) AS total_views,
+            (SELECT COUNT(*) FROM events WHERE event = 'file_download' {$w}) AS total_downloads,
+            (SELECT COUNT(*) FROM events WHERE event = 'search' {$w}) AS total_searches,
+            (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL {$w}) AS unique_users
+    ");
+    $summary->execute($params);
+    echo json_encode($summary->fetch(PDO::FETCH_ASSOC));
     exit;
-}
+
+} // end if GET
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  POST  tracker.php   →  record an event
@@ -201,23 +387,28 @@ if (empty($session_id)) {
     exit;
 }
 
+$file_ext   = substr($data['file_ext']   ?? '', 0, 20);
+$user_email = substr($data['user_email'] ?? '', 0, 200);
+
 $stmt = $pdo->prepare(<<<SQL
     INSERT INTO events
-        (session_id, user_oid, user_name, event, item_id, item_name, item_type,
-         folder_path, search_query, filters, duration_sec)
+        (session_id, user_oid, user_name, user_email, event, item_id, item_name, item_type,
+         file_ext, folder_path, search_query, filters, duration_sec)
     VALUES
-        (:session_id, :user_oid, :user_name, :event, :item_id, :item_name, :item_type,
-         :folder_path, :search_query, :filters, :duration_sec)
+        (:session_id, :user_oid, :user_name, :user_email, :event, :item_id, :item_name, :item_type,
+         :file_ext, :folder_path, :search_query, :filters, :duration_sec)
 SQL);
 
 $stmt->execute([
     ':session_id'   => $session_id,
     ':user_oid'     => $user_oid,
     ':user_name'    => $user_name ?: null,
+    ':user_email'   => $user_email ?: null,
     ':event'        => $event,
     ':item_id'      => $item_id   ?: null,
     ':item_name'    => $item_name ?: null,
     ':item_type'    => $item_type ?: null,
+    ':file_ext'     => $file_ext  ?: null,
     ':folder_path'  => $folder_path ?: null,
     ':search_query' => $search_query ?: null,
     ':filters'      => $filters,

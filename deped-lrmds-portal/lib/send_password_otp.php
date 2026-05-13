@@ -72,6 +72,7 @@ $mail->setFrom(
         $mail->addAddress($email, $first_name);
 
         $mail->isHTML(true);
+        $mail->CharSet = PHPMailer::CHARSET_UTF8;
         $mail->Subject = 'Your Password Change Code — DepEd LRMDS';
         $mail->Body    = _otp_email_html($first_name, $otp);
         $mail->AltBody = _otp_email_text($first_name, $otp);
@@ -249,4 +250,4 @@ changed. You can safely ignore this email.
 
 — DepEd LRMDS Team
 TEXT;
-}   
+}
