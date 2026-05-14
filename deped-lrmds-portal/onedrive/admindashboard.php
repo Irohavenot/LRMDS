@@ -85,11 +85,95 @@
   text-overflow: ellipsis;
   max-width: 240px;
 }
+
+/* ── Improved date-range select ── */
+.date-range-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.date-range-wrap::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-2);
+  pointer-events: none;
+}
+select.select-styled {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 7px 30px 7px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-md);
+  background: var(--surface);
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: 'DM Sans', inherit;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  min-width: 140px;
+}
+select.select-styled:hover  { border-color: var(--blue); }
+select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+/* ── Bookmark pill ── */
+.pill-bm {
+  background: #FFF7ED;
+  color: #D97706;
+}
+
+/* ── Bookmarked resources card ── */
+.bm-list { display: flex; flex-direction: column; gap: 8px; }
+.bm-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background .12s;
+}
+.bm-item:hover { background: var(--surface2); }
+.bm-rank-num {
+  font-size: 13px; font-weight: 700; color: var(--text-3);
+  font-family: 'DM Mono', monospace;
+  width: 20px; flex-shrink: 0; text-align: center;
+}
+.bm-item-body { flex: 1; min-width: 0; }
+.bm-item-name {
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 320px;
+}
+.bm-item-path {
+  font-size: 11px; color: var(--text-3);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.bm-count-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #FFF7ED; color: #D97706;
+  border: 1px solid #FDE68A;
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 12px; font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  flex-shrink: 0;
+}
+.bm-bar-wrap {
+  width: 70px; flex-shrink: 0;
+}
 </style>
 </head>
 <body>
 
-<!-- Mobile sidebar overlay (tap to close) -->
+<!-- Mobile sidebar overlay -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <div class="layout">
@@ -129,12 +213,11 @@
         </svg>
         Files
       </a>
-      <a class="nav-item" href="#">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      <a class="nav-item" href="/lrmds/deped-lrmds-portal/manage.php">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
         </svg>
-        Folders
+        Google Drive Admin
       </a>
       <a class="nav-item" href="#">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -177,7 +260,7 @@
 
     <div class="sidebar-footer">
       <span class="status-text"><span class="status-dot"></span>Live · tracker.php</span>
-      <span style="margin-top:4px">v1.1 · <span id="db-size">—</span></span>
+      <span style="margin-top:4px">v1.2 · <span id="db-size">—</span></span>
     </div>
   </aside>
 
@@ -186,7 +269,6 @@
 
     <!-- Topbar -->
     <div class="topbar">
-      <!-- Hamburger (mobile only) -->
       <button class="hamburger-btn" id="hamburger-btn" onclick="openSidebar()" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -201,12 +283,16 @@
       </div>
       <div class="topbar-right">
         <span class="last-updated" id="last-updated">Loading…</span>
-        <select class="select" id="date-range" onchange="loadAll()">
-          <option value="7">Last 7 days</option>
-          <option value="30" selected>Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="0">All time</option>
-        </select>
+        <!-- Improved date-range dropdown -->
+        <div class="date-range-wrap">
+          <select class="select-styled" id="date-range" onchange="loadAll()">
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="0">All time</option>
+          </select>
+        </div>
         <button class="btn btn-primary" onclick="loadAll()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                stroke-linecap="round">
@@ -313,6 +399,19 @@
           <div class="metric-sub">Queries submitted</div>
         </div>
 
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Bookmarks</span>
+            <div class="metric-icon" style="background:#FFF7ED">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="metric-value" id="m-bookmarks">—</div>
+          <div class="metric-sub">Files saved to My Library</div>
+        </div>
+
       </div><!-- /metrics-grid -->
 
       <!-- ── Trend + Type ── -->
@@ -400,6 +499,21 @@
 
       </div><!-- /tables-row -->
 
+      <!-- ── Bookmarked Resources ── -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">
+              🔖 Most Bookmarked Resources
+            </div>
+            <div class="card-subtitle">Files most saved to My Library by teachers · all time</div>
+          </div>
+        </div>
+        <div id="bookmarks-list" class="bm-list">
+          <div class="empty">Loading…</div>
+        </div>
+      </div>
+
       <!-- ── Grade + Searches + Subject ── -->
       <div class="bottom-row">
 
@@ -481,103 +595,59 @@
         </div>
       </div>
 
-      <!-- ── Instructions ── -->
-      <!-- COMMENTED OUT: All endpoints are already implemented in tracker.php (v1.1).
-           ?top, ?folders, ?trend, ?by_type, ?searches, ?by_grade, ?by_subject are all live.
-           Keeping markup below as a reference comment only — not rendered to users.
-      <div class="card" style="margin-bottom:20px">
+      <!-- ── Users Tab ── -->
+      <div class="card" style="margin-bottom:20px" id="users-card">
         <div class="card-head">
           <div>
-            <div class="card-title">How to connect live data</div>
-            <div class="card-subtitle">Add these endpoints to tracker.php, then set DEMO = false in assets/js/admindashboard.js</div>
+            <div class="card-title">
+              Portal Users
+              <span class="log-live-badge">● Live</span>
+            </div>
+            <div class="card-subtitle">
+              Everyone who has signed in via Microsoft and visited the portal
+              · filtered by the date range above
+              (<span id="users-count">—</span> users)
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <input id="users-search" type="search"
+              placeholder="Filter by name or email…"
+              style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:12px;font-family:inherit;background:var(--surface);color:var(--text-1);width:200px"/>
+            <button class="btn" onclick="loadUsers()" title="Refresh users">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+              </svg>
+            </button>
           </div>
         </div>
-        <pre class="instructions-pre">// In tracker.php, inside the GET block, add:
-
-// 1. Folder activity  →  tracker.php?folders
-if (isset($_GET['folders'])) {
-    $stmt = $pdo->query("
-        SELECT folder_path,
-               SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
-               SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
-        FROM events
-        WHERE folder_path IS NOT NULL AND folder_path != ''
-        GROUP BY folder_path
-        ORDER BY downloads DESC LIMIT 10
-    ");
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}
-
-// 2. Daily trend  →  tracker.php?trend&amp;days=30
-if (isset($_GET['trend'])) {
-    $days = min((int)($_GET['days'] ?? 30), 90);
-    $stmt = $pdo->prepare("
-        SELECT date(ts,'unixepoch') AS day,
-               SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
-               SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
-        FROM events
-        WHERE ts >= strftime('%s','now','-'||?||' days')
-        GROUP BY day ORDER BY day
-    ");
-    $stmt->execute([$days]);
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}
-
-// 3. Resource type breakdown  →  tracker.php?by_type
-if (isset($_GET['by_type'])) {
-    $stmt = $pdo->query("
-        SELECT item_type, COUNT(*) AS downloads
-        FROM events
-        WHERE event='file_download' AND item_type IS NOT NULL
-        GROUP BY item_type ORDER BY downloads DESC
-    ");
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}
-
-// 4. Top searches  →  tracker.php?searches
-if (isset($_GET['searches'])) {
-    $stmt = $pdo->query("
-        SELECT search_query, COUNT(*) AS count
-        FROM events
-        WHERE event='search' AND search_query IS NOT NULL AND search_query != ''
-        GROUP BY search_query ORDER BY count DESC LIMIT 20
-    ");
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}
-
-// 5. Downloads by grade  →  tracker.php?by_grade
-if (isset($_GET['by_grade'])) {
-    $stmt = $pdo->query("
-        SELECT json_extract(filters,'$.grade') AS grade, COUNT(*) AS downloads
-        FROM events
-        WHERE event='file_download' AND filters IS NOT NULL
-          AND json_extract(filters,'$.grade') IS NOT NULL
-          AND json_extract(filters,'$.grade') != ''
-        GROUP BY grade ORDER BY downloads DESC
-    ");
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}
-
-// 6. Downloads by subject  →  tracker.php?by_subject
-if (isset($_GET['by_subject'])) {
-    $stmt = $pdo->query("
-        SELECT json_extract(filters,'$.subject') AS subject, COUNT(*) AS downloads
-        FROM events
-        WHERE event='file_download' AND filters IS NOT NULL
-          AND json_extract(filters,'$.subject') IS NOT NULL
-          AND json_extract(filters,'$.subject') != ''
-        GROUP BY subject ORDER BY downloads DESC
-    ");
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC)); exit;
-}</pre>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>User (Microsoft Account)</th>
+                <th style="text-align:right">Sessions</th>
+                <th style="text-align:right">Views</th>
+                <th style="text-align:right">Downloads</th>
+                <th style="text-align:right">Bookmarks</th>
+                <th style="text-align:right">Searches</th>
+                <th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody id="users-body">
+              <tr><td colspan="8" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      -->
 
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /layout -->
 
-<!-- Sidebar toggle script (must be inline so it's available immediately) -->
+<!-- Sidebar toggle script -->
 <script>
 function openSidebar() {
   document.getElementById('sidebar').classList.add('open');
@@ -589,7 +659,6 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('visible');
   document.body.style.overflow = '';
 }
-// Close sidebar on Escape
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeSidebar();
 });

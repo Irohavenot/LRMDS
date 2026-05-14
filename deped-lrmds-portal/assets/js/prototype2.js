@@ -671,7 +671,7 @@ function startBackgroundDeepCache(itemId) {
     .catch(err => { console.warn('[LRMDS] Cache failed:', err.message); deepCachePromise = null; });
 }
 
-async function collectAllItemsDeepParallel(itemId, _pathSegments) {
+async function collectAllItemsDeepParallel(itemId, _pathSegments, _pathIds) {
   const pathSegments = _pathSegments || [];
   const url    = await buildChildrenUrl(itemId);
   const data   = await graphGet(url);
@@ -682,7 +682,9 @@ async function collectAllItemsDeepParallel(itemId, _pathSegments) {
   files.forEach(f => {
     f._folderPath     = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
     f._folderPathStr  = f._folderPath.join(' › ');
-    f._parentFolderId = itemId;
+    f._parentFolderId = itemId;           // parent folder's Graph ID (kept for compat)
+    f._folderId       = itemId;           // same — the folder that directly contains this file
+    f._folderPathIds  = _pathIds || [];   // ancestor Graph IDs for rebuilding back-history
   });
 
   folders.forEach(d => {
@@ -691,10 +693,11 @@ async function collectAllItemsDeepParallel(itemId, _pathSegments) {
     d._parentId      = itemId;
     d._fullPath      = [...d._parentPath, d.name];
     d._fullPathStr   = d._fullPath.join(' › ');
+    d._pathIds       = _pathIds || [];    // ancestor IDs up to (but not including) this folder
   });
 
   const sub = await Promise.all(
-    folders.map(f => collectAllItemsDeepParallel(f.id, [...pathSegments, f.name]))
+    folders.map(f => collectAllItemsDeepParallel(f.id, [...pathSegments, f.name], [...(_pathIds || []), itemId]))
   );
   return files.concat(folders, ...sub);
 }
@@ -838,9 +841,10 @@ function renderItems(items, titleText, isSearch = false) {
         const key = item._folderPathStr || ONEDRIVE_ROOT_FOLDER;
         if (!groups.has(key)) {
           groups.set(key, {
-            pathArr:  item._folderPath  || [ONEDRIVE_ROOT_FOLDER],
-            parentId: item._parentFolderId || null,
-            files:    []
+            pathArr:      item._folderPath    || [ONEDRIVE_ROOT_FOLDER],
+            folderId:     item._folderId      || null,   // the folder's own Graph ID
+            folderPathIds: item._folderPathIds || [],    // ancestor IDs for back-history
+            files:        []
           });
         }
         groups.get(key).files.push(item);
@@ -860,14 +864,33 @@ function renderItems(items, titleText, isSearch = false) {
             </div>
             <span class="sfg-count">${group.files.length} file${group.files.length !== 1 ? 's' : ''}</span>
           </div>
-          <button class="button ghost small sfg-open-btn" data-id="${escHtml(group.parentId || '')}"
-                  data-name="${escHtml(folderName)}">Open folder ›</button>`;
-        header.querySelector('.sfg-open-btn').addEventListener('click', e => {
-          const btn  = e.currentTarget;
-          const id   = btn.dataset.id   || null;
-          const name = btn.dataset.name || 'Folder';
-          folderHistory.push({ id: currentItemId, name: resultsTitleEl.textContent });
-          loadFolder(id || null, name);
+          <button class="button ghost small sfg-open-btn">Open folder ›</button>`;
+        header.querySelector('.sfg-open-btn').addEventListener('click', () => {
+          // Build a proper folderHistory so Back navigates up through the full
+          // ancestor chain, not just back to search results.
+          // Ancestors: root → … → immediate parent of this folder
+          const ancestorIds   = group.folderPathIds;   // Graph IDs of all ancestors
+          const ancestorNames = group.pathArr.slice(0, -1); // name segments above this folder
+
+          // Start history: current search state
+          const newHistory = [{ id: currentItemId, name: resultsTitleEl.textContent }];
+
+          // Push each ancestor level so the user can step back through them
+          // ancestorIds[0] = root's itemId (null means root), etc.
+          // We pair them: ancestorIds[i] → the folder entered at that step
+          // The first entry in folderHistory is always "before root" so id=null, name=root name
+          for (let i = 0; i < ancestorNames.length; i++) {
+            newHistory.push({
+              id:   i === 0 ? null : (ancestorIds[i - 1] || null),
+              name: i === 0 ? ONEDRIVE_ROOT_FOLDER : ancestorNames[i - 1],
+            });
+          }
+
+          folderHistory = newHistory;
+
+          // Navigate to the folder itself — this will show its contents
+          // and the Back button will correctly walk up through newHistory.
+          loadFolder(group.folderId, folderName);
         });
         resultsGrid.appendChild(header);
         for (const file of group.files) resultsGrid.appendChild(buildFileCard(file, true));
@@ -898,7 +921,27 @@ function buildFolderCard(item, isSearch = false) {
     <div class="folder-name">${escHtml(item.name)}</div>
     ${pathTrailHtml}
     <div class="folder-meta"><span style="margin-left:auto;">${item.folder.childCount ?? '?'} items ›</span></div>`;
-  const open = () => navigateTo(item.id, item.name);
+
+  const open = () => {
+    if (isSearch && item._pathIds && item._parentPath) {
+      // Rebuild full ancestor history so Back works through each parent level.
+      // _parentPath = name segments above this folder (not including this folder's name)
+      // _pathIds    = Graph IDs of each ancestor level
+      const ancestorNames = item._parentPath;
+      const ancestorIds   = item._pathIds;
+      const newHistory = [{ id: currentItemId, name: resultsTitleEl.textContent }];
+      for (let i = 0; i < ancestorNames.length; i++) {
+        newHistory.push({
+          id:   i === 0 ? null : (ancestorIds[i - 1] || null),
+          name: i === 0 ? ONEDRIVE_ROOT_FOLDER : ancestorNames[i - 1],
+        });
+      }
+      folderHistory = newHistory;
+      loadFolder(item.id, item.name);
+    } else {
+      navigateTo(item.id, item.name);
+    }
+  };
   div.addEventListener('click', open);
   div.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
   return div;
@@ -924,6 +967,7 @@ function buildFileCard(item, isSearch = false) {
 
   const div = document.createElement('div');
   div.className = 'result-card' + (canPreview ? ' previewable' : '');
+  div.dataset.itemId = item.id;   // used by analytics.js badge attachment
   div.innerHTML = `
     <div class="thumb-wrap">
       <span style="font-size:28px">${icon}</span>
@@ -968,6 +1012,10 @@ const _viewTracked = new Set();   // file_view  — fires after content loads
 const _dlTracked = new Set();
 
 async function downloadFile(itemId, fileName) {
+  // Guard SYNCHRONOUSLY before any await so concurrent clicks can't both slip through.
+  if (_dlTracked.has(itemId)) return;
+  _dlTracked.add(itemId);
+
   showToast(`Preparing download: ${fileName}`);
   try {
     // Wait until the blob is fully fetched — THEN trigger the save
@@ -981,16 +1029,19 @@ async function downloadFile(itemId, fileName) {
 
     // Track only after the browser has actually initiated the save,
     // and only once per file per session (prevents card + modal double-fire).
-    if (!_dlTracked.has(itemId)) {
-      _dlTracked.add(itemId);
-      _track('file_download', {
-        item_id:   itemId,
-        item_name: fileName,
-        item_type: _guessType(fileName),
-        file_ext:  _fileExt(fileName),
-      });
-    }
-  } catch (e) { showToast(`Download failed: ${e.message}`); }
+    // NOTE: _dlTracked.add() was moved to BEFORE the await in downloadFile()
+    //       to prevent a race where two simultaneous clicks both pass the check.
+    _track('file_download', {
+      item_id:   itemId,
+      item_name: fileName,
+      item_type: _guessType(fileName),
+      file_ext:  _fileExt(fileName),
+    });
+  } catch (e) {
+    // If the download failed, un-guard so the user can retry
+    _dlTracked.delete(itemId);
+    showToast(`Download failed: ${e.message}`);
+  }
 }
 
 // ── Breadcrumb ────────────────────────────────────────────────
@@ -1146,7 +1197,18 @@ function _track(event, extra) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
-    }).catch(function(){});
+    })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      // tracker.php returns updated counts for file_view / file_download events.
+      // Dispatch to analytics.js so the card badge refreshes immediately.
+      if (data && data.counts && extra && extra.item_id) {
+        document.dispatchEvent(new CustomEvent('lrmds:counts', {
+          detail: { itemId: extra.item_id, counts: data.counts }
+        }));
+      }
+    })
+    .catch(function(){});
   }
 }
 
@@ -1168,7 +1230,9 @@ navigateTo = function (itemId, folderName) {
 // guarded by _viewTracked so re-opening a cached file doesn't re-count.
 // The wrapper is intentionally removed to prevent double-firing.
 
-// Fire search event
+// Fire search event — deduped: same query+filters within 500 ms only fires once.
+var _lastSearchSig = '';
+var _lastSearchTs  = 0;
 var _origApplySearch = applySearch;
 applySearch = function () {
   _origApplySearch();
@@ -1177,6 +1241,12 @@ applySearch = function () {
   var s = (filterSubject && filterSubject.value) || '';
   var t = (filterType && filterType.value) || '';
   if (q || g || s || t) {
+    // Collapse duplicate fires (e.g. Enter key + button click on same frame)
+    var sig = q + '|' + g + '|' + s + '|' + t;
+    var now = Date.now();
+    if (sig === _lastSearchSig && now - _lastSearchTs < 500) return;
+    _lastSearchSig = sig;
+    _lastSearchTs  = now;
     _track('search', {
       search_query: q,
       filters: { grade: g, subject: s, type: t },

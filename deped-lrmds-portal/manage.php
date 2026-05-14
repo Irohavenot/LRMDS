@@ -227,6 +227,12 @@ include 'includes/profile_panel.php';
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Analytics
       </button>
+      <a class="nav-item" href="/lrmds/deped-lrmds-portal/onedrive/admindashboard.php" target="_blank">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 15a4 4 0 0 0 4 4h9a5 5 0 0 0 1.8-9.7 6 6 0 0 0-11.8.7A4 4 0 0 0 3 15z"/>
+      </svg>
+      OneDrive Analytics ↗
+    </a>
       <button class="nav-item" onclick="showPanel('qa')">
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
         QA Tools

@@ -23,8 +23,17 @@ session_start();
 define('GOOGLE_CLIENT_ID',     getenv('GOOGLE_CLIENT_ID'));
 define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
 
-// Must exactly match what you registered in Google Cloud Console
-define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php');
+// Build the redirect URI from the actual request host so the same code
+// works from localhost (laptop browser) AND from your LAN IP (mobile/tablet).
+// Google Cloud Console: register BOTH of these as Authorized Redirect URIs:
+//   http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php
+//   http://192.168.x.x/LRMDS/deped-lrmds-portal/auth/google_callback.php
+//   (replace 192.168.x.x with your laptop's actual local IP)
+define('GOOGLE_REDIRECT_URI', (function () {
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';   // e.g. 192.168.1.5 or localhost
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    return $scheme . '://' . $host . '/LRMDS/deped-lrmds-portal/auth/google_callback.php';
+})());
 // ─────────────────────────────────────────────
 
 // CSRF protection: random state token stored in session

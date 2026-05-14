@@ -274,7 +274,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // ── Top search queries  →  tracker.php?searches ───────────────────────────
+    // ── Users who visited  →  tracker.php?users&days=30 ──────────────────────────
+    // Returns one row per unique user with visit stats: sessions, views, downloads, last seen.
+    if (isset($_GET['users'])) {
+        $limit = min((int)($_GET['limit'] ?? 200), 1000);
+        [$df, $cutoff] = days_filter();
+        $params = $cutoff ? [$cutoff, $limit] : [$limit];
+        $stmt = $pdo->prepare("
+            SELECT
+                user_name,
+                user_email,
+                COUNT(DISTINCT session_id)                                   AS sessions,
+                SUM(CASE WHEN event = 'file_view'     THEN 1 ELSE 0 END)   AS file_views,
+                SUM(CASE WHEN event = 'file_download' THEN 1 ELSE 0 END)   AS downloads,
+                SUM(CASE WHEN event = 'search'        THEN 1 ELSE 0 END)   AS searches,
+                datetime(MAX(ts), 'unixepoch', 'localtime')                 AS last_seen,
+                MAX(ts)                                                      AS last_ts
+            FROM events
+            WHERE user_name IS NOT NULL AND user_name != '' {$df}
+            GROUP BY user_name, user_email
+            ORDER BY last_ts DESC
+            LIMIT ?
+        ");
+        $stmt->execute($params);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
+
     if (isset($_GET['searches'])) {
         [$df, $cutoff] = days_filter();
         $params = $cutoff ? [$cutoff] : [];

@@ -1,30 +1,24 @@
 /* ============================================================
    LRMDS Admin Dashboard – DepEd Carcar City
-   admindashboard.js  (v1.1)
+   admindashboard.js  (v1.2)
 
-   CONFIG:
-     DEMO        = true   → shows realistic sample data (safe default)
-     DEMO        = false  → fetches live data from tracker.php
-     TRACKER_URL          → auto-derived from the page URL so this JS
-                            file can live in assets/js/ without breaking
-                            the path to tracker.php in onedrive/
-
-   FOLDER PATHS:
-     analytics.js stores the full breadcrumb trail as the folder_path,
-     e.g. "Resources › Grade 6 › Science › Quarter 1 › SLMs".
-     renderFolders() now renders these deep paths properly — the deepest
-     folder (last segment) is bolded, and › separators are styled.
+   Changes from v1.1:
+     • Fixed: Today (days=1) now works correctly via getDays()
+     • Fixed: Users table colspan updated to 8 (added Bookmarks column)
+     • Added: Bookmarks metric card (m-bookmarks)
+     • Added: Most Bookmarked Resources section (renderBookmarks)
+     • Added: Bookmarks column in Portal Users table
+     • Added: Demo bookmark data (top_bookmarked + bookmarks per user)
+     • Improved: fetchAllData fetches ?top_bookmarked in parallel
    ============================================================ */
 
 // ── Config ────────────────────────────────────────────────────
 const DEMO = false;
 
-// Resolve tracker.php relative to the *page* (admindashboard.php),
-// not relative to this JS file's location in assets/js/.
 const TRACKER_URL = (function () {
-  const loc = window.location.pathname;            // e.g. /onedrive/admindashboard.php
-  const dir = loc.substring(0, loc.lastIndexOf('/') + 1); // /onedrive/
-  return dir + 'tracker.php';                      // /onedrive/tracker.php
+  const loc = window.location.pathname;
+  const dir = loc.substring(0, loc.lastIndexOf('/') + 1);
+  return dir + 'tracker.php';
 })();
 
 // ── State ─────────────────────────────────────────────────────
@@ -33,8 +27,7 @@ let _trendChart, _typeChart, _subjectChart;
 let _topTab     = 'downloads';
 
 // ═══════════════════════════════════════════════════════════════
-//  DEMO DATA  — realistic sample shown when DEMO = true
-//  Includes deep folder paths (4+ levels) to demonstrate path rendering
+//  DEMO DATA
 // ═══════════════════════════════════════════════════════════════
 function demoData() {
   function trend(days) {
@@ -49,29 +42,42 @@ function demoData() {
     return { labels, dl, vw };
   }
   return {
-    summary: { unique_users: 142, total_sessions: 389, total_views: 1847, total_downloads: 934, total_searches: 276 },
+    summary: {
+      unique_users: 142, total_sessions: 389,
+      total_views: 1847, total_downloads: 934,
+      total_searches: 276, total_bookmarks: 183,
+    },
     top_downloads: [
-      { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_id: 'a1', item_type: 'SLM',        views: 210, downloads: 98 },
-      { item_name: 'Grade4_Math_Q2_TG.pdf',       item_id: 'a2', item_type: 'TG',         views: 185, downloads: 87 },
-      { item_name: 'Grade8_English_DLL_Q1.docx',  item_id: 'a3', item_type: 'DLL',        views: 160, downloads: 74 },
-      { item_name: 'Grade10_AP_Q3_SLM.pdf',       item_id: 'a4', item_type: 'SLM',        views: 140, downloads: 61 },
-      { item_name: 'Kinder_Filipino_SLM.pdf',     item_id: 'a5', item_type: 'SLM',        views: 130, downloads: 55 },
-      { item_name: 'Grade7_MAPEH_Q2_Video.mp4',   item_id: 'a6', item_type: 'Video',      views: 112, downloads: 48 },
-      { item_name: 'Grade11_Math_Assessment.pdf', item_id: 'a7', item_type: 'Assessment', views: 95,  downloads: 42 },
-      { item_name: 'Grade3_Science_Q1_TG.pdf',    item_id: 'a8', item_type: 'TG',         views: 87,  downloads: 39 },
+      { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_id: 'a1', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 6 › Science › Quarter 1 › SLMs',           views: 210, downloads: 98 },
+      { item_name: 'Grade4_Math_Q2_TG.pdf',       item_id: 'a2', item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 4 › Mathematics › Quarter 2 › Teachers Guide', views: 185, downloads: 87 },
+      { item_name: 'Grade8_English_DLL_Q1.docx',  item_id: 'a3', item_type: 'DLL',        file_ext: 'docx', folder_path: 'Grade 8 › English › Quarter 1 › Daily Lesson Logs', views: 160, downloads: 74 },
+      { item_name: 'Grade10_AP_Q3_SLM.pdf',       item_id: 'a4', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 10 › Araling Panlipunan › Quarter 3 › SLMs', views: 140, downloads: 61 },
+      { item_name: 'Kinder_Filipino_SLM.pdf',     item_id: 'a5', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Kinder › Filipino › Quarter 1 › SLMs',             views: 130, downloads: 55 },
+      { item_name: 'Grade7_MAPEH_Q2_Video.mp4',   item_id: 'a6', item_type: 'Video',      file_ext: 'mp4',  folder_path: 'Grade 7 › MAPEH › Quarter 2 › Videos',             views: 112, downloads: 48 },
+      { item_name: 'Grade11_Math_Assessment.pdf', item_id: 'a7', item_type: 'Assessment', file_ext: 'pdf',  folder_path: 'Grade 11 › Mathematics › Quarter 1 › Assessments', views: 95,  downloads: 42 },
+      { item_name: 'Grade3_Science_Q1_TG.pdf',    item_id: 'a8', item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 3 › Science › Quarter 1 › Teachers Guide',   views: 87,  downloads: 39 },
     ],
     top_views: [
-      { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_id: 'a1', item_type: 'SLM',        views: 210, downloads: 98 },
-      { item_name: 'Grade4_Math_Q2_TG.pdf',       item_id: 'a2', item_type: 'TG',         views: 185, downloads: 87 },
-      { item_name: 'Grade8_English_DLL_Q1.docx',  item_id: 'a3', item_type: 'DLL',        views: 160, downloads: 74 },
-      { item_name: 'Grade10_AP_Q3_SLM.pdf',       item_id: 'a4', item_type: 'SLM',        views: 140, downloads: 61 },
-      { item_name: 'Kinder_Filipino_SLM.pdf',     item_id: 'a5', item_type: 'SLM',        views: 130, downloads: 55 },
-      { item_name: 'Grade7_MAPEH_Q2_Video.mp4',   item_id: 'a6', item_type: 'Video',      views: 112, downloads: 48 },
-      { item_name: 'Grade11_Math_Assessment.pdf', item_id: 'a7', item_type: 'Assessment', views: 95,  downloads: 42 },
-      { item_name: 'Grade3_Science_Q1_TG.pdf',    item_id: 'a8', item_type: 'TG',         views: 87,  downloads: 39 },
+      { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_id: 'a1', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 6 › Science › Quarter 1 › SLMs',           views: 210, downloads: 98 },
+      { item_name: 'Grade4_Math_Q2_TG.pdf',       item_id: 'a2', item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 4 › Mathematics › Quarter 2 › Teachers Guide', views: 185, downloads: 87 },
+      { item_name: 'Grade8_English_DLL_Q1.docx',  item_id: 'a3', item_type: 'DLL',        file_ext: 'docx', folder_path: 'Grade 8 › English › Quarter 1 › Daily Lesson Logs', views: 160, downloads: 74 },
+      { item_name: 'Grade10_AP_Q3_SLM.pdf',       item_id: 'a4', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 10 › Araling Panlipunan › Quarter 3 › SLMs', views: 140, downloads: 61 },
+      { item_name: 'Kinder_Filipino_SLM.pdf',     item_id: 'a5', item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Kinder › Filipino › Quarter 1 › SLMs',             views: 130, downloads: 55 },
+      { item_name: 'Grade7_MAPEH_Q2_Video.mp4',   item_id: 'a6', item_type: 'Video',      file_ext: 'mp4',  folder_path: 'Grade 7 › MAPEH › Quarter 2 › Videos',             views: 112, downloads: 48 },
+      { item_name: 'Grade11_Math_Assessment.pdf', item_id: 'a7', item_type: 'Assessment', file_ext: 'pdf',  folder_path: 'Grade 11 › Mathematics › Quarter 1 › Assessments', views: 95,  downloads: 42 },
+      { item_name: 'Grade3_Science_Q1_TG.pdf',    item_id: 'a8', item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 3 › Science › Quarter 1 › Teachers Guide',   views: 87,  downloads: 39 },
     ],
-    // Deep folder paths — mirrors what analytics.js actually records
-    // (full breadcrumb: "Grade Level › Subject › Quarter › Resource Type")
+    // Most-bookmarked files (all-time, unaffected by date range)
+    top_bookmarked: [
+      { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 6 › Science › Quarter 1 › SLMs',             bookmark_count: 38 },
+      { item_name: 'Grade4_Math_Q2_TG.pdf',       item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 4 › Mathematics › Quarter 2 › Teachers Guide', bookmark_count: 31 },
+      { item_name: 'Kinder_Filipino_SLM.pdf',     item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Kinder › Filipino › Quarter 1 › SLMs',               bookmark_count: 24 },
+      { item_name: 'Grade8_English_DLL_Q1.docx',  item_type: 'DLL',        file_ext: 'docx', folder_path: 'Grade 8 › English › Quarter 1 › Daily Lesson Logs',   bookmark_count: 19 },
+      { item_name: 'Grade11_Math_Assessment.pdf', item_type: 'Assessment', file_ext: 'pdf',  folder_path: 'Grade 11 › Mathematics › Quarter 1 › Assessments',   bookmark_count: 15 },
+      { item_name: 'Grade7_MAPEH_Q2_Video.mp4',   item_type: 'Video',      file_ext: 'mp4',  folder_path: 'Grade 7 › MAPEH › Quarter 2 › Videos',               bookmark_count: 12 },
+      { item_name: 'Grade10_AP_Q3_SLM.pdf',       item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 10 › Araling Panlipunan › Quarter 3 › SLMs',   bookmark_count: 9  },
+      { item_name: 'Grade3_Science_Q1_TG.pdf',    item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 3 › Science › Quarter 1 › Teachers Guide',     bookmark_count: 7  },
+    ],
     folders: [
       { folder_path: 'Grade 6 › Science › Quarter 1 › SLMs',                   views: 210, downloads: 98 },
       { folder_path: 'Grade 4 › Mathematics › Quarter 2 › Teachers Guide',      views: 185, downloads: 87 },
@@ -130,15 +136,16 @@ async function get(endpoint) {
   return r.ok ? r.json() : null;
 }
 
-// Returns the currently-selected day window (0 = all time)
+// Returns the currently-selected day window.
+// "Today" is stored as value="1" (last 1 day), which tracker.php
+// handles correctly via  WHERE ts >= (now - 1*86400).
 function getDays() {
   const el = document.getElementById('date-range');
   return el ? parseInt(el.value, 10) || 0 : 30;
 }
 
-// Append &days=N (or nothing for all-time) to any endpoint that supports it
 function dq(base, days) {
-  if (!days) return base; // 0 = all time, no filter
+  if (!days) return base;
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}days=${days}`;
 }
@@ -147,8 +154,8 @@ async function fetchAllData() {
   const days = getDays();
 
   if (DEMO) {
-    // Re-generate demo trend data for the selected window
     const d = demoData();
+    // Re-generate trend for selected window
     d.trend = (function () {
       const n = days || 90;
       const labels = [], dl = [], vw = [];
@@ -161,31 +168,33 @@ async function fetchAllData() {
       }
       return { labels, dl, vw };
     })();
-    // Scale summary counts proportionally for demo when day window changes
-    const scale = days ? Math.min(days / 30, 1) : 1;
+    // Scale summary counts for short windows
     if (days && days < 30) {
-      d.summary.total_views     = Math.round(1847 * scale);
-      d.summary.total_downloads = Math.round(934  * scale);
-      d.summary.total_searches  = Math.round(276  * scale);
-      d.summary.total_sessions  = Math.round(389  * scale);
+      const scale = Math.min(days / 30, 1);
+      d.summary.total_views      = Math.round(1847 * scale);
+      d.summary.total_downloads  = Math.round(934  * scale);
+      d.summary.total_searches   = Math.round(276  * scale);
+      d.summary.total_sessions   = Math.round(389  * scale);
+      d.summary.total_bookmarks  = Math.round(183  * scale);
     }
     return d;
   }
 
-  // ── Live mode: pass days to every endpoint that supports it ──
-  const [summary, topDl, topVw, folders, types, grades, subjects, searches, trendRaw] = await Promise.all([
-    get(dq('',                        days)),   // summary (tracker.php supports ?days via WHERE ts>=)
+  // Live mode — fetch everything in parallel
+  // Note: top_bookmarked is ALL TIME (bookmark counts don't filter by date)
+  const [summary, topDl, topVw, folders, types, grades, subjects, searches, trendRaw, topBookmarked] = await Promise.all([
+    get(dq('',                                     days)),
     get(dq('?top&by=downloads&limit=8&withpath=1', days)),
     get(dq('?top&by=views&limit=8&withpath=1',     days)),
-    get(dq('?folders',                  days)),
-    get(dq('?by_type',                  days)),
-    get(dq('?by_grade',                 days)),
-    get(dq('?by_subject',               days)),
-    get(dq('?searches',                 days)),
-    get(dq('?trend',                    days)),
+    get(dq('?folders',                             days)),
+    get(dq('?by_type',                             days)),
+    get(dq('?by_grade',                            days)),
+    get(dq('?by_subject',                          days)),
+    get(dq('?searches',                            days)),
+    get(dq('?trend',                               days)),
+    get('?top_bookmarked&limit=8'),                       // always all-time
   ]);
 
-  // Convert daily trend rows → chart-ready arrays
   const trend = { labels: [], dl: [], vw: [] };
   if (Array.isArray(trendRaw)) {
     trendRaw.forEach(r => {
@@ -195,7 +204,7 @@ async function fetchAllData() {
     });
   }
 
-  return { summary, top_downloads: topDl, top_views: topVw, folders, types, grades, subjects, searches, trend };
+  return { summary, top_downloads: topDl, top_views: topVw, folders, types, grades, subjects, searches, trend, top_bookmarked: topBookmarked };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -203,11 +212,12 @@ async function fetchAllData() {
 // ═══════════════════════════════════════════════════════════════
 function renderMetrics(s) {
   if (!s) return;
-  document.getElementById('m-users').textContent     = (s.unique_users    ?? 0).toLocaleString();
-  document.getElementById('m-sessions').textContent  = (s.total_sessions  ?? 0).toLocaleString();
-  document.getElementById('m-views').textContent     = (s.total_views     ?? 0).toLocaleString();
-  document.getElementById('m-downloads').textContent = (s.total_downloads ?? 0).toLocaleString();
-  document.getElementById('m-searches').textContent  = (s.total_searches  ?? 0).toLocaleString();
+  document.getElementById('m-users').textContent     = (s.unique_users     ?? 0).toLocaleString();
+  document.getElementById('m-sessions').textContent  = (s.total_sessions   ?? 0).toLocaleString();
+  document.getElementById('m-views').textContent     = (s.total_views      ?? 0).toLocaleString();
+  document.getElementById('m-downloads').textContent = (s.total_downloads  ?? 0).toLocaleString();
+  document.getElementById('m-searches').textContent  = (s.total_searches   ?? 0).toLocaleString();
+  document.getElementById('m-bookmarks').textContent = (s.total_bookmarks  ?? 0).toLocaleString();
 }
 
 function typeBadge(type) {
@@ -226,12 +236,11 @@ function renderTopFiles(data, by) {
   const pillCls = by === 'downloads' ? 'pill-dl'  : 'pill-vw';
 
   document.getElementById('top-files-body').innerHTML = data.map((r, i) => {
-    const name    = r.item_name || '—';
+    const name      = r.item_name || '—';
     const shortName = name.length > 34 ? name.slice(0, 32) + '…' : name;
-    const val     = r[by] ?? 0;
-    const pct     = max > 0 ? Math.round(val / max * 100) : 0;
-    // folder path — strip the leading root segment for brevity
-    const rawPath = r.folder_path || '';
+    const val       = r[by] ?? 0;
+    const pct       = max > 0 ? Math.round(val / max * 100) : 0;
+    const rawPath   = r.folder_path || '';
     const pathParts = rawPath.split(' › ');
     const shortPath = pathParts.length > 1 ? pathParts.slice(1).join(' › ') : rawPath;
     const pathHtml  = rawPath
@@ -243,8 +252,7 @@ function renderTopFiles(data, by) {
            ${escHtml(shortPath.length > 42 ? '…' + shortPath.slice(-40) : shortPath)}
          </div>`
       : '';
-    // ext badge
-    const ext    = r.file_ext ? r.file_ext.toUpperCase() : '';
+    const ext      = r.file_ext ? r.file_ext.toUpperCase() : '';
     const extBadge = ext ? `<span class="ext-badge ext-${ext.toLowerCase()}">${ext}</span>` : '';
     return `<tr>
       <td class="rank">${i + 1}</td>
@@ -270,20 +278,6 @@ function switchTopTab(tab, el) {
   renderTopFiles(_topData[tab], tab);
 }
 
-/**
- * renderFolders — renders the top-folders table.
- *
- * folder_path is stored by analytics.js as the full breadcrumb trail,
- * e.g.  "Grade 6 › Science › Quarter 1 › SLMs"
- * This works whether the folder is 1 level or 6 levels deep — the full
- * path is always recorded, so nested subfolders are never lost.
- *
- * Display strategy:
- *   • Split on " › " to get individual segments
- *   • Show ALL segments (no truncation of the path itself)
- *   • Bold the last segment (the deepest/most-specific folder)
- *   • If the whole string is very long, let it word-wrap gracefully
- */
 function renderFolders(folders) {
   if (!Array.isArray(folders) || !folders.length) {
     document.getElementById('folder-body').innerHTML =
@@ -294,11 +288,10 @@ function renderFolders(folders) {
   const maxD = Math.max(...folders.map(f => f.downloads ?? 0));
 
   document.getElementById('folder-body').innerHTML = folders.map(f => {
-    const pV   = maxV > 0 ? Math.round((f.views     ?? 0) / maxV * 100) : 0;
-    const pD   = maxD > 0 ? Math.round((f.downloads ?? 0) / maxD * 100) : 0;
-    const raw  = f.folder_path || f.folder || '—';
+    const pV  = maxV > 0 ? Math.round((f.views     ?? 0) / maxV * 100) : 0;
+    const pD  = maxD > 0 ? Math.round((f.downloads ?? 0) / maxD * 100) : 0;
+    const raw = f.folder_path || f.folder || '—';
 
-    // Build styled path HTML: segments joined by styled › separators
     const segments = raw.split(' › ');
     const pathHtml = segments.map((seg, idx) => {
       const escaped = escHtml(seg.trim());
@@ -315,7 +308,7 @@ function renderFolders(folders) {
       <td>
         <span class="folder-path" title="${escHtml(raw)}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--amber)"
-               stroke-width="2" stroke-linecap="round" class="folder-icon"
+               stroke-width="2" stroke-linecap="round"
                style="display:inline-block;vertical-align:-2px;margin-right:4px;flex-shrink:0">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
           </svg>${pathHtml}
@@ -334,6 +327,56 @@ function renderFolders(folders) {
         </div>
       </td>
     </tr>`;
+  }).join('');
+}
+
+// ── Most Bookmarked Resources ─────────────────────────────────
+function renderBookmarks(data) {
+  const el = document.getElementById('bookmarks-list');
+  if (!el) return;
+
+  if (!Array.isArray(data) || !data.length) {
+    el.innerHTML = '<div class="empty">No bookmarks recorded yet — files appear here once teachers save them to My Library</div>';
+    return;
+  }
+
+  const max = Math.max(...data.map(r => r.bookmark_count ?? 0));
+
+  el.innerHTML = data.map((r, i) => {
+    const name      = r.item_name || '—';
+    const shortName = name.length > 50 ? name.slice(0, 48) + '…' : name;
+    const count     = r.bookmark_count ?? 0;
+    const pct       = max > 0 ? Math.round(count / max * 100) : 0;
+    const rawPath   = r.folder_path || '';
+    const pathParts = rawPath.split(' › ');
+    const shortPath = pathParts.length > 1 ? pathParts.slice(1).join(' › ') : rawPath;
+    const ext       = r.file_ext ? r.file_ext.toUpperCase() : '';
+    const extBadge  = ext ? `<span class="ext-badge ext-${ext.toLowerCase()}">${ext}</span>` : '';
+
+    // Gold / silver / bronze for top 3
+    const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+
+    return `<div class="bm-item">
+      <span class="bm-rank-num">${rankEmoji}</span>
+      <div class="bm-item-body">
+        <div class="bm-item-name" title="${escHtml(name)}">
+          ${escHtml(shortName)}
+          ${typeBadge(r.item_type)}${extBadge}
+        </div>
+        ${rawPath ? `<div class="bm-item-path">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--amber)"
+               stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;vertical-align:-1px;margin-right:3px">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>${escHtml(shortPath.length > 60 ? '…' + shortPath.slice(-58) : shortPath)}
+        </div>` : ''}
+      </div>
+      <div class="bm-bar-wrap">
+        <div class="bar-track" style="height:6px">
+          <div class="bar-fill" style="background:#D97706;width:${pct}%"></div>
+        </div>
+      </div>
+      <span class="bm-count-badge">🔖 ${count}</span>
+    </div>`;
   }).join('');
 }
 
@@ -374,14 +417,8 @@ function renderSearchTags(searches) {
 // ═══════════════════════════════════════════════════════════════
 //  CHARTS
 // ═══════════════════════════════════════════════════════════════
-
-// Safely destroy a chart and reset its canvas so Chart.js won't
-// complain about "canvas already in use" after a resize cycle.
 function destroyChart(chart, canvasId) {
-  if (chart) {
-    chart.destroy();
-  }
-  // Reset canvas dimensions so it repaints cleanly
+  if (chart) chart.destroy();
   const canvas = document.getElementById(canvasId);
   if (canvas) {
     canvas.style.width  = '';
@@ -413,8 +450,7 @@ function buildTrendChart(trend) {
       ],
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { font: { size: 10, family: 'DM Mono' }, maxTicksLimit: 8, color: '#9B9A95' }, grid: { display: false }, border: { display: false } },
@@ -444,9 +480,7 @@ function buildTypeChart(types) {
     type: 'doughnut',
     data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '66%',
+      responsive: true, maintainAspectRatio: false, cutout: '66%',
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} downloads` } },
@@ -467,14 +501,11 @@ function buildSubjectChart(subjects) {
       datasets: [{
         label: 'Downloads', data: vals,
         backgroundColor: 'rgba(37,99,235,.15)',
-        borderColor: '#2563EB', borderWidth: 1.5,
-        borderRadius: 5,
+        borderColor: '#2563EB', borderWidth: 1.5, borderRadius: 5,
       }],
     },
     options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         x: { ticks: { font: { size: 10, family: 'DM Mono' }, color: '#9B9A95' }, grid: { color: 'rgba(0,0,0,.05)' }, border: { display: false } },
@@ -514,16 +545,20 @@ async function loadAll() {
     };
     renderTopFiles(_topData[_topTab], _topTab);
 
-    if (d.folders)  renderFolders(d.folders);
-    if (d.grades)   renderGradeBars(d.grades);
-    if (d.searches) renderSearchTags(d.searches);
-    if (d.trend)    buildTrendChart(d.trend);
-    if (d.types)    buildTypeChart(d.types);
-    if (d.subjects) buildSubjectChart(d.subjects);
+    if (d.folders)         renderFolders(d.folders);
+    if (d.grades)          renderGradeBars(d.grades);
+    if (d.searches)        renderSearchTags(d.searches);
+    if (d.trend)           buildTrendChart(d.trend);
+    if (d.types)           buildTypeChart(d.types);
+    if (d.subjects)        buildSubjectChart(d.subjects);
+    renderBookmarks(d.top_bookmarked || []);
 
     const now = new Date();
     document.getElementById('last-updated').textContent =
       'Updated ' + now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+
+    loadDownloadLog();
+    loadUsers();
 
   } catch (err) {
     console.error('Dashboard load error:', err);
@@ -533,26 +568,60 @@ async function loadAll() {
 
 // Run on page load
 loadAll();
+
 // ═══════════════════════════════════════════════════════════════
-//  DOWNLOAD LOG — who downloaded what and when
+//  DOWNLOAD LOG
 // ═══════════════════════════════════════════════════════════════
-var _logData = [];
+var _logData  = [];
 var _logQuery = '';
 
 async function loadDownloadLog() {
-  var days = getDays();
-  var tbody = document.getElementById('log-body');
+  var days    = getDays();
+  var tbody   = document.getElementById('log-body');
   var countEl = document.getElementById('log-count');
   if (!tbody) return;
 
   tbody.innerHTML = '<tr><td colspan="5" class="empty"><div class="spinner" style="display:inline-block;margin-right:6px"></div>Loading\u2026</td></tr>';
 
-  try {
-    var url = TRACKER_URL + dq('?log&limit=500', days);
-    var r = await fetch(url);
-    _logData = r.ok ? await r.json() : [];
-  } catch (e) {
+  if (DEMO) {
+    // Generate realistic-looking demo log rows
+    var names  = ['Maria Santos','Jose Reyes','Ana Cruz','Pedro Lim','Rosa Garcia','Carlos Mendoza'];
+    var emails = ['maria.santos@deped.gov.ph','jose.reyes@deped.gov.ph','ana.cruz@deped.gov.ph',
+                  'pedro.lim@deped.gov.ph','rosa.garcia@deped.gov.ph','carlos.mendoza@deped.gov.ph'];
+    var files  = ['Grade6_Science_Q1_SLM.pdf','Grade4_Math_Q2_TG.pdf','Grade8_English_DLL_Q1.docx',
+                  'Grade10_AP_Q3_SLM.pdf','Kinder_Filipino_SLM.pdf','Grade7_MAPEH_Q2_Video.mp4'];
+    var types  = ['SLM','TG','DLL','SLM','SLM','Video'];
+    var exts   = ['pdf','pdf','docx','pdf','pdf','mp4'];
+    var paths  = [
+      'Grade 6 › Science › Quarter 1 › SLMs',
+      'Grade 4 › Mathematics › Quarter 2 › Teachers Guide',
+      'Grade 8 › English › Quarter 1 › Daily Lesson Logs',
+      'Grade 10 › Araling Panlipunan › Quarter 3 › SLMs',
+      'Kinder › Filipino › Quarter 1 › SLMs',
+      'Grade 7 › MAPEH › Quarter 2 › Videos',
+    ];
     _logData = [];
+    var limit = days === 1 ? 8 : 30;
+    for (var i = 0; i < limit; i++) {
+      var fi = i % files.length;
+      var ni = i % names.length;
+      var d  = new Date();
+      d.setMinutes(d.getMinutes() - i * (days === 1 ? 20 : 60));
+      _logData.push({
+        downloaded_at: d.toISOString().replace('T',' ').slice(0,19),
+        user_name:  names[ni], user_email: emails[ni],
+        item_name:  files[fi], item_type:  types[fi],
+        file_ext:   exts[fi],  folder_path: paths[fi],
+      });
+    }
+  } else {
+    try {
+      var url = TRACKER_URL + dq('?log&limit=500', days);
+      var r   = await fetch(url);
+      _logData = r.ok ? await r.json() : [];
+    } catch (e) {
+      _logData = [];
+    }
   }
 
   renderLogTable(_logQuery);
@@ -588,10 +657,9 @@ function renderLogTable(query) {
               + d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
     } catch(e2) {}
 
-    var name = r.item_name || '—';
+    var name      = r.item_name || '—';
     var shortName = name.length > 40 ? name.slice(0, 38) + '…' : name;
 
-    // Full name + email for accountability
     var user    = r.user_name  || '—';
     var email   = r.user_email || '';
     var initial = (user !== '—' ? user : email).charAt(0).toUpperCase() || '?';
@@ -602,13 +670,11 @@ function renderLogTable(query) {
       + (email ? '<span class="user-chip-email">' + escHtml(email) + '</span>' : '')
       + '</div></div>';
 
-    // Resource type badge + actual file extension badge
-    var ext = r.file_ext ? r.file_ext.toUpperCase() : '';
+    var ext      = r.file_ext ? r.file_ext.toUpperCase() : '';
     var extBadge = ext ? '<span class="ext-badge ext-' + r.file_ext.toLowerCase() + '">' + ext + '</span>' : '';
     var typeCombined = typeBadge(r.item_type) + extBadge;
 
-    // Folder path breadcrumb with folder icon
-    var path = r.folder_path || '—';
+    var path      = r.folder_path || '—';
     var pathParts = path.split(' › ');
     var shortPath = pathParts.length > 1 ? pathParts.slice(1).join(' › ') : path;
     if (shortPath.length > 50) shortPath = '…' + shortPath.slice(-48);
@@ -618,26 +684,124 @@ function renderLogTable(query) {
         + escHtml(shortPath) + '</span>'
       : '<span style="color:var(--text-3)">—</span>';
 
-    return '<tr>' +
-      '<td style="white-space:nowrap;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--text-3)">' + escHtml(display) + '</td>' +
-      '<td>' + userHtml + '</td>' +
-      '<td><span class="file-name" title="' + escHtml(name) + '">' + escHtml(shortName) + '</span></td>' +
-      '<td>' + typeCombined + '</td>' +
-      '<td>' + pathHtml + '</td>' +
-      '</tr>';
+    return '<tr>'
+      + '<td style="white-space:nowrap;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--text-3)">' + escHtml(display) + '</td>'
+      + '<td>' + userHtml + '</td>'
+      + '<td><span class="file-name" title="' + escHtml(name) + '">' + escHtml(shortName) + '</span></td>'
+      + '<td>' + typeCombined + '</td>'
+      + '<td>' + pathHtml + '</td>'
+      + '</tr>';
   }).join('');
 }
 
-// Wire log search input
+// Wire log search
 (function() {
   var si = document.getElementById('log-search');
-  if (si) {
-    si.addEventListener('input', function(e) {
-      _logQuery = e.target.value;
-      renderLogTable(_logQuery);
-    });
-  }
+  if (si) si.addEventListener('input', function(e) { _logQuery = e.target.value; renderLogTable(_logQuery); });
 })();
 
-// Also load log on page init
 loadDownloadLog();
+
+// ═══════════════════════════════════════════════════════════════
+//  USERS TABLE
+// ═══════════════════════════════════════════════════════════════
+var _usersData  = [];
+var _usersQuery = '';
+
+async function loadUsers() {
+  var days    = getDays();
+  var tbody   = document.getElementById('users-body');
+  var countEl = document.getElementById('users-count');
+  if (!tbody) return;
+
+  // colspan is now 8 (added Bookmarks column)
+  tbody.innerHTML = '<tr><td colspan="8" class="empty"><div class="spinner" style="display:inline-block;margin-right:6px"></div>Loading\u2026</td></tr>';
+
+  if (DEMO) {
+    _usersData = [
+      { user_name: 'Maria Santos',   user_email: 'maria.santos@deped.gov.ph',   sessions: 12, file_views: 48, downloads: 21, bookmarks: 9,  searches: 9,  last_seen: '2025-05-12 09:14:00' },
+      { user_name: 'Jose Reyes',     user_email: 'jose.reyes@deped.gov.ph',     sessions: 8,  file_views: 31, downloads: 15, bookmarks: 6,  searches: 6,  last_seen: '2025-05-11 14:32:00' },
+      { user_name: 'Ana Cruz',       user_email: 'ana.cruz@deped.gov.ph',       sessions: 6,  file_views: 22, downloads: 10, bookmarks: 4,  searches: 4,  last_seen: '2025-05-10 11:05:00' },
+      { user_name: 'Pedro Lim',      user_email: 'pedro.lim@deped.gov.ph',      sessions: 5,  file_views: 19, downloads: 8,  bookmarks: 3,  searches: 3,  last_seen: '2025-05-09 16:44:00' },
+      { user_name: 'Rosa Garcia',    user_email: 'rosa.garcia@deped.gov.ph',    sessions: 4,  file_views: 14, downloads: 6,  bookmarks: 2,  searches: 2,  last_seen: '2025-05-08 08:21:00' },
+      { user_name: 'Carlos Mendoza', user_email: 'carlos.mendoza@deped.gov.ph', sessions: 3,  file_views: 9,  downloads: 4,  bookmarks: 1,  searches: 1,  last_seen: '2025-05-07 13:57:00' },
+      { user_name: 'Linda Torres',   user_email: 'linda.torres@deped.gov.ph',   sessions: 2,  file_views: 5,  downloads: 2,  bookmarks: 0,  searches: 0,  last_seen: '2025-05-06 10:30:00' },
+    ];
+  } else {
+    try {
+      var url = TRACKER_URL + dq('?users&limit=500', days);
+      var r   = await fetch(url);
+      _usersData = r.ok ? await r.json() : [];
+    } catch (e) {
+      _usersData = [];
+    }
+  }
+
+  renderUsersTable(_usersQuery);
+  if (countEl) countEl.textContent = _usersData.length;
+}
+
+function renderUsersTable(query) {
+  var tbody = document.getElementById('users-body');
+  if (!tbody) return;
+
+  var q = (query || '').toLowerCase().trim();
+  var filtered = q
+    ? _usersData.filter(function(r) {
+        return (r.user_name  || '').toLowerCase().includes(q) ||
+               (r.user_email || '').toLowerCase().includes(q);
+      })
+    : _usersData;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">'
+      + (q ? 'No matching users' : 'No users recorded yet — users appear here once they sign in to the portal')
+      + '</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(r, i) {
+    var user    = r.user_name  || '—';
+    var email   = r.user_email || '';
+    var initial = (user !== '—' ? user : email).charAt(0).toUpperCase() || '?';
+
+    var userHtml = '<div class="user-chip">'
+      + '<span class="user-avatar-sm">' + escHtml(initial) + '</span>'
+      + '<div class="user-chip-info">'
+      + '<span class="user-chip-name">' + escHtml(user) + '</span>'
+      + (email ? '<span class="user-chip-email">' + escHtml(email) + '</span>' : '')
+      + '</div></div>';
+
+    var ls = r.last_seen || '';
+    var lsDisplay = ls;
+    try {
+      var d = new Date(ls.replace(' ', 'T'));
+      lsDisplay = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+                + ' · '
+                + d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+    } catch(e2) {}
+
+    var sessionClass  = (r.sessions  || 0) >= 3  ? 'count-pill pill-vw' : '';
+    var bookmarkCount = r.bookmarks  || 0;
+    var bmClass       = bookmarkCount > 0 ? 'count-pill pill-bm' : '';
+
+    return '<tr>'
+      + '<td class="rank">' + (i + 1) + '</td>'
+      + '<td>' + userHtml + '</td>'
+      + '<td style="text-align:right"><span class="' + sessionClass + '">' + (r.sessions || 0) + '</span></td>'
+      + '<td style="text-align:right">' + (r.file_views || 0) + '</td>'
+      + '<td style="text-align:right"><span class="count-pill pill-dl">' + (r.downloads || 0) + '</span></td>'
+      + '<td style="text-align:right"><span class="' + bmClass + '">' + bookmarkCount + '</span></td>'
+      + '<td style="text-align:right">' + (r.searches || 0) + '</td>'
+      + '<td style="white-space:nowrap;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--text-3)">' + escHtml(lsDisplay) + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+// Wire users search
+(function() {
+  var si = document.getElementById('users-search');
+  if (si) si.addEventListener('input', function(e) { _usersQuery = e.target.value; renderUsersTable(_usersQuery); });
+})();
+
+loadUsers();

@@ -117,7 +117,7 @@
   <div class="gateway-grid">
 
     <!-- OneDrive → prototype2.php -->
-    <a class="gateway-card" href="prototype2.php">
+    <a class="gateway-card" href="/LRMDS/deped-lrmds-portal/onedrive/index.php">
       <div class="gc-icon">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M10.5 13.5H17.5C19.433 13.5 21 11.933 21 10C21 8.29 19.766 6.865 18.136 6.553C17.532 4.522 15.662 3 13.4 3C11.513 3 9.871 4.077 9.038 5.648C7.317 5.965 6 7.476 6 9.25C6 11.321 7.679 13 9.75 13L10.5 13.5Z" fill="#0078D4"/>

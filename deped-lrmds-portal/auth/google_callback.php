@@ -24,7 +24,13 @@ session_start();
 // ── Same constants as google_oauth.php ──────────────────────
 define('GOOGLE_CLIENT_ID',     getenv('GOOGLE_CLIENT_ID'));
 define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
-define('GOOGLE_REDIRECT_URI',  'http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php');
+
+// Must match exactly what google_oauth.php sends — built from the same request host.
+define('GOOGLE_REDIRECT_URI', (function () {
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    return $scheme . '://' . $host . '/LRMDS/deped-lrmds-portal/auth/google_callback.php';
+})());
 
 // ── DB ───────────────────────────────────────────────────────
 define('DB_HOST',    'localhost');

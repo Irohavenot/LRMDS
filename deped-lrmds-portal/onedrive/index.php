@@ -26,7 +26,6 @@
     <h1>DepEd Carcar City LRMDS</h1>
     <p>Sign in with your Microsoft / DepEd account to browse and download learning resources.</p>
     <button class="ms-login-btn" id="login-btn">
-      <!-- Microsoft "M" icon (inline SVG, no external IP) -->
       <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
         <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
@@ -58,6 +57,11 @@
       <nav class="header-nav">
         <a class="nav-link" href="#">Home</a>
         <a class="nav-link active" href="#">Resources</a>
+        <!--
+          The "🔖 My Library" nav link is injected here automatically
+          by analytics.js after the user signs in (initLibraryTab).
+          No static entry needed — it will appear once currentUser is set.
+        -->
       </nav>
       <div class="user-pill">
         <div class="user-avatar" id="user-initial">?</div>
@@ -125,6 +129,7 @@
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       Files load live from OneDrive via Microsoft Graph API. Search scans all subfolders automatically.
+      Use the <strong>🔖 My Library</strong> button on any file to save it for quick access.
     </div>
 
     <!-- Breadcrumb -->
@@ -184,7 +189,7 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- App logic — load prototype2 first, then analytics (analytics wraps its globals) -->
+<!-- App logic — load prototype2 first, then analytics -->
 <script src="../assets/js/prototype2.js"></script>
 <script src="../assets/js/analytics.js"></script>
 </body>

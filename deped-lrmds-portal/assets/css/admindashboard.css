@@ -209,7 +209,7 @@ select.select {
 /* ── Metric cards ── */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -357,6 +357,7 @@ select.select {
 }
 .pill-dl { background: var(--blue-t); color: var(--blue); }
 .pill-vw { background: var(--green-lt); color: var(--green); }
+.pill-bm { background: #FFF7ED; color: #D97706; }
 
 /* ── Bar in table ── */
 .inline-bar { display: flex; align-items: center; gap: 8px; }
