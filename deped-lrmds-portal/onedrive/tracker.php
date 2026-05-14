@@ -86,6 +86,7 @@ $pdo->exec(<<<SQL
         item_name TEXT,
         views     INTEGER NOT NULL DEFAULT 0,
         downloads INTEGER NOT NULL DEFAULT 0,
+        bookmarks INTEGER NOT NULL DEFAULT 0,
         last_view INTEGER,
         last_dl   INTEGER
     );
@@ -116,6 +117,28 @@ $pdo->exec(<<<SQL
             last_dl   = strftime('%s','now');
     END;
 
+    -- Increment bookmark counter when saved to My Library
+    CREATE TRIGGER IF NOT EXISTS trg_bookmark_add
+    AFTER INSERT ON events
+    WHEN NEW.event = 'bookmark_add' AND NEW.item_id IS NOT NULL
+    BEGIN
+        INSERT INTO file_stats (item_id, item_name, bookmarks)
+            VALUES (NEW.item_id, NEW.item_name, 1)
+        ON CONFLICT(item_id) DO UPDATE SET
+            bookmarks = bookmarks + 1,
+            item_name = COALESCE(NEW.item_name, item_name);
+    END;
+
+    -- Decrement bookmark counter (floor at 0) when removed from My Library
+    CREATE TRIGGER IF NOT EXISTS trg_bookmark_remove
+    AFTER INSERT ON events
+    WHEN NEW.event = 'bookmark_remove' AND NEW.item_id IS NOT NULL
+    BEGIN
+        UPDATE file_stats
+        SET bookmarks = MAX(0, bookmarks - 1)
+        WHERE item_id = NEW.item_id;
+    END;
+
     CREATE INDEX IF NOT EXISTS idx_events_session  ON events(session_id);
     CREATE INDEX IF NOT EXISTS idx_events_item     ON events(item_id);
     CREATE INDEX IF NOT EXISTS idx_events_event    ON events(event);
@@ -123,7 +146,8 @@ $pdo->exec(<<<SQL
 SQL);
 
 // Migrate existing databases — ADD COLUMN is idempotent via try/catch
-foreach (['ALTER TABLE events ADD COLUMN file_ext TEXT', 'ALTER TABLE events ADD COLUMN user_email TEXT'] as $_sql) {
+foreach (['ALTER TABLE events ADD COLUMN file_ext TEXT', 'ALTER TABLE events ADD COLUMN user_email TEXT',
+          'ALTER TABLE file_stats ADD COLUMN bookmarks INTEGER NOT NULL DEFAULT 0'] as $_sql) {
     try { $pdo->exec($_sql); } catch (Exception $_e) { /* column already exists */ }
 }
 
@@ -350,6 +374,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    // ── Most bookmarked files  →  tracker.php?top_bookmarked&limit=8 ──────────
+    if (isset($_GET['top_bookmarked'])) {
+        $limit = min((int)($_GET['limit'] ?? 8), 100);
+        $stmt  = $pdo->prepare("
+            SELECT
+                fs.item_id,
+                fs.item_name,
+                fs.bookmarks                                                                                    AS bookmark_count,
+                (SELECT e.item_type   FROM events e WHERE e.item_id = fs.item_id AND e.item_type   IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS item_type,
+                (SELECT e.file_ext    FROM events e WHERE e.item_id = fs.item_id AND e.file_ext    IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS file_ext,
+                (SELECT e.folder_path FROM events e WHERE e.item_id = fs.item_id AND e.folder_path IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS folder_path
+            FROM file_stats fs
+            WHERE fs.bookmarks > 0
+            ORDER BY fs.bookmarks DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+    }
+
     // Default: return aggregated summary for a dashboard (with optional days filter)
     [$df, $cutoff] = days_filter();
     $params = $cutoff ? [$cutoff, $cutoff, $cutoff, $cutoff, $cutoff] : [];
@@ -360,7 +405,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             (SELECT COUNT(*) FROM events WHERE event = 'file_view' {$w}) AS total_views,
             (SELECT COUNT(*) FROM events WHERE event = 'file_download' {$w}) AS total_downloads,
             (SELECT COUNT(*) FROM events WHERE event = 'search' {$w}) AS total_searches,
-            (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL {$w}) AS unique_users
+            (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL {$w}) AS unique_users,
+            (SELECT COALESCE(SUM(bookmarks), 0) FROM file_stats) AS total_bookmarks
     ");
     $summary->execute($params);
     echo json_encode($summary->fetch(PDO::FETCH_ASSOC));
@@ -387,7 +433,7 @@ if (!$data || empty($data['event'])) {
 }
 
 // Allowed event types (whitelist)
-$allowed_events = ['page_view', 'file_view', 'file_download', 'folder_open', 'search', 'session_end'];
+$allowed_events = ['page_view', 'file_view', 'file_download', 'folder_open', 'search', 'session_end', 'bookmark_add', 'bookmark_remove'];
 if (!in_array($data['event'], $allowed_events, true)) {
     http_response_code(400);
     echo json_encode(['error' => 'Unknown event type']);
@@ -444,6 +490,13 @@ $stmt->execute([
 
 // For file events, return the updated counts so analytics.js can show them live
 $response = ['ok' => true, 'id' => $pdo->lastInsertId()];
+// Return updated counts so the badge refreshes immediately without a second fetch
+if (in_array($event, ['file_view', 'file_download', 'bookmark_add', 'bookmark_remove'], true) && $item_id) {
+    $cs = $pdo->prepare('SELECT views, downloads, bookmarks FROM file_stats WHERE item_id = ?');
+    $cs->execute([$item_id]);
+    $counts = $cs->fetch(PDO::FETCH_ASSOC);
+    if ($counts) $response['counts'] = $counts;
+}
 if (in_array($event, ['file_view', 'file_download'], true) && $item_id) {
     $cs = $pdo->prepare('SELECT views, downloads FROM file_stats WHERE item_id = ?');
     $cs->execute([$item_id]);

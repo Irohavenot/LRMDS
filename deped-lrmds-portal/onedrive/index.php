@@ -192,5 +192,30 @@
 <!-- App logic — load prototype2 first, then analytics -->
 <script src="../assets/js/prototype2.js"></script>
 <script src="../assets/js/analytics.js"></script>
+<script>
+/* ── Auto-preview: triggered when navigating from admin dashboard top-files ── */
+(function () {
+  const raw = sessionStorage.getItem('lrmds_preview_item');
+  if (!raw) return;
+  // Only consume if the URL hash matches
+  if (!window.location.hash.startsWith('#preview=')) return;
+  sessionStorage.removeItem('lrmds_preview_item');
+  try {
+    const item = JSON.parse(raw);
+    // Wait until prototype2.js has initialised openPreview (after sign-in)
+    const MAX_WAIT = 15000;
+    const start    = Date.now();
+    const poll     = setInterval(() => {
+      if (typeof window.openPreview === 'function' && window.currentUser) {
+        clearInterval(poll);
+        // Small delay so the folder renders first
+        setTimeout(() => window.openPreview(item), 800);
+      } else if (Date.now() - start > MAX_WAIT) {
+        clearInterval(poll);
+      }
+    }, 200);
+  } catch (_) {}
+})();
+</script>
 </body>
 </html>

@@ -567,3 +567,43 @@ select.select {
   display: block;
   font-family: 'DM Mono', monospace;
 }
+/* ── Prototype label tag ─────────────────────────────────────── */
+.proto-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #92400E;
+  background: #FEF3C7;
+  border: 1px solid #FDE68A;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+}
+
+/* ── Clickable top-file rows ─────────────────────────────────── */
+.top-file-row {
+  cursor: pointer;
+  transition: background .12s;
+}
+.top-file-row:hover {
+  background: var(--blue-lt, #EFF6FF);
+}
+.top-file-row:hover .file-name {
+  color: var(--blue, #2563EB);
+  text-decoration: underline;
+}
+
+/* ── Sticky thead for scrollable table-wrap ──────────────────── */
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface, #fff);
+  z-index: 1;
+  box-shadow: 0 1px 0 var(--border, #E5E7EB);
+}

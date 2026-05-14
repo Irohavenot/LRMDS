@@ -518,6 +518,14 @@ function buildSubjectChart(subjects) {
 // ═══════════════════════════════════════════════════════════════
 //  UTILITIES
 // ═══════════════════════════════════════════════════════════════
+function _guessMime(ext) {
+  const m = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    doc: 'application/msword', mp4: 'video/mp4', mp3: 'audio/mpeg',
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', xlsx: 'application/vnd.ms-excel',
+    pptx: 'application/vnd.ms-powerpoint' };
+  return m[(ext || '').toLowerCase()] || '';
+}
+
 function escHtml(str) {
   if (!str) return '';
   return String(str)
@@ -568,6 +576,60 @@ async function loadAll() {
 
 // Run on page load
 loadAll();
+
+// ── Live metric refresh ───────────────────────────────────────
+// Re-fetch only the summary every 30 s and animate any changed values.
+// Full data reload (charts etc.) still happens on date-range change.
+(function startLiveRefresh() {
+  const INTERVAL = 30_000; // 30 seconds
+
+  function animateCounter(el, newVal) {
+    const oldVal = parseInt(el.textContent.replace(/,/g, ''), 10) || 0;
+    if (oldVal === newVal || isNaN(newVal)) { el.textContent = newVal.toLocaleString(); return; }
+    const step  = newVal > oldVal ? 1 : -1;
+    const range = Math.abs(newVal - oldVal);
+    const delay = Math.max(8, Math.min(40, Math.round(600 / range)));
+    let cur = oldVal;
+    const tick = () => {
+      cur += step;
+      el.textContent = cur.toLocaleString();
+      if (cur !== newVal) setTimeout(tick, delay);
+    };
+    setTimeout(tick, delay);
+  }
+
+  async function refreshMetrics() {
+    try {
+      const days = getDays();
+      const r    = await fetch(TRACKER_URL + dq('', days));
+      if (!r.ok) return;
+      const s = await r.json();
+      if (!s) return;
+
+      const ids = {
+        'm-users':     s.unique_users,
+        'm-sessions':  s.total_sessions,
+        'm-views':     s.total_views,
+        'm-downloads': s.total_downloads,
+        'm-searches':  s.total_searches,
+        'm-bookmarks': s.total_bookmarks,
+      };
+      for (const [id, val] of Object.entries(ids)) {
+        const el = document.getElementById(id);
+        if (el && val != null) animateCounter(el, parseInt(val, 10) || 0);
+      }
+
+      // Also refresh the last-updated timestamp subtly
+      const ts = document.getElementById('last-updated');
+      if (ts) {
+        const now = new Date();
+        ts.textContent = 'Updated ' + now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch (_) {}
+  }
+
+  setInterval(refreshMetrics, INTERVAL);
+})();
 
 // ═══════════════════════════════════════════════════════════════
 //  DOWNLOAD LOG

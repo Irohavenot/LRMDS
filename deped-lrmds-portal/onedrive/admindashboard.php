@@ -462,7 +462,7 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
               <button class="tab"        onclick="switchTopTab('views',this)">Views</button>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
             <table class="data-table">
               <thead>
                 <tr>
@@ -483,7 +483,7 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
               </div>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap" style="max-height:360px;overflow-y:auto;">
             <table class="data-table">
               <thead>
                 <tr>
@@ -520,8 +520,8 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
         <div class="card">
           <div class="card-head">
             <div>
-              <div class="card-title">Downloads by grade</div>
-              <div class="card-subtitle">Distribution across grade levels</div>
+              <div class="card-title">Downloads by grade <span class="proto-tag">Prototype</span></div>
+              <div class="card-subtitle">Distribution across grade levels · inferred from active filters at download time</div>
             </div>
           </div>
           <div id="grade-bars"></div>
@@ -540,8 +540,8 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
         <div class="card">
           <div class="card-head">
             <div>
-              <div class="card-title">Downloads by subject</div>
-              <div class="card-subtitle">Horizontal breakdown</div>
+              <div class="card-title">Downloads by subject <span class="proto-tag">Prototype</span></div>
+              <div class="card-subtitle">Inferred from active filters at download time</div>
             </div>
           </div>
           <div class="chart-wrap" style="height:200px">
