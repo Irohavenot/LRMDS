@@ -139,7 +139,7 @@ async function getSharedRoot() {
 
   if (!SHARED_FOLDER_URL || SHARED_FOLDER_URL === 'PASTE_YOUR_SHARE_LINK_HERE') {
     throw new Error(
-      'No share link configured. Paste your OneDrive "Anyone" link into SHARED_FOLDER_URL in prototype2.js.'
+      'No share link configured. Paste your OneDrive "Anyone" link into SHARED_FOLDER_URL in onedrive.js.'
     );
   }
 

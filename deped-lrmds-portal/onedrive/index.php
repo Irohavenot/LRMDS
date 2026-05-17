@@ -8,7 +8,7 @@
 <!-- MSAL 2 — Microsoft Authentication Library (CDN, no server needed) -->
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 
-<link rel="stylesheet" href="../assets/css/prototype2.css"/>
+<link rel="stylesheet" href="../assets/css/onedrive.css"/>
 </head>
 <body>
 
@@ -190,7 +190,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- App logic — load prototype2 first, then analytics -->
-<script src="../assets/js/prototype2.js"></script>
+<script src="../assets/js/onedrive.js"></script>
 <script src="../assets/js/analytics.js"></script>
 <script>
 /* ── Auto-preview: triggered when navigating from admin dashboard top-files ── */
@@ -202,7 +202,7 @@
   sessionStorage.removeItem('lrmds_preview_item');
   try {
     const item = JSON.parse(raw);
-    // Wait until prototype2.js has initialised openPreview (after sign-in)
+    // Wait until onedrive.js has initialised openPreview (after sign-in)
     const MAX_WAIT = 15000;
     const start    = Date.now();
     const poll     = setInterval(() => {
