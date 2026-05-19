@@ -94,10 +94,8 @@
           Main Site
         </a>
 
-        <a class="nav-link active" href="#">Resources</a>
-
         <!--
-          The "🔖 My Library" nav link is injected here automatically
+          The "My Library" nav link is injected here automatically
           by analytics.js after the user signs in (initLibraryTab).
           No static entry needed — it will appear once currentUser is set.
         -->
@@ -191,7 +189,7 @@
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
       Files load live from OneDrive via Microsoft Graph API. Search scans all subfolders automatically.
-      Use the <strong>🔖 My Library</strong> button on any file to save it for quick access.
+      Use the <strong>Save to My Library</strong> button (📄 icon) on any file card to save it for quick access.
     </div>
 
     <!-- Breadcrumb -->
@@ -239,8 +237,9 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- App logic — load prototype2 first, then analytics -->
+<!-- App logic — load onedrive first, then library, then analytics -->
 <script src="../assets/js/onedrive.js"></script>
+<script src="../assets/js/mylibrary.js"></script>
 <script src="../assets/js/analytics.js"></script>
 <script>
 /* ── Auto-preview: triggered when navigating from admin dashboard top-files ── */

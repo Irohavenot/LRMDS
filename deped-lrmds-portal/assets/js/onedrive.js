@@ -99,7 +99,17 @@ async function acquireTokenSilently() {
 }
 
 loginBtn.addEventListener('click', () => msalInstance.loginRedirect(loginRequest));
-logoutBtn.addEventListener('click', () => msalInstance.logoutRedirect({ postLogoutRedirectUri: REDIRECT_URI }));
+
+logoutBtn.addEventListener('click', () => {
+  if (!confirm('Sign out of DepEd Carcar City LRMDS?\n\nYou will be returned to the sign-in page.')) return;
+  // Clear MSAL session without hitting Microsoft's logout page,
+  // then redirect to our own login screen.
+  msalInstance.clearCache();
+  currentUser  = null;
+  accessToken  = null;
+  // Hard redirect to the sign-in page
+  window.location.href = window.location.pathname;
+});
 
 function showApp() {
   loginScreen.classList.add('hidden');
@@ -297,13 +307,18 @@ async function openPreview(item) {
         <div class="preview-header">
           <div class="preview-title-wrap">
             <span class="preview-icon" id="preview-icon"></span>
-            <div>
+            <div class="preview-title-info">
               <div class="preview-filename" id="preview-filename"></div>
+              <div class="preview-path-row" id="preview-path-row"></div>
               <div class="preview-filemeta" id="preview-filemeta"></div>
             </div>
           </div>
           <div class="preview-actions">
             <span class="preview-cache-badge" id="preview-cache-badge" title="Instant — loaded from cache">⚡ Cached</span>
+            <button class="button ghost small preview-save-btn" id="preview-save-btn" title="Save to My Library">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+              Save to Library
+            </button>
             <a id="preview-open-btn" class="button ghost small" target="_blank" rel="noopener">Open ↗</a>
             <button class="button primary small" id="preview-dl-btn">⬇ Download</button>
             <button class="preview-close" id="preview-close" title="Close">✕</button>
@@ -322,10 +337,75 @@ async function openPreview(item) {
   const meta = item._meta || parseFileMeta(item);
   document.getElementById('preview-icon').textContent     = mimeIcon(item.file?.mimeType);
   document.getElementById('preview-filename').textContent = item.name;
+
+  // ── Full folder path row with collapsible overflow ──────────
+  const pathRow = document.getElementById('preview-path-row');
+  const pathSegments = item._folderPath || (meta.grade || meta.subject
+    ? [ONEDRIVE_ROOT_FOLDER].concat([meta.grade, meta.subject].filter(Boolean))
+    : [ONEDRIVE_ROOT_FOLDER]);
+
+  if (pathSegments.length > 3) {
+    // Show first + ellipsis chevron + last two
+    const collapsed = pathSegments.slice(1, -2);
+    const visible   = pathSegments.slice(-2);
+    pathRow.innerHTML = `
+      <span class="ppath-seg">${escHtml(pathSegments[0])}</span>
+      <span class="ppath-sep">›</span>
+      <button class="ppath-more" id="ppath-more-btn" title="${escHtml(collapsed.join(' › '))}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        ${collapsed.length} more
+      </button>
+      <span class="ppath-sep">›</span>
+      ${visible.map((s, i) => `<span class="ppath-seg">${escHtml(s)}</span>${i < visible.length - 1 ? '<span class="ppath-sep">›</span>' : ''}`).join('')}
+      <div class="ppath-expanded hidden" id="ppath-expanded">
+        ${pathSegments.map((s, i) => `<span class="ppath-seg">${escHtml(s)}</span>${i < pathSegments.length - 1 ? '<span class="ppath-sep">›</span>' : ''}`).join('')}
+      </div>`;
+    const moreBtn = document.getElementById('ppath-more-btn');
+    if (moreBtn) moreBtn.addEventListener('click', () => {
+      const exp = document.getElementById('ppath-expanded');
+      if (exp) exp.classList.toggle('hidden');
+      moreBtn.classList.toggle('active');
+    });
+  } else {
+    pathRow.innerHTML = pathSegments
+      .map((s, i) => `<span class="ppath-seg">${escHtml(s)}</span>${i < pathSegments.length - 1 ? '<span class="ppath-sep">›</span>' : ''}`)
+      .join('');
+  }
+
   document.getElementById('preview-filemeta').textContent =
-    [meta.grade, meta.subject, meta.quarter, formatSize(item.size)].filter(Boolean).join(' · ');
+    [meta.quarter, formatSize(item.size)].filter(Boolean).join(' · ');
   document.getElementById('preview-open-btn').href        = item.webUrl;
   document.getElementById('preview-dl-btn').onclick       = () => downloadFile(item.id, item.name);
+
+  // ── Save to Library button in preview ───────────────────────
+  const saveBtn = document.getElementById('preview-save-btn');
+  if (saveBtn) {
+    const _updateSaveBtn = (saved) => {
+      saveBtn.classList.toggle('preview-save-btn--saved', saved);
+      saveBtn.innerHTML = saved
+        ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Saved`
+        : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Save to Library`;
+      saveBtn.title = saved ? 'Remove from My Library' : 'Save to My Library';
+    };
+    const isSaved = window.LRMDS_Analytics?.isBookmarked?.(item.id) || false;
+    _updateSaveBtn(isSaved);
+    // Replace old listener cleanly
+    const newSaveBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+    _updateSaveBtn(isSaved); // re-apply to new node
+    newSaveBtn.addEventListener('click', () => {
+      if (window.LRMDS_Analytics?.toggleBookmark) {
+        window.LRMDS_Analytics.toggleBookmark(item);
+        const nowSaved = window.LRMDS_Analytics.isBookmarked(item.id);
+        _updateSaveBtn.call(null, nowSaved); // won't work — new ref; do inline:
+        newSaveBtn.classList.toggle('preview-save-btn--saved', nowSaved);
+        newSaveBtn.innerHTML = nowSaved
+          ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Saved`
+          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Save to Library`;
+        newSaveBtn.title = nowSaved ? 'Remove from My Library' : 'Save to My Library';
+      }
+    });
+  }
 
   const fromCache = previewCache.has(item.id);
   const badge     = document.getElementById('preview-cache-badge');
@@ -1098,6 +1178,16 @@ async function downloadFile(itemId, fileName) {
     showToast(`Download failed: ${e.message}`);
   }
 }
+
+// ── Main Site link — confirm before leaving ───────────────────
+document.addEventListener('click', e => {
+  const link = e.target.closest('.return-link');
+  if (!link) return;
+  e.preventDefault();
+  if (confirm('Leave DepEd Carcar City LRMDS and return to the main site?')) {
+    window.location.href = link.href;
+  }
+});
 
 // ── Breadcrumb ────────────────────────────────────────────────
 function updateBreadcrumb(currentName) {
