@@ -85,7 +85,7 @@
   </div>
 </section>
 
-<section class="section container" data-carousel>
+<section class="section container section-bg" data-carousel>
   <h2>Featured Collections</h2>
   <div style="display:flex;gap:8px;margin-bottom:8px">
     <button class="button ghost" type="button" data-left>◀</button>
@@ -119,7 +119,7 @@
   </div>
 </section>
 
-<section class="section container">
+<section class="section container section-bg">
   <h2>Quick Actions</h2>
   <div class="grid">
     <a class="action" href="search.php?type=DLL"><img src="assets/icons/calendar.svg" alt=""/><div><div class="title">DLL / DLP</div><div class="desc">Daily lesson plans</div></div></a>
@@ -134,7 +134,7 @@
   </div>
 </section>
 
-<section class="section container">
+<section class="section container section-bg">
   <h2>Announcements & Advisories</h2>
   <div class="announcements">
     <div class="announcement">
@@ -147,7 +147,7 @@
     </div>
   </div>
 </section>
-<section class="section container" aria-label="Site statistics">
+<section class="section container section-bg" aria-label="Site statistics">
   <h2>Site Activity</h2>
   <div class="site-stats-row">
  
@@ -197,7 +197,7 @@
   </div>
 </section>
 
-<section class="section container" aria-label="Regions & Divisions selector">
+<section class="section container section-bg" aria-label="Regions & Divisions selector">
   <h2>Regions & Divisions</h2>
   <div class="region-select">
     <label for="region">Region</label>

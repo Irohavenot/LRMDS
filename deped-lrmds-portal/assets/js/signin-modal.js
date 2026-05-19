@@ -109,14 +109,20 @@
 
               /* SSO */
               '<div class="sm-sso-row">',
-                '<button type="button" class="sm-sso-btn" id="smBtnDepedSSO">',
-                  '<img src="assets/img/logo.svg" alt=""/>',
-                  'DepEd SSO',
-                '</button>',
-                '<button type="button" class="sm-sso-btn" id="smBtnGoogle">',
-                  '<svg width="17" height="17" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/></svg>',
-                  'Google Workspace',
-                '</button>',
+                '<div style="display:flex;flex-direction:column;gap:4px">',
+                  '<span style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:center">To access OneDrive</span>',
+                  '<button type="button" class="sm-sso-btn" id="smBtnDepedSSO">',
+                    '<img src="assets/img/logo.svg" alt=""/>',
+                    'DepEd SSO',
+                  '</button>',
+                '</div>',
+                '<div style="display:flex;flex-direction:column;gap:4px">',
+                  '<span style="font-size:10px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;text-align:center">Google account</span>',
+                  '<button type="button" class="sm-sso-btn" id="smBtnGoogle">',
+                    '<svg width="17" height="17" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23Z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53Z"/></svg>',
+                    'Google Workspace',
+                  '</button>',
+                '</div>',
               '</div>',
 
               '<p class="sm-register">Don\'t have an account? <a class="sm-link" href="registration/register.php">Register here</a></p>',
@@ -373,9 +379,86 @@ function showGeneralError(msg) {
   });
 
   /* ─── 10. SSO buttons ────────────────────────────────────── */
+
+  /* ── DepEd SSO → OneDrive Resource Repository ── */
   var depedBtn = document.getElementById('smBtnDepedSSO');
   depedBtn && depedBtn.addEventListener('click', function () {
-    alert('DepEd SSO is not yet implemented in this prototype.');
+
+    // Inject the confirmation popup if it doesn't exist yet
+    if (!document.getElementById('onedriveConfirmOverlay')) {
+      var html =
+        '<div id="onedriveConfirmOverlay" style="' +
+          'position:fixed;inset:0;z-index:99999;' +
+          'background:rgba(5,20,45,.6);backdrop-filter:blur(4px);' +
+          'display:flex;align-items:center;justify-content:center;padding:20px;' +
+          'animation:smFadeIn .18s ease' +
+        '">' +
+          '<div style="' +
+            'background:#fff;border-radius:18px;padding:32px 28px 28px;' +
+            'max-width:420px;width:100%;text-align:center;' +
+            'box-shadow:0 24px 64px rgba(5,20,45,.3);' +
+            'animation:simSlideUp .22s ease' +
+          '">' +
+            /* OneDrive icon */
+            '<div style="' +
+              'width:56px;height:56px;border-radius:50%;' +
+              'background:#EFF6FF;display:flex;align-items:center;' +
+              'justify-content:center;margin:0 auto 16px' +
+            '">' +
+              '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0B4F9C" stroke-width="1.8">' +
+                '<path d="M2 12.5a5.5 5.5 0 0 1 9-4.2A4 4 0 1 1 14 16H6a4 4 0 0 1-4-3.5Z"/>' +
+                '<path d="M20 16h-2"/><path d="M14 12v4"/><path d="M17 14l-3-2-3 2"/>' +
+              '</svg>' +
+            '</div>' +
+            '<h3 style="font-size:17px;font-weight:800;color:#111827;margin:0 0 8px">' +
+              'You\'re being redirected' +
+            '</h3>' +
+            '<p style="font-size:13px;color:#6B7280;margin:0 0 6px;line-height:1.55">' +
+              'You\'ll be taken to the' +
+            '</p>' +
+            '<p style="font-size:14px;font-weight:700;color:#0B4F9C;margin:0 0 18px">' +
+              'DepEd OneDrive Resource Repository' +
+            '</p>' +
+            '<p style="font-size:12px;color:#9CA3AF;margin:0 0 24px;line-height:1.5">' +
+              'Sign in there using your Microsoft / DepEd account to browse and access learning resources stored on OneDrive.' +
+            '</p>' +
+            '<div style="display:flex;gap:10px">' +
+              '<button id="onedriveConfirmCancel" style="' +
+                'flex:1;padding:10px;background:#fff;border:1.5px solid #E5E7EB;' +
+                'border-radius:9px;font-size:14px;font-weight:600;' +
+                'font-family:inherit;color:#374151;cursor:pointer' +
+              '">Cancel</button>' +
+              '<button id="onedriveConfirmGo" style="' +
+                'flex:1;padding:10px;background:#0B4F9C;border:none;' +
+                'border-radius:9px;font-size:14px;font-weight:600;' +
+                'font-family:inherit;color:#fff;cursor:pointer;' +
+                'display:flex;align-items:center;justify-content:center;gap:7px' +
+              '">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>' +
+                'Continue' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      document.body.insertAdjacentHTML('beforeend', html);
+
+      document.getElementById('onedriveConfirmCancel').addEventListener('click', function () {
+        document.getElementById('onedriveConfirmOverlay').remove();
+      });
+
+      document.getElementById('onedriveConfirmOverlay').addEventListener('click', function (e) {
+        if (e.target === this) this.remove();
+      });
+
+      document.getElementById('onedriveConfirmGo').addEventListener('click', function () {
+        window.location.href = 'onedrive/index.php';
+      });
+
+    } else {
+      // Already exists (e.g. user dismissed and clicked again) — just show it
+      document.getElementById('onedriveConfirmOverlay').style.display = 'flex';
+    }
   });
 
   var googleBtn = document.getElementById('smBtnGoogle');

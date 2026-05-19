@@ -634,8 +634,10 @@ loadAll();
 // ═══════════════════════════════════════════════════════════════
 //  DOWNLOAD LOG
 // ═══════════════════════════════════════════════════════════════
-var _logData  = [];
-var _logQuery = '';
+var _logData    = [];
+var _logQuery   = '';
+var _logPage    = 1;
+var LOG_PAGE_SZ = 10;
 
 async function loadDownloadLog() {
   var days    = getDays();
@@ -686,8 +688,9 @@ async function loadDownloadLog() {
     }
   }
 
-  renderLogTable(_logQuery);
+  _logPage = 1;
   if (countEl) countEl.textContent = _logData.length;
+  renderLogTable(_logQuery);
 }
 
 function renderLogTable(query) {
@@ -709,7 +712,11 @@ function renderLogTable(query) {
     return;
   }
 
-  tbody.innerHTML = filtered.map(function(r) {
+  var total   = filtered.length;
+  var shown   = _logPage * LOG_PAGE_SZ;
+  var visible = filtered.slice(0, shown);
+
+  var rows = visible.map(function(r) {
     var dt = r.downloaded_at || '';
     var display = dt;
     try {
@@ -754,12 +761,34 @@ function renderLogTable(query) {
       + '<td>' + pathHtml + '</td>'
       + '</tr>';
   }).join('');
+
+  // Pagination footer row
+  var remaining = total - shown;
+  var footerHtml = '';
+  if (total > LOG_PAGE_SZ) {
+    footerHtml = '<tr><td colspan="5" style="text-align:center;padding:10px 12px;border-top:1px solid var(--border)">';
+    if (remaining > 0) {
+      footerHtml += '<button onclick="_logPage++;renderLogTable(_logQuery)" style="'
+        + 'padding:5px 14px;border-radius:var(--radius);border:1px solid var(--border-md);'
+        + 'background:var(--surface);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;margin-right:8px">'
+        + 'Show ' + Math.min(remaining, LOG_PAGE_SZ) + ' more <span style="color:var(--text-3);font-weight:400">(' + remaining + ' remaining)</span></button>';
+    }
+    if (_logPage > 1) {
+      footerHtml += '<button onclick="_logPage=1;renderLogTable(_logQuery)" style="'
+        + 'padding:5px 14px;border-radius:var(--radius);border:1px solid var(--border-md);'
+        + 'background:var(--surface);color:var(--text-2);font-size:12px;cursor:pointer">'
+        + 'Collapse to 10</button>';
+    }
+    footerHtml += '</td></tr>';
+  }
+
+  tbody.innerHTML = rows + footerHtml;
 }
 
 // Wire log search
 (function() {
   var si = document.getElementById('log-search');
-  if (si) si.addEventListener('input', function(e) { _logQuery = e.target.value; renderLogTable(_logQuery); });
+  if (si) si.addEventListener('input', function(e) { _logQuery = e.target.value; _logPage = 1; renderLogTable(_logQuery); });
 })();
 
 loadDownloadLog();
@@ -767,8 +796,10 @@ loadDownloadLog();
 // ═══════════════════════════════════════════════════════════════
 //  USERS TABLE
 // ═══════════════════════════════════════════════════════════════
-var _usersData  = [];
-var _usersQuery = '';
+var _usersData    = [];
+var _usersQuery   = '';
+var _usersPage    = 1;
+var USERS_PAGE_SZ = 10;
 
 async function loadUsers() {
   var days    = getDays();
@@ -799,6 +830,7 @@ async function loadUsers() {
     }
   }
 
+  _usersPage = 1;
   renderUsersTable(_usersQuery);
   if (countEl) countEl.textContent = _usersData.length;
 }
@@ -822,7 +854,11 @@ function renderUsersTable(query) {
     return;
   }
 
-  tbody.innerHTML = filtered.map(function(r, i) {
+  var total   = filtered.length;
+  var shown   = _usersPage * USERS_PAGE_SZ;
+  var visible = filtered.slice(0, shown);
+
+  var rows = visible.map(function(r, i) {
     var user    = r.user_name  || '—';
     var email   = r.user_email || '';
     var initial = (user !== '—' ? user : email).charAt(0).toUpperCase() || '?';
@@ -844,7 +880,7 @@ function renderUsersTable(query) {
     } catch(e2) {}
 
     var sessionClass  = (r.sessions  || 0) >= 3  ? 'count-pill pill-vw' : '';
-    var bookmarkCount = r.bookmarks  || 0;
+    var bookmarkCount = Math.max(0, r.bookmarks  || 0);
     var bmClass       = bookmarkCount > 0 ? 'count-pill pill-bm' : '';
 
     return '<tr>'
@@ -858,12 +894,34 @@ function renderUsersTable(query) {
       + '<td style="white-space:nowrap;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--text-3)">' + escHtml(lsDisplay) + '</td>'
       + '</tr>';
   }).join('');
+
+  // Pagination footer row
+  var remaining = total - shown;
+  var footerHtml = '';
+  if (total > USERS_PAGE_SZ) {
+    footerHtml = '<tr><td colspan="8" style="text-align:center;padding:10px 12px;border-top:1px solid var(--border)">';
+    if (remaining > 0) {
+      footerHtml += '<button onclick="_usersPage++;renderUsersTable(_usersQuery)" style="'
+        + 'padding:5px 14px;border-radius:var(--radius);border:1px solid var(--border-md);'
+        + 'background:var(--surface);color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;margin-right:8px">'
+        + 'Show ' + Math.min(remaining, USERS_PAGE_SZ) + ' more <span style="color:var(--text-3);font-weight:400">(' + remaining + ' remaining)</span></button>';
+    }
+    if (_usersPage > 1) {
+      footerHtml += '<button onclick="_usersPage=1;renderUsersTable(_usersQuery)" style="'
+        + 'padding:5px 14px;border-radius:var(--radius);border:1px solid var(--border-md);'
+        + 'background:var(--surface);color:var(--text-2);font-size:12px;cursor:pointer">'
+        + 'Collapse to 10</button>';
+    }
+    footerHtml += '</td></tr>';
+  }
+
+  tbody.innerHTML = rows + footerHtml;
 }
 
 // Wire users search
 (function() {
   var si = document.getElementById('users-search');
-  if (si) si.addEventListener('input', function(e) { _usersQuery = e.target.value; renderUsersTable(_usersQuery); });
+  if (si) si.addEventListener('input', function(e) { _usersQuery = e.target.value; _usersPage = 1; renderUsersTable(_usersQuery); });
 })();
 
 loadUsers();

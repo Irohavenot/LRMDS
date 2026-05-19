@@ -504,6 +504,25 @@ textarea { width: 100%; font-family: inherit; }
 
 
 /* ================================
+   Section background (same fading
+   image as the hero, but lighter)
+================================= */
+
+.section-bg {
+  position: relative;
+background:
+  linear-gradient(rgba(255,255,255,0.90), rgba(255,255,255,0.90)),
+  url("../img/depedcarcarlogo.jpg");
+  background-size: 24%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;  /* parallax-lite: image stays put while content scrolls */
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+
+/* ================================
    Responsive
 ================================= */
 

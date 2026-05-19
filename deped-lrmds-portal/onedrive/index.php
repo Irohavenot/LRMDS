@@ -16,12 +16,27 @@
      LOGIN SCREEN  (shown before auth)
 ══════════════════════════════════════════ -->
 <div id="login-screen">
+  <button class="login-back-btn" id="login-back-btn" onclick="history.back()" title="Go back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
+    </svg>
+    Back
+  </button>
   <div class="login-card">
-    <div class="logo-shield">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
+    <!-- DepEd logo — same as main site hero -->
+    <div class="logo-deped">
+      <img class="logo-deped-img"
+           src="../assets/img/depedcarcarlogo.jpg"
+           alt="DepEd Carcar City logo"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <!-- Fallback shield rendered via CSS, hidden by default -->
+      <div class="logo-shield" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
     </div>
     <h1>DepEd Carcar City LRMDS</h1>
     <p>Sign in with your Microsoft / DepEd account to browse and download learning resources.</p>
@@ -44,25 +59,50 @@
 
   <!-- ── Header ── -->
   <header class="site-header">
-    <a class="logo" href="#">
-      <div class="logo-shield">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
+
+    <!-- Logo — matches main site branding -->
+    <a class="logo" href="#" onclick="event.preventDefault();clearSearch();" title="Return to home">
+      <div class="logo-img-wrap">
+        <img class="logo-img"
+             src="../assets/img/depedcarcarlogo.jpg"
+             alt="DepEd Carcar City"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+        <!-- Fallback shield -->
+        <div class="logo-shield" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
       </div>
-      DepEd Carcar City LRMDS
+      <div class="logo-text">
+        <span class="logo-title">DepEd Carcar City LRMDS</span>
+        <span class="logo-sub">LEARNING RESOURCES</span>
+      </div>
     </a>
+
     <div class="header-right">
       <nav class="header-nav">
-        <a class="nav-link" href="#">Home</a>
+        <!-- "Home" replaced with "Return to Main Site" -->
+        <a class="nav-link return-link"
+           href="http://localhost/lrmds/deped-lrmds-portal/index.php"
+           title="Go back to the main LRMDS portal">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"/><path d="m12 5-7 7 7 7"/>
+          </svg>
+          Main Site
+        </a>
+
         <a class="nav-link active" href="#">Resources</a>
+
         <!--
           The "🔖 My Library" nav link is injected here automatically
           by analytics.js after the user signs in (initLibraryTab).
           No static entry needed — it will appear once currentUser is set.
         -->
       </nav>
+
       <div class="user-pill">
         <div class="user-avatar" id="user-initial">?</div>
         <span id="user-name">Loading…</span>
@@ -77,33 +117,55 @@
       <input  class="input"  id="search-input"   type="search"
               placeholder="Search by keyword, MELC code, filename…" aria-label="Search"/>
 
-      <select class="select" id="filter-grade"   aria-label="Grade level">
+      <select class="select" id="filter-grade" aria-label="Grade level">
         <option value="">All Grades</option>
-        <option>Kinder</option>
-        <option>Grade 1</option>  <option>Grade 2</option>  <option>Grade 3</option>
-        <option>Grade 4</option>  <option>Grade 5</option>  <option>Grade 6</option>
-        <option>Grade 7</option>  <option>Grade 8</option>  <option>Grade 9</option>
-        <option>Grade 10</option> <option>Grade 11</option> <option>Grade 12</option>
+        <option value="Kinder">Kinder</option>
+        <option value="Grade 1">Grade 1</option>
+        <option value="Grade 2">Grade 2</option>
+        <option value="Grade 3">Grade 3</option>
+        <option value="Grade 4">Grade 4</option>
+        <option value="Grade 5">Grade 5</option>
+        <option value="Grade 6">Grade 6</option>
+        <option value="Grade 7">Grade 7</option>
+        <option value="Grade 8">Grade 8</option>
+        <option value="Grade 9">Grade 9</option>
+        <option value="Grade 10">Grade 10</option>
+        <option value="Grade 11">Grade 11</option>
+        <option value="Grade 12">Grade 12</option>
       </select>
 
       <select class="select" id="filter-subject" aria-label="Subject">
         <option value="">All Subjects</option>
-        <option>English</option>
-        <option>Filipino</option>
-        <option>Mathematics</option>
-        <option>Science</option>
-        <option>Araling Panlipunan</option>
-        <option>MAPEH</option>
-        <option>EPP/TLE</option>
+        <option value="English">English</option>
+        <option value="Filipino">Filipino</option>
+        <option value="Mathematics">Mathematics</option>
+        <option value="Science">Science</option>
+        <option value="Araling Panlipunan">Araling Panlipunan</option>
+        <option value="MAPEH">MAPEH</option>
+        <option value="EPP/TLE">EPP/TLE</option>
       </select>
 
-      <select class="select" id="filter-type" aria-label="Resource type">
-        <option value="">All Types</option>
-        <option>SLM</option>
-        <option>TG</option>
-        <option>DLL</option>
-        <option>Video</option>
-        <option>Assessment</option>
+      <select class="select" id="filter-quarter" aria-label="Quarter">
+        <option value="">All Quarters</option>
+        <option value="Quarter 1">Quarter 1</option>
+        <option value="Quarter 2">Quarter 2</option>
+        <option value="Quarter 3">Quarter 3</option>
+        <option value="Quarter 4">Quarter 4</option>
+      </select>
+
+      <select class="select" id="filter-type" aria-label="File type">
+        <option value="">All File Types</option>
+        <option value="pdf">PDF</option>
+        <option value="docx">Word (DOCX)</option>
+        <option value="doc">Word (DOC)</option>
+        <option value="pptx">PowerPoint (PPTX)</option>
+        <option value="ppt">PowerPoint (PPT)</option>
+        <option value="xlsx">Excel (XLSX)</option>
+        <option value="xls">Excel (XLS)</option>
+        <option value="mp4">Video (MP4)</option>
+        <option value="mp3">Audio (MP3)</option>
+        <option value="jpg">Image (JPG)</option>
+        <option value="png">Image (PNG)</option>
       </select>
 
       <button class="button primary" onclick="applySearch()">
@@ -134,18 +196,6 @@
 
     <!-- Breadcrumb -->
     <nav class="breadcrumb-row" id="breadcrumb" aria-label="Breadcrumb"></nav>
-
-    <!-- ── Sidebar ── -->
-    <aside class="sidebar">
-      <div class="sidebar-heading">Subject</div>
-      <ul class="facet-list" id="facet-subject"></ul>
-
-      <div class="sidebar-heading">Grade Level</div>
-      <ul class="facet-list" id="facet-grade"></ul>
-
-      <div class="sidebar-heading">Resource Type</div>
-      <ul class="facet-list" id="facet-type"></ul>
-    </aside>
 
     <!-- ── Results ── -->
     <section class="results-pane">

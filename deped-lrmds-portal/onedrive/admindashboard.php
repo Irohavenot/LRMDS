@@ -16,6 +16,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <style>
+/* ── Export button style ── */
+.btn.btn-secondary {
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--border-md);
+}
+.btn.btn-secondary:hover {
+  background: var(--surface2);
+  color: var(--text-1);
+  border-color: var(--blue);
+}
+
 /* ── File path under filename in Top Files ── */
 .file-path {
   display: flex;
@@ -219,7 +231,7 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
         </svg>
         Google Drive Admin
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#search-queries-card" onclick="navScrollTo('search-queries-card',event)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -237,7 +249,7 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
         </svg>
         Trends
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#users-card" onclick="navScrollTo('users-card',event)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -247,7 +259,7 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
         </svg>
         Users
       </a>
-      <a class="nav-item" href="#">
+      <a class="nav-item" href="#" onclick="event.preventDefault();exportCSV()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -255,6 +267,17 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
         Export CSV
+      </a>
+      <a class="nav-item" href="#" onclick="event.preventDefault();exportReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        Print Report
       </a>
     </nav>
 
@@ -293,6 +316,24 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
             <option value="0">All time</option>
           </select>
         </div>
+        <button class="btn btn-secondary" onclick="exportCSV()" title="Download analytics as CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>CSV</span>
+        </button>
+        <button class="btn btn-secondary" onclick="exportReport()" title="Open printable report">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round">
+            <polyline points="6 9 6 2 18 2 18 9"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          <span>Report</span>
+        </button>
         <button class="btn btn-primary" onclick="loadAll()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                stroke-linecap="round">
@@ -527,14 +568,14 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
           <div id="grade-bars"></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="search-queries-card">
           <div class="card-head">
             <div>
               <div class="card-title">Top search queries</div>
               <div class="card-subtitle">What teachers are looking for</div>
             </div>
           </div>
-          <div class="tag-cloud" id="search-tags"></div>
+          <div class="tag-cloud" id="search-tags" style="max-height:260px;overflow-y:auto;"></div>
         </div>
 
         <div class="card">
@@ -577,9 +618,9 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
             </button>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
           <table class="data-table">
-            <thead>
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface);">
               <tr>
                 <th>Time</th>
                 <th>User (Microsoft Account)</th>
@@ -622,9 +663,9 @@ select.select-styled:focus  { border-color: var(--blue); box-shadow: 0 0 0 3px r
             </button>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
           <table class="data-table">
-            <thead>
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface);">
               <tr>
                 <th>#</th>
                 <th>User (Microsoft Account)</th>
@@ -662,9 +703,24 @@ function closeSidebar() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeSidebar();
 });
+
+/* Navigate to a section by card id — smooth scroll + highlight flash */
+function navScrollTo(id, e) {
+  if (e) e.preventDefault();
+  closeSidebar();
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  /* Brief highlight pulse so the user knows where they landed */
+  el.style.transition = 'box-shadow .15s';
+  el.style.boxShadow  = '0 0 0 3px rgba(37,99,235,.35)';
+  setTimeout(function() { el.style.boxShadow = ''; }, 1200);
+}
 </script>
 
 <!-- Dashboard logic -->
 <script src="../assets/js/admindashboard.js"></script>
+<!-- Export / Report module (must load after admindashboard.js) -->
+<script src="../assets/js/dashboard-export.js"></script>
 </body>
 </html>

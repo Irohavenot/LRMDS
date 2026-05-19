@@ -308,12 +308,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             SELECT
                 user_name,
                 user_email,
-                COUNT(DISTINCT session_id)                                   AS sessions,
-                SUM(CASE WHEN event = 'file_view'     THEN 1 ELSE 0 END)   AS file_views,
-                SUM(CASE WHEN event = 'file_download' THEN 1 ELSE 0 END)   AS downloads,
-                SUM(CASE WHEN event = 'search'        THEN 1 ELSE 0 END)   AS searches,
-                datetime(MAX(ts), 'unixepoch', 'localtime')                 AS last_seen,
-                MAX(ts)                                                      AS last_ts
+                COUNT(DISTINCT session_id)                                         AS sessions,
+                SUM(CASE WHEN event = 'file_view'     THEN 1 ELSE 0 END)         AS file_views,
+                SUM(CASE WHEN event = 'file_download' THEN 1 ELSE 0 END)         AS downloads,
+                SUM(CASE WHEN event = 'bookmark_add'  THEN 1 ELSE 0 END)
+                  - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)   AS bookmarks,
+                SUM(CASE WHEN event = 'search'        THEN 1 ELSE 0 END)         AS searches,
+                datetime(MAX(ts), 'unixepoch', 'localtime')                       AS last_seen,
+                MAX(ts)                                                            AS last_ts
             FROM events
             WHERE user_name IS NOT NULL AND user_name != '' {$df}
             GROUP BY user_name, user_email

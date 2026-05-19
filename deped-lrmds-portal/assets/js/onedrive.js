@@ -38,7 +38,7 @@ let currentItemId    = null;
 let folderHistory    = [];
 let allItemsCache    = null;
 let deepCachePromise = null;
-let activeFilters    = { subject: '', grade: '', type: '', q: '' };
+let activeFilters    = { subject: '', grade: '', type: '', quarter: '', q: '' };
 let accessToken      = null;
 let currentUser      = null;
 let isListView       = false;
@@ -67,6 +67,7 @@ const searchInput    = document.getElementById('search-input');
 const filterGrade    = document.getElementById('filter-grade');
 const filterSubject  = document.getElementById('filter-subject');
 const filterType     = document.getElementById('filter-type');
+const filterQuarter  = document.getElementById('filter-quarter');
 const toastEl        = document.getElementById('toast');
 const gridViewBtn    = document.getElementById('btn-grid-view');
 const listViewBtn    = document.getElementById('btn-list-view');
@@ -177,37 +178,53 @@ function buildDownloadUrl(itemId) {
 
 // ── Parse metadata from filename ─────────────────────────────
 function parseFileMeta(item) {
-  const name  = item.name || '';
-  const upper = name.toUpperCase();
-  let type = 'Resource';
-  if (upper.startsWith('SLM'))         type = 'SLM';
-  else if (upper.startsWith('TG'))     type = 'TG';
-  else if (upper.startsWith('DLL'))    type = 'DLL';
-  else if (upper.startsWith('ASSESS')) type = 'Assessment';
-  else if (upper.startsWith('VIDEO'))  type = 'Video';
+  // Search both the filename AND the full folder path so files inside a
+  // "Grade 1" or "English" folder are matched even if the filename is generic.
+  const name     = item.name || '';
+  const pathStr  = item._folderPathStr || '';
+  const combined = (pathStr + ' ' + name).replace(/[_\-]/g, ' ');
 
-  const gradeMatch = name.match(/\bG(\d{1,2})\b/i) || name.match(/\b(Kinder)\b/i);
+  // ── Grade ─────────────────────────────────────────────────────
+  // Matches: G1, G 1, Grade1, Grade 1, Grade-1, Gr1, Gr 1 (1-12), or Kinder/Kindergarten
   let grade = '';
-  if (gradeMatch) grade = gradeMatch[1] ? `Grade ${gradeMatch[1]}` : 'Kinder';
-
-  const subjectMap = {
-    MATH:'Mathematics',MTH:'Mathematics',SCI:'Science',SC:'Science',
-    ENG:'English',EN:'English',FIL:'Filipino',AP:'Araling Panlipunan',
-    MAPEH:'MAPEH',EPP:'EPP/TLE',TLE:'EPP/TLE',
-  };
-  let subject = '';
-  for (const p of name.split(/[_\-\s]/)) {
-    if (subjectMap[p.toUpperCase()]) { subject = subjectMap[p.toUpperCase()]; break; }
+  const gradeM = combined.match(/\bGr(?:ade)?\s*[-.]?\s*(\d{1,2})\b|\bG\s*(\d{1,2})\b/i);
+  if (gradeM) {
+    const n = gradeM[1] || gradeM[2];
+    grade = `Grade ${parseInt(n, 10)}`;
+  } else if (/\bKinder(?:garten)?\b/i.test(combined)) {
+    grade = 'Kinder';
   }
 
-  const quarterMatch = name.match(/Q(\d)/i);
-  const quarter = quarterMatch ? `Quarter ${quarterMatch[1]}` : '';
-  const melcMatch = name.match(/([A-Z]{1,4}\d[A-Z]{1,4}-[IVXa-z]+-[\d.]+)/i);
-  const melc  = melcMatch ? melcMatch[1] : '';
-  const title = name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ').trim();
-  return { type, grade, subject, quarter, melc, title };
-}
+  // ── Subject ───────────────────────────────────────────────────
+  // Match by full word/phrase first, then abbreviation. Order = most specific first.
+  const subjectPatterns = [
+    [/\bAraling\s*Panlipunan\b/i,  'Araling Panlipunan'],
+    [/\bA\.?\s*P\.?\b/,            'Araling Panlipunan'],
+    [/\bMAPEH\b/i,                 'MAPEH'],
+    [/\bEPP\b|\bTLE\b/i,           'EPP/TLE'],
+    [/\bMath(?:ematics)?\b/i,      'Mathematics'],
+    [/\bScience\b|\bSci\b/i,       'Science'],
+    [/\bEnglish\b|\bEng\b/i,       'English'],
+    [/\bFilipino\b|\bFil\b/i,      'Filipino'],
+  ];
+  let subject = '';
+  for (const [re, label] of subjectPatterns) {
+    if (re.test(combined)) { subject = label; break; }
+  }
 
+  // ── Quarter ───────────────────────────────────────────────────
+  // Matches: Q1, Q 1, Quarter1, Quarter 1, Qtr1, Qtr 1 (1-4)
+  let quarter = '';
+  const qM = combined.match(/\bQ(?:uarter|tr)?\.?\s*([1-4])\b/i);
+  if (qM) quarter = `Quarter ${qM[1]}`;
+
+  // ── MELC code ─────────────────────────────────────────────────
+  const melcM = name.match(/([A-Z]{1,4}\d[A-Z]{1,4}-[IVXa-z]+-[\d.]+)/i);
+  const melc  = melcM ? melcM[1] : '';
+  const title = name.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ').trim();
+
+  return { grade, subject, quarter, melc, title };
+}
 // ══════════════════════════════════════════════════════════════
 //   BLOB CACHE  — fetch once, reuse forever (within session)
 // ══════════════════════════════════════════════════════════════
@@ -648,7 +665,7 @@ async function loadFolder(itemId, folderName) {
   updateBackBar(folderName);
 
   try {
-    const url  = await buildChildrenUrl(itemId);   // ← now awaited (async)
+    const url  = await buildChildrenUrl(itemId);
     const data = await graphGet(url);
     const items = data.value || [];
     renderItems(items, folderName || ONEDRIVE_ROOT_FOLDER);
@@ -703,22 +720,35 @@ async function collectAllItemsDeepParallel(itemId, _pathSegments, _pathIds) {
 }
 
 // ── Filter / search ───────────────────────────────────────────
+function getFileExt(item) {
+  return (item.name || '').split('.').pop().toLowerCase();
+}
+
 function itemMatchesFilters(item) {
-  const { q, grade, subject, type } = activeFilters;
-  if (!q && !grade && !subject && !type) return true;
+  const { q, grade, subject, type, quarter } = activeFilters;
+  if (!q && !grade && !subject && !type && !quarter) return true;
 
   if (item.folder) {
+    // Folders only show up for keyword searches — structural filters are files-only
+    if (grade || subject || type || quarter) return false;
     if (!q) return false;
     return item.name.toLowerCase().includes(q.toLowerCase());
   }
 
+  // File — parse meta (uses filename + folder path)
   const meta = item._meta || parseFileMeta(item);
   item._meta = meta;
-  const s = (meta.title + ' ' + item.name + ' ' + meta.melc).toLowerCase();
-  if (q       && !s.includes(q.toLowerCase()))  return false;
-  if (grade   && meta.grade   !== grade)         return false;
-  if (subject && meta.subject !== subject)       return false;
-  if (type    && meta.type    !== type)          return false;
+
+  // Keyword: check title, filename, MELC code, and full folder path
+  const searchStr = (meta.title + ' ' + item.name + ' ' + meta.melc + ' ' + (item._folderPathStr || '')).toLowerCase();
+  if (q && !searchStr.includes(q.toLowerCase())) return false;
+
+  // Structural filters: exact match against parsed meta
+  if (grade   && meta.grade   !== grade)   return false;
+  if (subject && meta.subject !== subject) return false;
+  if (quarter && meta.quarter !== quarter) return false;
+  if (type    && getFileExt(item) !== type) return false;
+
   return true;
 }
 
@@ -727,11 +757,15 @@ async function applySearch() {
   activeFilters.grade   = filterGrade.value;
   activeFilters.subject = filterSubject.value;
   activeFilters.type    = filterType.value;
+  activeFilters.quarter = filterQuarter ? filterQuarter.value : '';
 
-  const isFiltering = activeFilters.q || activeFilters.grade || activeFilters.subject || activeFilters.type;
+  const isFiltering = activeFilters.q || activeFilters.grade || activeFilters.subject || activeFilters.type || activeFilters.quarter;
   if (!isFiltering) { loadFolder(currentItemId, resultsTitleEl.textContent); return; }
 
-  if (allItemsCache) { renderItems(allItemsCache.filter(itemMatchesFilters), 'Search Results', true); return; }
+  if (allItemsCache) {
+    renderItems(allItemsCache.filter(itemMatchesFilters), 'Search Results', true);
+    return;
+  }
 
   renderLoading('Searching all folders…');
   try {
@@ -743,7 +777,8 @@ async function applySearch() {
 
 function clearSearch() {
   searchInput.value = filterGrade.value = filterSubject.value = filterType.value = '';
-  activeFilters = { subject:'', grade:'', type:'', q:'' };
+  if (filterQuarter) filterQuarter.value = '';
+  activeFilters = { subject:'', grade:'', type:'', quarter:'', q:'' };
   currentItemId = null; folderHistory = []; allItemsCache = null; deepCachePromise = null;
   loadFolder(null, ONEDRIVE_ROOT_FOLDER);
 }
@@ -758,7 +793,13 @@ function navigateTo(itemId, folderName) {
 function goBack() {
   if (!folderHistory.length) return;
   const prev = folderHistory.pop();
-  loadFolder(prev.id, prev.name);
+  if (prev.isSearch) {
+    // Restore search results — don't change currentItemId, just re-run the search
+    // (filters are still set from when the user searched)
+    applySearch();
+  } else {
+    loadFolder(prev.id, prev.name);
+  }
 }
 
 // ── View toggle ───────────────────────────────────────────────
@@ -796,7 +837,6 @@ function renderItems(items, titleText, isSearch = false) {
         <p>${isSearch ? 'Try different keywords or filters.' : 'No files or subfolders here yet.'}</p>
       </div>`;
     resultsMetaEl.textContent = '0 items';
-    updateSidebar([]);
     return;
   }
 
@@ -866,30 +906,37 @@ function renderItems(items, titleText, isSearch = false) {
           </div>
           <button class="button ghost small sfg-open-btn">Open folder ›</button>`;
         header.querySelector('.sfg-open-btn').addEventListener('click', () => {
-          // Build a proper folderHistory so Back navigates up through the full
-          // ancestor chain, not just back to search results.
-          // Ancestors: root → … → immediate parent of this folder
-          const ancestorIds   = group.folderPathIds;   // Graph IDs of all ancestors
-          const ancestorNames = group.pathArr.slice(0, -1); // name segments above this folder
+          // folderPathIds = Graph IDs of ancestor folders from root down to parent of this folder
+          // e.g. for path  root › A › B › ThisFolder :
+          //   folderPathIds = [null, A.id, B.id]   (length = pathArr.length - 1)
+          //   ancestorNames = ['deped', 'A', 'B']  (pathArr.slice(0,-1))
+          //
+          // folderHistory is a stack of "states to go back TO".
+          // Each entry: { id: <that-folder's-id>, name: <that-folder's-name> }
+          // goBack() pops the top entry and calls loadFolder(entry.id, entry.name).
+          //
+          // Stack (bottom → top) we need:
+          //   { isSearch:true, id:null, name:'Search Results' }   ← go back to search
+          //   { id: folderPathIds[0], name: ancestorNames[0] }    ← root level (id=null)
+          //   { id: folderPathIds[1], name: ancestorNames[1] }    ← A
+          //   { id: folderPathIds[2], name: ancestorNames[2] }    ← B
+          // then we navigate into ThisFolder (group.folderId).
 
-          // Start history: current search state
-          const newHistory = [{ id: currentItemId, name: resultsTitleEl.textContent }];
+          const ancestorIds   = group.folderPathIds;   // [null, A.id, B.id, …]
+          const ancestorNames = group.pathArr.slice(0, -1); // ['deped', 'A', 'B', …]
 
-          // Push each ancestor level so the user can step back through them
-          // ancestorIds[0] = root's itemId (null means root), etc.
-          // We pair them: ancestorIds[i] → the folder entered at that step
-          // The first entry in folderHistory is always "before root" so id=null, name=root name
+          const newHistory = [
+            { id: null, name: resultsTitleEl.textContent, isSearch: true }, // search results
+          ];
+
           for (let i = 0; i < ancestorNames.length; i++) {
             newHistory.push({
-              id:   i === 0 ? null : (ancestorIds[i - 1] || null),
-              name: i === 0 ? ONEDRIVE_ROOT_FOLDER : ancestorNames[i - 1],
+              id:   ancestorIds[i] !== undefined ? ancestorIds[i] : null,
+              name: ancestorNames[i],
             });
           }
 
           folderHistory = newHistory;
-
-          // Navigate to the folder itself — this will show its contents
-          // and the Back button will correctly walk up through newHistory.
           loadFolder(group.folderId, folderName);
         });
         resultsGrid.appendChild(header);
@@ -902,7 +949,6 @@ function renderItems(items, titleText, isSearch = false) {
       resultsGrid.appendChild(item.folder ? buildFolderCard(item, false) : buildFileCard(item, false));
     }
   }
-  updateSidebar(files);
 }
 
 function buildFolderCard(item, isSearch = false) {
@@ -923,17 +969,26 @@ function buildFolderCard(item, isSearch = false) {
     <div class="folder-meta"><span style="margin-left:auto;">${item.folder.childCount ?? '?'} items ›</span></div>`;
 
   const open = () => {
-    if (isSearch && item._pathIds && item._parentPath) {
-      // Rebuild full ancestor history so Back works through each parent level.
-      // _parentPath = name segments above this folder (not including this folder's name)
-      // _pathIds    = Graph IDs of each ancestor level
+    if (isSearch && item._pathIds !== undefined && item._parentPath) {
+      // _parentPath  = name segments of ancestors above this folder e.g. ['deped','A','B']
+      // _pathIds     = Graph IDs of those same ancestors            e.g. [null, A.id, B.id]
+      //
+      // History stack (bottom → top):
+      //   search-results entry  { isSearch:true, id:null, name:'Search Results' }
+      //   root entry            { id: _pathIds[0], name: _parentPath[0] }
+      //   …
+      //   immediate-parent      { id: _pathIds[n-1], name: _parentPath[n-1] }
+      // then we navigate INTO this folder.
       const ancestorNames = item._parentPath;
-      const ancestorIds   = item._pathIds;
-      const newHistory = [{ id: currentItemId, name: resultsTitleEl.textContent }];
+      const ancestorIds   = item._pathIds;   // [null, A.id, B.id, …]
+
+      const newHistory = [
+        { id: null, name: resultsTitleEl.textContent, isSearch: true },
+      ];
       for (let i = 0; i < ancestorNames.length; i++) {
         newHistory.push({
-          id:   i === 0 ? null : (ancestorIds[i - 1] || null),
-          name: i === 0 ? ONEDRIVE_ROOT_FOLDER : ancestorNames[i - 1],
+          id:   ancestorIds[i] !== undefined ? ancestorIds[i] : null,
+          name: ancestorNames[i],
         });
       }
       folderHistory = newHistory;
@@ -1073,36 +1128,6 @@ function updateBackBar(folderName) {
     backFolderName.textContent = folderName || 'Folder';
   } else {
     backBar.classList.remove('visible');
-  }
-}
-
-// ── Sidebar ───────────────────────────────────────────────────
-function updateSidebar(files) {
-  buildFacet('facet-subject', files, f => (f._meta || parseFileMeta(f)).subject, 'subject');
-  buildFacet('facet-grade',   files, f => (f._meta || parseFileMeta(f)).grade,   'grade');
-  buildFacet('facet-type',    files, f => (f._meta || parseFileMeta(f)).type,    'type');
-}
-function buildFacet(elId, items, extract, filterKey) {
-  const counts = {};
-  for (const item of items) { const v = extract(item); if (v) counts[v] = (counts[v] || 0) + 1; }
-  const el = document.getElementById(elId);
-  el.innerHTML = '';
-  if (!Object.keys(counts).length) {
-    el.innerHTML = `<li><span style="font-size:12px;color:var(--muted);padding:4px 8px;display:block">—</span></li>`;
-    return;
-  }
-  for (const [val, count] of Object.entries(counts).sort()) {
-    const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.className = 'facet-btn' + (activeFilters[filterKey] === val ? ' active' : '');
-    btn.innerHTML = `<span>${escHtml(val)}</span><span class="facet-count">${count}</span>`;
-    btn.addEventListener('click', () => {
-      activeFilters[filterKey] = activeFilters[filterKey] === val ? '' : val;
-      const sel = document.getElementById('filter-' + filterKey);
-      if (sel) sel.value = activeFilters[filterKey];
-      applySearch();
-    });
-    li.appendChild(btn); el.appendChild(li);
   }
 }
 

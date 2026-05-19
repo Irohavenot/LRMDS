@@ -9,7 +9,7 @@
         fire bookmark_add / bookmark_remove events to tracker.php.
 
    All other event tracking (page_view, file_view, file_download,
-   folder_open, search, session_end) is handled by prototype2.js.
+   folder_open, search, session_end) is handled by onedrive.js
    ============================================================ */
 
 (function () {
@@ -40,7 +40,7 @@
    * Each saved entry stores everything needed to Preview + Download:
    * { id, name, webUrl, mimeType, size, meta, savedAt }
    *
-   * _entryToItem() reconstructs the shape prototype2.js expects:
+   * _entryToItem() reconstructs the shape onedrive.js expects:
    * { id, name, webUrl, size, file: { mimeType }, _meta }
    */
   function loadLibrary() {
@@ -186,7 +186,7 @@
     body.innerHTML = '';
 
     saved.forEach(entry => {
-      // Reconstruct item so prototype2.js functions can use it
+      // Reconstruct item so onedrive.js functions can use it
       const item = _entryToItem(entry);
 
       const ext  = (entry.name.split('.').pop() || '').toUpperCase();
@@ -198,7 +198,7 @@
         month: 'short', day: 'numeric', year: 'numeric'
       });
 
-      // Ask prototype2.js if this file type supports in-app preview
+      // Ask onedrive.js if this file type supports in-app preview
       const canPreview = typeof window.getPreviewType === 'function'
         ? !!window.getPreviewType(item)
         : false;
@@ -399,7 +399,7 @@
     return result;
   });
 
-  // Inject library tab after sign-in (prototype2.js wraps showApp first for page_view)
+  // Inject library tab after sign-in (onedrive.js wraps showApp first for page_view)
   wrapWhenReady('showApp', original => function () {
     const result = original.call(this);
     initLibraryTab();
