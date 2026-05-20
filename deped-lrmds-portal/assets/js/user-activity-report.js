@@ -453,37 +453,51 @@
     const reportCss = `
 :root{--green-dk:#1a5c2a;--green-md:#2d7a3e;--green-bg:#f0f7f2;--border:#cde0d3;--text-1:#0f1a12;--text-3:#607060}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* Slightly smaller base font to help content fit on one A4 page when printed */
 body{font-family:'Source Serif 4',Georgia,serif;color:var(--text-1);font-size:13px;line-height:1.55}
-@page{size:A4 portrait;margin:14mm 12mm 16mm 12mm}
-@media print{.no-print{display:none!important}thead{display:table-header-group}tbody tr{page-break-inside:avoid}}
-.page{max-width:880px;margin:0 auto;padding:24px 32px 60px}
-.print-bar{position:sticky;top:0;z-index:99;background:var(--green-dk);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;font-family:'DM Mono',monospace;font-size:12px}
-.pbtn{padding:7px 16px;border-radius:6px;border:none;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;margin-left:8px}
+/* Narrower page margins to gain printable area */
+@page{size:A4 portrait;margin:8mm 8mm 10mm 8mm}
+/* Preserve table headings and avoid breaking table rows across pages */
+@media print{
+  html,body{zoom:106%}
+  .no-print{display:none!important}
+  thead{display:table-header-group}
+  tbody tr{page-break-inside:avoid;break-inside:avoid}
+}
+/* Reduce large paddings so the whole report fits on a single page */
+.page{max-width:880px;margin:0 auto;padding:12px 16px 40px}
+.print-bar{position:sticky;top:0;z-index:99;background:var(--green-dk);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-family:'DM Mono',monospace;font-size:11px}
+.pbtn{padding:6px 10px;border-radius:6px;border:none;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;margin-left:6px}
 .pbtn-primary{background:#fff;color:var(--green-dk)}
-.pbtn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
-.cover{border-bottom:3px solid var(--green-dk);padding-bottom:18px;margin-bottom:22px}
-.cover h1{font-size:20px;color:var(--green-dk);margin-bottom:6px}
-.cover p{font-size:12px;color:var(--text-3);font-family:'DM Mono',monospace}
-.metrics-grid-r{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
-.more-note{font-size:11px;color:#607060;font-style:italic;padding:8px 12px 0;font-family:'DM Mono',monospace}
-.mc-r{border:1.5px solid var(--border);border-radius:10px;padding:12px;background:var(--green-bg);text-align:center}
-.mc-r-value{font-size:24px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green-dk)}
-.mc-r-label{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-top:4px}
-.section-hd{display:flex;align-items:center;gap:10px;margin:22px 0 10px}
-.section-hd::before{content:'';width:4px;height:18px;background:var(--green-md);border-radius:2px}
-.section-hd h2{font-size:12px;font-weight:700;color:var(--green-dk);text-transform:uppercase;letter-spacing:.07em}
-.card{border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:8px}
-table{width:100%;border-collapse:collapse;font-size:12px}
+.pbtn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45)}
+.cover{border-bottom:2px solid var(--green-dk);padding-bottom:10px;margin-bottom:12px}
+.cover h1{font-size:18px;color:var(--green-dk);margin-bottom:4px}
+.cover p{font-size:11px;color:var(--text-3);font-family:'DM Mono',monospace}
+.metrics-grid-r{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.more-note{font-size:10px;color:#607060;font-style:italic;padding:6px 8px 0;font-family:'DM Mono',monospace}
+.mc-r{border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--green-bg);text-align:center}
+.mc-r-value{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;color:var(--green-dk)}
+.mc-r-label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-top:4px}
+.section-hd{display:flex;align-items:center;gap:8px;margin:12px 0 8px}
+.section-hd::before{content:'';width:3px;height:16px;background:var(--green-md);border-radius:2px}
+.section-hd h2{font-size:11px;font-weight:700;color:var(--green-dk);text-transform:uppercase;letter-spacing:.06em}
+.card{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:6px}
+/* Avoid breaking cards (tables) across pages when possible */
+.card{page-break-inside:avoid;break-inside:avoid;-webkit-break-inside:avoid}
+/* Slightly smaller table typography and tighter cells */
+table{width:100%;border-collapse:collapse;font-size:11px}
 thead tr{border-bottom:2px solid var(--green-md)}
-th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:var(--text-3)}
-td{padding:8px 10px;border-bottom:1px solid #EEF2F0;vertical-align:top}
-.rank{width:28px;color:#9CA3AF;font-family:'DM Mono',monospace}
+th{text-align:left;padding:6px 8px;font-size:9px;text-transform:uppercase;color:var(--text-3)}
+td{padding:6px 8px;border-bottom:1px solid #EEF2F0;vertical-align:top}
+.rank{width:26px;color:#9CA3AF;font-family:'DM Mono',monospace}
 .fname{font-weight:600}
-.fpath{font-size:10px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:2px}
-.fmeta{font-size:10px;color:#6B7280;margin-top:2px}
-.ua-time-col{font-size:11px;font-family:'DM Mono',monospace;white-space:nowrap}
-.empty-cell{text-align:center;color:var(--text-3);font-style:italic;padding:16px}
-.report-footer{margin-top:28px;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.fpath{font-size:9px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:2px}
+.fmeta{font-size:9px;color:#6B7280;margin-top:2px}
+.ua-time-col{font-size:10px;font-family:'DM Mono',monospace;white-space:nowrap}
+.empty-cell{text-align:center;color:var(--text-3);font-style:italic;padding:10px}
+/* Ensure table rows don't break inside and footer stays below content */
+tbody tr{page-break-inside:avoid;break-inside:avoid;-webkit-page-break-inside:avoid}
+.report-footer{margin-top:18px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--text-3);font-family:'DM Mono',monospace;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;page-break-inside:avoid;break-inside:avoid;-webkit-break-inside:avoid}
 `;
 
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
