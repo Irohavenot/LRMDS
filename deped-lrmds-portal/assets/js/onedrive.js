@@ -387,17 +387,16 @@ async function openPreview(item) {
         : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Save to Library`;
       saveBtn.title = saved ? 'Remove from My Library' : 'Save to My Library';
     };
-    const isSaved = window.LRMDS_Analytics?.isBookmarked?.(item.id) || false;
+    const isSaved = window.LRMDS_Library?.isBookmarked?.(item.id) || false;
     _updateSaveBtn(isSaved);
     // Replace old listener cleanly
     const newSaveBtn = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
     _updateSaveBtn(isSaved); // re-apply to new node
     newSaveBtn.addEventListener('click', () => {
-      if (window.LRMDS_Analytics?.toggleBookmark) {
-        window.LRMDS_Analytics.toggleBookmark(item);
-        const nowSaved = window.LRMDS_Analytics.isBookmarked(item.id);
-        _updateSaveBtn.call(null, nowSaved); // won't work — new ref; do inline:
+      if (window.LRMDS_Library?.toggleBookmark) {
+        window.LRMDS_Library.toggleBookmark(item);
+        const nowSaved = window.LRMDS_Library.isBookmarked(item.id);
         newSaveBtn.classList.toggle('preview-save-btn--saved', nowSaved);
         newSaveBtn.innerHTML = nowSaved
           ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg> Saved`
@@ -1289,8 +1288,9 @@ function _folderPath() {
   }
   return parts.join(' \u203a ');
 }
-// Expose on window so mylibrary.js (loaded after onedrive.js) can call it
+// Expose on window so mylibrary.js (loaded after onedrive.js) can call them
 window._folderPath = _folderPath;
+window._track      = _track;
 
 function _track(event, extra) {
   if (!currentUser) return;

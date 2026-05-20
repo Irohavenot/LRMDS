@@ -919,7 +919,10 @@ function renderUsersTable(query) {
     var userHtml = '<div class="user-chip">'
       + '<span class="user-avatar-sm">' + escHtml(initial) + '</span>'
       + '<div class="user-chip-info">'
-      + '<span class="user-chip-name">' + escHtml(user) + '</span>'
+      + '<button type="button" class="user-chip-name user-activity-link"'
+      + ' data-user-name="' + escHtml(user) + '"'
+      + ' data-user-email="' + escHtml(email) + '"'
+      + ' title="View activity report">' + escHtml(user) + '</button>'
       + (email ? '<span class="user-chip-email">' + escHtml(email) + '</span>' : '')
       + '</div></div>';
 
@@ -975,6 +978,21 @@ function renderUsersTable(query) {
 (function() {
   var si = document.getElementById('users-search');
   if (si) si.addEventListener('input', function(e) { _usersQuery = e.target.value; _usersPage = 1; renderUsersTable(_usersQuery); });
+})();
+
+// Tap user name → per-user activity report (user-activity-report.js)
+(function() {
+  var tbody = document.getElementById('users-body');
+  if (!tbody) return;
+  tbody.addEventListener('click', function(e) {
+    var btn = e.target.closest('.user-activity-link');
+    if (!btn || !window.UserActivityReport) return;
+    e.preventDefault();
+    window.UserActivityReport.open({
+      user_name:  btn.getAttribute('data-user-name')  || '',
+      user_email: btn.getAttribute('data-user-email') || '',
+    });
+  });
 })();
 
 loadUsers();

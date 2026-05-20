@@ -710,7 +710,7 @@
             <div class="card-title">
               🔖 Most Bookmarked Resources
             </div>
-            <div class="card-subtitle">Files most saved to My Library by teachers · all time</div>
+            <div class="card-subtitle">Files most saved to My Library by teachers · in the selected period</div>
           </div>
         </div>
         <div id="bookmarks-list" class="bm-list">
@@ -811,6 +811,7 @@
               Everyone who has signed in via Microsoft and visited the portal
               · filtered by the date range above
               (<span id="users-count">—</span> users)
+              · <strong>tap a name</strong> to view bookmarks, downloads &amp; previews
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -942,5 +943,7 @@ document.addEventListener('keydown', function(e) {
 <script src="../assets/js/admindashboard.js"></script>
 <!-- Export / Report module (must load after admindashboard.js) -->
 <script src="../assets/js/dashboard-export.js"></script>
+<!-- Per-user activity drill-down + print/CSV (after dashboard-export.js) -->
+<script src="../assets/js/user-activity-report.js"></script>
 </body>
 </html>

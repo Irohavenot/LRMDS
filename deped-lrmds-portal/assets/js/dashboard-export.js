@@ -993,3 +993,6 @@ function _doPrint() {
   win.document.write(html);
   win.document.close();
 }
+
+// Exposed for user-activity-report.js CSV preview
+window._showCsvPreview = _showCsvPreview;

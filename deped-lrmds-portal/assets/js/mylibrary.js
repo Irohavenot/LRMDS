@@ -94,7 +94,7 @@
       window._track(eventName, {
         item_id:     item.id,
         item_name:   item.name,
-        item_type:   (item._meta && item._meta.type) || '',
+        item_type:   (item._meta && item._meta.type) || (typeof window._guessType === 'function' ? window._guessType(item.name) : ''),
         file_ext:    (item.name || '').split('.').pop().toLowerCase(),
         folder_path: folderPath,
       });

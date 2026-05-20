@@ -26,6 +26,8 @@
  */
 
 declare(strict_types=1);
+// DepEd Philippines — align "Today" / date presets with local school day
+date_default_timezone_set('Asia/Manila');
 // Prevent PHP notices/warnings from corrupting JSON output
 error_reporting(0);
 ini_set('display_errors', '0');
@@ -349,10 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 COUNT(DISTINCT session_id)                                         AS sessions,
                 SUM(CASE WHEN event = 'file_view'     THEN 1 ELSE 0 END)         AS file_views,
                 SUM(CASE WHEN event = 'file_download' THEN 1 ELSE 0 END)         AS downloads,
-                MAX(0,
-                  SUM(CASE WHEN event = 'bookmark_add'    THEN 1 ELSE 0 END)
-                  - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)
-                )                                                                   AS bookmarks,
+                SUM(CASE WHEN event = 'bookmark_add' THEN 1 ELSE 0 END)              AS bookmarks,
                 SUM(CASE WHEN event = 'search'        THEN 1 ELSE 0 END)         AS searches,
                 datetime(MAX(ts), 'unixepoch', 'localtime')                       AS last_seen,
                 MAX(ts)                                                            AS last_ts
@@ -367,6 +366,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+
+    // ── Per-user activity log  →  tracker.php?user_activity&user_email=…&days=30 ──
+    // Returns bookmark saves/removes, downloads, and file previews for one user.
+    if (isset($_GET['user_activity'])) {
+        $email = trim($_GET['user_email'] ?? '');
+        $name  = trim($_GET['user_name']  ?? '');
+        if ($email === '' && $name === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'user_email or user_name required']);
+            exit;
+        }
+
+        $limit = min((int)($_GET['limit'] ?? 500), 2000);
+        [$df, $dfParams] = days_filter();
+
+        if ($email !== '') {
+            $userCond   = 'user_email = ?';
+            $userParams = [$email];
+        } else {
+            $userCond   = 'user_name = ?';
+            $userParams = [$name];
+        }
+
+        $eventSql = <<<SQL
+            SELECT
+                event,
+                datetime(ts, 'unixepoch', 'localtime') AS action_at,
+                item_id,
+                item_name,
+                item_type,
+                file_ext,
+                folder_path
+            FROM events
+            WHERE {$userCond}
+              AND event = ?
+              {$df}
+            ORDER BY ts DESC
+            LIMIT ?
+        SQL;
+
+        $fetch = function (string $ev) use ($pdo, $eventSql, $userParams, $dfParams, $limit): array {
+            $stmt = $pdo->prepare($eventSql);
+            $stmt->execute(array_merge($userParams, [$ev], $dfParams, [$limit]));
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        };
+
+        $added    = $fetch('bookmark_add');
+        $removed  = $fetch('bookmark_remove');
+        $downloads = $fetch('file_download');
+        $previews  = $fetch('file_view');
+
+        // Resolve display name / email from the most recent matching row
+        $resolvedName  = $name;
+        $resolvedEmail = $email;
+        $lookup = $pdo->prepare("
+            SELECT user_name, user_email
+            FROM events
+            WHERE {$userCond}
+            ORDER BY ts DESC
+            LIMIT 1
+        ");
+        $lookup->execute($userParams);
+        if ($row = $lookup->fetch(PDO::FETCH_ASSOC)) {
+            if (!empty($row['user_name']))  $resolvedName  = $row['user_name'];
+            if (!empty($row['user_email'])) $resolvedEmail = $row['user_email'];
+        }
+
+        echo json_encode([
+            'user_name'         => $resolvedName,
+            'user_email'        => $resolvedEmail,
+            'bookmarks_added'   => $added,
+            'bookmarks_removed' => $removed,
+            'downloads'         => $downloads,
+            'previews'          => $previews,
+        ]);
+        exit;
+    }
 
     if (isset($_GET['searches'])) {
         [$df, $dfParams] = days_filter();
@@ -414,9 +490,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     // ── Most bookmarked files  →  tracker.php?top_bookmarked&limit=8 ──────────
-    // Counts bookmark_add/bookmark_remove events within the selected date range
-    // so the card respects the same date filter as all other dashboard sections.
-    // folder_path: try bookmark events first, then fall back to any event for that item.
+    // Counts bookmark_add actions in the selected period (not net add−remove, which
+    // hides files toggled off/on the same day).
     if (isset($_GET['top_bookmarked'])) {
         $limit = min((int)($_GET['limit'] ?? 8), 100);
         [$df, $dfParams] = days_filter();
@@ -426,22 +501,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 MAX(e.item_name)   AS item_name,
                 MAX(e.item_type)   AS item_type,
                 MAX(e.file_ext)    AS file_ext,
-                -- Prefer folder_path from bookmark events; fall back to any recorded event
                 COALESCE(
                     MAX(CASE WHEN e.folder_path IS NOT NULL AND e.folder_path != '' THEN e.folder_path END),
                     (SELECT ep.folder_path FROM events ep
                      WHERE ep.item_id = e.item_id AND ep.folder_path IS NOT NULL AND ep.folder_path != ''
                      ORDER BY ep.ts DESC LIMIT 1)
                 ) AS folder_path,
-                SUM(CASE WHEN e.event = 'bookmark_add'    THEN 1 ELSE 0 END)
-                - SUM(CASE WHEN e.event = 'bookmark_remove' THEN 1 ELSE 0 END) AS bookmark_count
+                COUNT(*) AS bookmark_count
             FROM events e
             WHERE e.item_id IS NOT NULL
-              AND e.event IN ('bookmark_add', 'bookmark_remove')
+              AND e.event = 'bookmark_add'
               {$df}
             GROUP BY e.item_id
-            HAVING bookmark_count > 0
-            ORDER BY bookmark_count DESC
+            ORDER BY bookmark_count DESC, MAX(e.ts) DESC
             LIMIT ?
         ");
         $stmt->execute(array_merge($dfParams, [$limit]));
@@ -461,10 +533,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             (SELECT COUNT(*) FROM events WHERE event = 'file_download' {$w}) AS total_downloads,
             (SELECT COUNT(*) FROM events WHERE event = 'search' {$w}) AS total_searches,
             (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL {$w}) AS unique_users,
-            (SELECT MAX(0,
-                SUM(CASE WHEN event = 'bookmark_add'    THEN 1 ELSE 0 END)
-              - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)
-             ) FROM events WHERE event IN ('bookmark_add','bookmark_remove') {$w}) AS total_bookmarks
+            (SELECT COUNT(*) FROM events WHERE event = 'bookmark_add' {$w}) AS total_bookmarks
     ");
     $summary->execute($params);
     echo json_encode($summary->fetch(PDO::FETCH_ASSOC));
