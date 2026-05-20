@@ -1283,9 +1283,14 @@ function _folderPath() {
   const parts = [ONEDRIVE_ROOT_FOLDER];
   folderHistory.forEach(h => { if (h.name) parts.push(h.name); });
   const cur = resultsTitleEl && resultsTitleEl.textContent;
-  if (cur && cur !== ONEDRIVE_ROOT_FOLDER && cur !== parts[parts.length - 1]) parts.push(cur);
+  // Exclude "Search Results" — it is not a real path segment
+  if (cur && cur !== ONEDRIVE_ROOT_FOLDER && cur !== 'Search Results' && cur !== parts[parts.length - 1]) {
+    parts.push(cur);
+  }
   return parts.join(' \u203a ');
 }
+// Expose on window so mylibrary.js (loaded after onedrive.js) can call it
+window._folderPath = _folderPath;
 
 function _track(event, extra) {
   if (!currentUser) return;

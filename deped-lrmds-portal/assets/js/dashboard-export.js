@@ -32,6 +32,14 @@ function _dateLabel() {
 function _rangeLabel() {
   const el  = document.getElementById('date-range');
   if (!el) return 'Last 30 days';
+  if (el.value === 'custom') {
+    const from = document.getElementById('custom-from');
+    const to   = document.getElementById('custom-to');
+    if (from && to && from.value && to.value) {
+      return `${from.value} to ${to.value}`;
+    }
+    return 'Custom range';
+  }
   const map = { '1':'Today','7':'Last 7 days','30':'Last 30 days','90':'Last 90 days','0':'All time' };
   return map[el.value] || 'Custom';
 }
@@ -89,7 +97,12 @@ function _getSearchData() {
   return Array.from(tags.querySelectorAll('.search-tag')).map(el => {
     const countEl = el.querySelector('.tag-count');
     const count   = countEl ? parseInt(countEl.textContent, 10) || 0 : 0;
-    const text    = el.textContent.replace(countEl ? countEl.textContent : '', '').trim();
+    // Clone and remove the count element before reading text — avoids
+    // accidentally stripping count digits that appear in the query itself.
+    const clone = el.cloneNode(true);
+    const cloneCount = clone.querySelector('.tag-count');
+    if (cloneCount) cloneCount.remove();
+    const text = clone.textContent.trim();
     return { search_query: text, count };
   });
 }
@@ -201,12 +214,207 @@ function exportCSV() {
     _logData.forEach(r => csv += _row([r.downloaded_at||'—',r.user_name||'—',r.user_email||'—',r.item_name||'—',r.item_type||'—',r.file_ext||'—',r.folder_path||'—']));
   }
 
-  _downloadFile(`LRMDS_Report_${slug}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
+  // ── Show preview modal instead of downloading directly ───────
+  _showCsvPreview(csv, `LRMDS_Report_${slug}.csv`);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  2.  PRINTABLE HTML REPORT
+//  1b.  CSV PREVIEW MODAL
 // ═══════════════════════════════════════════════════════════════
+function _showCsvPreview(csv, filename) {
+  // Remove any existing modal
+  const old = document.getElementById('csv-preview-modal');
+  if (old) old.remove();
+
+  // Parse CSV into preview table (first 60 data rows per section)
+  const lines  = csv.split(/\r?\n/).filter(l => l.trim());
+
+  // Build a human-readable HTML preview of the sections
+  let previewHtml = '';
+  let sectionRows = [];
+  let sectionHead = '';
+  let inSection   = false;
+
+  function flushSection() {
+    if (!sectionHead && !sectionRows.length) return;
+    const colCount = sectionRows.length ? sectionRows[0].length : 1;
+    const headerCells = sectionRows.length
+      ? sectionRows[0].map(c => `<th>${_escHtmlM(c)}</th>`).join('')
+      : '';
+    const bodyRows = sectionRows.slice(1, 51).map(row =>
+      '<tr>' + row.map(c => `<td>${_escHtmlM(c)}</td>`).join('') + '</tr>'
+    ).join('');
+    const more = sectionRows.length > 51
+      ? `<tr><td colspan="${colCount}" style="text-align:center;color:#9B9A95;font-style:italic;padding:6px">
+           … ${sectionRows.length - 51} more rows …</td></tr>`
+      : '';
+    previewHtml += `
+      <div class="csv-section">
+        <div class="csv-section-hd">${_escHtmlM(sectionHead)}</div>
+        <div class="csv-table-wrap">
+          <table><thead><tr>${headerCells}</tr></thead>
+          <tbody>${bodyRows}${more}</tbody></table>
+        </div>
+      </div>`;
+    sectionRows = [];
+    sectionHead = '';
+    inSection = false;
+  }
+
+  // Simple CSV line parser (handles quoted fields)
+  function parseLine(line) {
+    const out = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQ = false; }
+        else { cur += ch; }
+      } else {
+        if (ch === '"') { inQ = true; }
+        else if (ch === ',') { out.push(cur); cur = ''; }
+        else { cur += ch; }
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  let firstLine = true;
+  for (const line of lines) {
+    const cells = parseLine(line);
+    if (cells.length === 1 && cells[0].startsWith('===')) {
+      flushSection();
+      sectionHead = cells[0].replace(/===/g, '').trim();
+      inSection = true;
+      firstLine = false;
+      continue;
+    }
+    if (cells.length === 1 && !cells[0].trim()) continue;
+    // Skip the decorative title banner (first single-cell non-=== line)
+    if (firstLine && cells.length === 1 && !inSection) {
+      firstLine = false;
+      continue;
+    }
+    firstLine = false;
+    // Meta rows at top (Generated, Period) — render as a tidy info block
+    if (!inSection && cells.length <= 2) {
+      if (!sectionHead) {
+        sectionHead = 'Report Info';
+        // Inject a fake header row so columns display nicely
+        sectionRows.push(['Field', 'Value']);
+      }
+      sectionRows.push(cells);
+      continue;
+    }
+    if (inSection || sectionRows.length) {
+      sectionRows.push(cells);
+    }
+  }
+  flushSection();
+
+  function _escHtmlM(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'csv-preview-modal';
+  modal.innerHTML = `
+    <div class="cpm-backdrop"></div>
+    <div class="cpm-dialog">
+      <div class="cpm-header">
+        <div class="cpm-header-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>CSV Preview — <em>${_escHtmlM(filename)}</em></span>
+        </div>
+        <button class="cpm-close" onclick="document.getElementById('csv-preview-modal').remove()">✕</button>
+      </div>
+      <div class="cpm-hint">Review the data below before downloading. Scroll to see all sections.</div>
+      <div class="cpm-body">${previewHtml}</div>
+      <div class="cpm-footer">
+        <button class="cpm-btn cpm-btn-cancel" onclick="document.getElementById('csv-preview-modal').remove()">Cancel</button>
+        <button class="cpm-btn cpm-btn-save" onclick="_downloadFile('${_escHtmlM(filename)}','\uFEFF'+window._csvPreviewData,'text/csv;charset=utf-8');document.getElementById('csv-preview-modal').remove()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download CSV
+        </button>
+      </div>
+    </div>`;
+
+  // Store CSV for the download button to access
+  window._csvPreviewData = csv;
+
+  // Inject styles if not already present
+  if (!document.getElementById('cpm-styles')) {
+    const s = document.createElement('style');
+    s.id = 'cpm-styles';
+    s.textContent = `
+      #csv-preview-modal { position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center; }
+      .cpm-backdrop { position:absolute;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(2px); }
+      .cpm-dialog {
+        position:relative;z-index:1;background:#fff;border-radius:14px;
+        width:min(92vw,960px);max-height:86vh;display:flex;flex-direction:column;
+        box-shadow:0 20px 60px rgba(0,0,0,.25),0 4px 16px rgba(0,0,0,.12);
+        overflow:hidden;
+      }
+      .cpm-header {
+        display:flex;align-items:center;justify-content:space-between;
+        padding:14px 20px;border-bottom:1px solid rgba(0,0,0,.08);
+        background:#1a5c2a;color:#fff;flex-shrink:0;
+        font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;gap:12px;
+      }
+      .cpm-header-left { display:flex;align-items:center;gap:8px; }
+      .cpm-header em { font-style:normal;opacity:.75;font-weight:400; }
+      .cpm-close {
+        background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+        color:#fff;border-radius:6px;width:28px;height:28px;cursor:pointer;
+        font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+      }
+      .cpm-close:hover { background:rgba(255,255,255,.22); }
+      .cpm-hint {
+        padding:8px 20px;font-size:11.5px;color:#607060;background:#f0f7f2;
+        border-bottom:1px solid #cde0d3;flex-shrink:0;font-family:'DM Sans',sans-serif;
+      }
+      .cpm-body { overflow-y:auto;padding:16px 20px;flex:1;display:flex;flex-direction:column;gap:18px; }
+      .csv-section {}
+      .csv-section-hd {
+        font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+        color:#1a5c2a;margin-bottom:6px;font-family:'DM Sans',sans-serif;
+        padding-bottom:4px;border-bottom:2px solid #2d7a3e;
+      }
+      .csv-table-wrap { overflow-x:auto;border-radius:8px;border:1px solid #cde0d3; }
+      .csv-table-wrap table { border-collapse:collapse;width:100%;font-size:11.5px;font-family:'DM Sans',sans-serif; }
+      .csv-table-wrap thead th {
+        background:#f0f7f2;padding:6px 10px;text-align:left;font-size:10px;
+        color:#607060;font-weight:600;letter-spacing:.04em;
+        border-bottom:1.5px solid #b6ddc2;white-space:nowrap;
+      }
+      .csv-table-wrap tbody td { padding:5px 10px;border-bottom:1px solid #e8f3ec;color:#2e4433;vertical-align:middle; }
+      .csv-table-wrap tbody tr:last-child td { border-bottom:none; }
+      .csv-table-wrap tbody tr:nth-child(even) { background:#f5fbf6; }
+      .cpm-footer {
+        display:flex;align-items:center;justify-content:flex-end;gap:10px;
+        padding:12px 20px;border-top:1px solid rgba(0,0,0,.08);
+        background:#fafaf8;flex-shrink:0;
+      }
+      .cpm-btn {
+        display:flex;align-items:center;gap:6px;
+        padding:8px 18px;border-radius:8px;border:none;
+        font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;
+        transition:opacity .15s;
+      }
+      .cpm-btn:hover { opacity:.85; }
+      .cpm-btn-cancel { background:#f0f0ec;color:#6B6A65; }
+      .cpm-btn-save { background:#1a5c2a;color:#fff; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  document.body.appendChild(modal);
+  // Close on backdrop click
+  modal.querySelector('.cpm-backdrop').addEventListener('click', () => modal.remove());
+}
+
+
 
 // DepEd Carcar City logo — 120×120 px JPEG, base64
 const _LOGO_B64 = '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';
@@ -369,34 +577,59 @@ body {
   line-height: 1.6;
 }
 
-@page { size: A4 portrait; margin: 15mm 13mm 15mm 13mm; }
+@page { size: A4 portrait; margin: 15mm 13mm 18mm 13mm; }
 @media print {
-  .no-print   { display: none !important; }
-  .page-break { page-break-before: always; }
-  body        { font-size: 11px; }
+  .no-print              { display: none !important; }
+  body                   { font-size: 11px; }
+  /* Repeat table headers on each printed page */
+  thead                  { display: table-header-group; }
+  tfoot                  { display: table-footer-group; }
+  /* Prevent rows from splitting across pages */
+  tbody tr               { page-break-inside: avoid; break-inside: avoid; }
+  /* Keep section headings with the content below them */
+  .section-hd            { page-break-after: avoid; break-after: avoid; }
+  /* Keep cards together where possible */
+  .card, .mc-r           { page-break-inside: avoid; break-inside: avoid; }
+  /* Ensure the footer always prints fully — never clip it */
+  .report-footer         { page-break-inside: avoid; break-inside: avoid; }
 }
 
 /* ── Wrapper ── */
-.page { max-width: 880px; margin: 0 auto; padding: 28px 40px 60px; }
+.page { max-width: 880px; margin: 0 auto; padding: 28px 40px 80px; }
 
 /* ── Sticky print bar ── */
 .print-bar {
   position: sticky; top: 0; z-index: 99;
   background: var(--green-dk); color: var(--white);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 24px; gap: 12px;
+  padding: 10px 20px; gap: 12px; flex-wrap: wrap;
   font-family: 'DM Mono', monospace; font-size: 12px;
   border-bottom: 2px solid var(--green-lt);
 }
-.print-bar span { opacity: .7; }
-.print-bar-btns { display: flex; gap: 8px; }
+.print-bar > span { opacity: .7; flex-shrink: 0; }
+.print-bar-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.print-setting {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px;
+}
+.print-setting label { opacity: .65; white-space: nowrap; }
+.print-setting select {
+  background: rgba(255,255,255,.13); color: var(--white);
+  border: 1px solid rgba(255,255,255,.28); border-radius: 5px;
+  padding: 4px 8px; font-size: 11px; font-family: 'DM Mono', monospace;
+  cursor: pointer; outline: none;
+}
+.print-setting select option { background: #1a5c2a; color: #fff; }
+.print-bar-btns { display: flex; gap: 7px; }
 .pbtn {
-  padding: 7px 18px; border-radius: 6px; border: none;
+  padding: 7px 16px; border-radius: 6px; border: none;
   font-family: 'DM Mono', monospace; font-size: 12px;
   font-weight: 500; cursor: pointer; transition: opacity .15s;
+  white-space: nowrap;
 }
 .pbtn:hover { opacity: .82; }
 .pbtn-primary   { background: var(--white); color: var(--green-dk); }
+.pbtn-outline   { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,.5); }
 .pbtn-secondary { background: rgba(255,255,255,.12); color: var(--white); border: 1px solid rgba(255,255,255,.3); }
 
 /* ── Cover header ── */
@@ -545,10 +778,12 @@ tbody tr:nth-child(even) { background: var(--row-alt); }
 
 /* ── Report footer ── */
 .report-footer {
-  margin-top: 44px; padding-top: 14px;
+  margin-top: 44px; padding-top: 14px; padding-bottom: 20px;
   border-top: 1.5px solid var(--border);
   display: flex; justify-content: space-between; align-items: center;
   font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-3);
+  /* Always stay on the page — don't let the browser clip it */
+  page-break-inside: avoid; break-inside: avoid;
 }
 .report-footer strong { color: var(--text-2); }
 </style>
@@ -557,11 +792,44 @@ tbody tr:nth-child(even) { background: var(--row-alt); }
 
 <div class="print-bar no-print">
   <span>LRMDS Analytics Report &nbsp;·&nbsp; ${_escHtmlR(date)} &nbsp;·&nbsp; ${_escHtmlR(range)}</span>
-  <div class="print-bar-btns">
-    <button class="pbtn pbtn-secondary" onclick="window.close()">✕ Close</button>
-    <button class="pbtn pbtn-primary"   onclick="window.print()">🖨&nbsp; Print / Save as PDF</button>
+  <div class="print-bar-controls">
+    <div class="print-setting">
+      <label>Page size</label>
+      <select id="pg-size" onchange="_applyPageSettings()">
+        <option value="A4 portrait"  selected>A4 Portrait</option>
+        <option value="A4 landscape">A4 Landscape</option>
+        <option value="letter portrait">Letter Portrait</option>
+        <option value="letter landscape">Letter Landscape</option>
+      </select>
+    </div>
+    <div class="print-setting">
+      <label>Margins</label>
+      <select id="pg-margin" onchange="_applyPageSettings()">
+        <option value="10mm 10mm 14mm 10mm">Narrow (10 mm)</option>
+        <option value="15mm 13mm 18mm 13mm" selected>Normal (15 mm)</option>
+        <option value="20mm 18mm 22mm 18mm">Wide (20 mm)</option>
+        <option value="25mm 20mm 28mm 20mm">Very wide (25 mm)</option>
+      </select>
+    </div>
+    <div class="print-bar-btns">
+      <button class="pbtn pbtn-secondary" onclick="window.close()">✕ Close</button>
+      <button class="pbtn pbtn-primary"   onclick="_doPrint()">🖨&nbsp; Print / Save as PDF</button>
+    </div>
   </div>
 </div>
+<script>
+function _applyPageSettings() {
+  const size   = document.getElementById('pg-size').value;
+  const margin = document.getElementById('pg-margin').value;
+  let st = document.getElementById('_page-style');
+  if (!st) { st = document.createElement('style'); st.id = '_page-style'; document.head.appendChild(st); }
+  st.textContent = '@page { size: ' + size + '; margin: ' + margin + '; }';
+}
+function _doPrint() {
+  _applyPageSettings();
+  window.print();
+}
+</script>
 
 <div class="page">
 

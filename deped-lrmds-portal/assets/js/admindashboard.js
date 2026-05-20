@@ -67,7 +67,7 @@ function demoData() {
       { item_name: 'Grade11_Math_Assessment.pdf', item_id: 'a7', item_type: 'Assessment', file_ext: 'pdf',  folder_path: 'Grade 11 › Mathematics › Quarter 1 › Assessments', views: 95,  downloads: 42 },
       { item_name: 'Grade3_Science_Q1_TG.pdf',    item_id: 'a8', item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 3 › Science › Quarter 1 › Teachers Guide',   views: 87,  downloads: 39 },
     ],
-    // Most-bookmarked files (all-time, unaffected by date range)
+    // Most-bookmarked files (respects date range like all other sections)
     top_bookmarked: [
       { item_name: 'Grade6_Science_Q1_SLM.pdf',  item_type: 'SLM',        file_ext: 'pdf',  folder_path: 'Grade 6 › Science › Quarter 1 › SLMs',             bookmark_count: 38 },
       { item_name: 'Grade4_Math_Q2_TG.pdf',       item_type: 'TG',         file_ext: 'pdf',  folder_path: 'Grade 4 › Mathematics › Quarter 2 › Teachers Guide', bookmark_count: 31 },
@@ -137,14 +137,32 @@ async function get(endpoint) {
 }
 
 // Returns the currently-selected day window.
-// "Today" is stored as value="1" (last 1 day), which tracker.php
-// handles correctly via  WHERE ts >= (now - 1*86400).
+// "Today" is stored as value="1" (last 1 day — from midnight today).
+// Returns 0 for all-time, or a positive integer for a preset window.
 function getDays() {
   const el = document.getElementById('date-range');
-  return el ? parseInt(el.value, 10) || 0 : 30;
+  if (!el) return 30;
+  if (el.value === 'custom') return 'custom';
+  return parseInt(el.value, 10) || 0;
 }
 
+// Returns the custom date range if selected, otherwise null.
+function getCustomRange() {
+  const from = document.getElementById('custom-from');
+  const to   = document.getElementById('custom-to');
+  if (!from || !to || !from.value || !to.value) return null;
+  return { from: from.value, to: to.value };
+}
+
+// Appends date filter params to a base URL.
+// Supports both preset days and custom date_from/date_to.
 function dq(base, days) {
+  if (days === 'custom') {
+    const range = getCustomRange();
+    if (!range) return base;
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}date_from=${encodeURIComponent(range.from)}&date_to=${encodeURIComponent(range.to)}`;
+  }
   if (!days) return base;
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}days=${days}`;
@@ -181,7 +199,7 @@ async function fetchAllData() {
   }
 
   // Live mode — fetch everything in parallel
-  // Note: top_bookmarked is ALL TIME (bookmark counts don't filter by date)
+  // Note: top_bookmarked now respects the selected date range (fixed in tracker.php)
   const [summary, topDl, topVw, folders, types, grades, subjects, searches, trendRaw, topBookmarked] = await Promise.all([
     get(dq('',                                     days)),
     get(dq('?top&by=downloads&limit=8&withpath=1', days)),
@@ -192,7 +210,7 @@ async function fetchAllData() {
     get(dq('?by_subject',                          days)),
     get(dq('?searches',                            days)),
     get(dq('?trend',                               days)),
-    get('?top_bookmarked&limit=8'),                       // always all-time
+    get(dq('?top_bookmarked&limit=8', days)),              // respects selected date range
   ]);
 
   const trend = { labels: [], dl: [], vw: [] };
@@ -572,6 +590,41 @@ async function loadAll() {
     console.error('Dashboard load error:', err);
     document.getElementById('last-updated').textContent = 'Load failed — check console';
   }
+}
+
+// ── Date-range UI: show/hide custom date inputs ────────────────
+function onDateRangeChange() {
+  const el  = document.getElementById('date-range');
+  const row = document.getElementById('custom-range-row');
+  if (!el || !row) return;
+
+  if (el.value === 'custom') {
+    row.classList.add('visible');
+    // Pre-fill sensible defaults: today as "to", 7 days ago as "from"
+    const today = new Date();
+    const ago   = new Date(today); ago.setDate(today.getDate() - 6);
+    const fmt   = d => d.toISOString().slice(0, 10);
+    const fi    = document.getElementById('custom-from');
+    const ti    = document.getElementById('custom-to');
+    if (fi && !fi.value) fi.value = fmt(ago);
+    if (ti && !ti.value) ti.value = fmt(today);
+    // Don't call loadAll yet — wait until both dates are filled
+    if (fi && ti && fi.value && ti.value) loadAll();
+  } else {
+    row.classList.remove('visible');
+    loadAll();
+  }
+}
+
+function applyCustomRange() {
+  const fi = document.getElementById('custom-from');
+  const ti = document.getElementById('custom-to');
+  if (!fi || !ti || !fi.value || !ti.value) return;
+  if (fi.value > ti.value) {
+    // Swap silently so from <= to
+    [fi.value, ti.value] = [ti.value, fi.value];
+  }
+  loadAll();
 }
 
 // Run on page load

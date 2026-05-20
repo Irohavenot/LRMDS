@@ -156,22 +156,47 @@ foreach (['ALTER TABLE events ADD COLUMN file_ext TEXT', 'ALTER TABLE events ADD
 //  GET  tracker.php?top&limit=10         →  top downloaded/viewed files
 // ═════════════════════════════════════════════════════════════════════════════
 
-// ── Shared helper: build a WHERE clause fragment for the days filter ─────────
-// Returns ['AND ts >= ?', $ts_cutoff] or ['', null] for all-time.
+// ── Shared helper: build a WHERE clause fragment for the date filter ──────────
+// Priority: date_from/date_to (custom range) → days (preset) → all-time.
+//
+// For 'days=1' (Today) we cut at midnight of the current local date rather than
+// "now minus 86400 seconds", so records from yesterday are excluded correctly.
+//
+// Returns one of:
+//   ['AND ts >= ?',           [$from_ts]]           – days / today
+//   ['AND ts >= ? AND ts < ?', [$from_ts, $to_ts]]  – custom range
+//   ['', []]                                         – all-time
 function days_filter(): array {
+    // ── Custom date range: ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD ──────────
+    if (!empty($_GET['date_from']) && !empty($_GET['date_to'])) {
+        $from = strtotime($_GET['date_from'] . ' 00:00:00');
+        $to   = strtotime($_GET['date_to']   . ' 23:59:59');
+        if ($from !== false && $to !== false && $from <= $to) {
+            return ['AND ts >= ? AND ts <= ?', [$from, $to]];
+        }
+    }
+
     $days = isset($_GET['days']) ? (int)$_GET['days'] : 0;
-    if ($days <= 0) return ['', null];
-    $cutoff = time() - ($days * 86400);
-    return ['AND ts >= ?', $cutoff];
+    if ($days <= 0) return ['', []];
+
+    if ($days === 1) {
+        // "Today" — midnight of the current local date (not rolling 24 h)
+        $cutoff = strtotime(date('Y-m-d') . ' 00:00:00');
+    } else {
+        // "Last N days" — rolling window from N days ago at midnight
+        $cutoff = strtotime(date('Y-m-d', strtotime("-{$days} days")) . ' 00:00:00');
+    }
+    return ['AND ts >= ?', [$cutoff]];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if (isset($_GET['counts']) && !empty($_GET['item_id'])) {
-        $stmt = $pdo->prepare('SELECT views, downloads FROM file_stats WHERE item_id = ?');
+        // Bug fix: also return bookmarks so analytics badge and live counts are complete
+        $stmt = $pdo->prepare('SELECT views, downloads, bookmarks FROM file_stats WHERE item_id = ?');
         $stmt->execute([trim($_GET['item_id'])]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        echo json_encode($row ?: ['views' => 0, 'downloads' => 0]);
+        echo json_encode($row ?: ['views' => 0, 'downloads' => 0, 'bookmarks' => 0]);
         exit;
     }
 
@@ -180,8 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Used by the "Download Log" tab in the admin dashboard.
     if (isset($_GET['log'])) {
         $limit = min((int)($_GET['limit'] ?? 200), 1000);
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff, $limit] : [$limit];
+        [$df, $dfParams] = days_filter();
+        $params = array_merge($dfParams, [$limit]);
         $stmt = $pdo->prepare("
             SELECT
                 datetime(ts,'unixepoch','localtime') AS downloaded_at,
@@ -208,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $limit    = min((int)($_GET['limit'] ?? 10), 100);
         $by       = ($_GET['by'] ?? 'downloads') === 'views' ? 'views' : 'downloads';
         $withpath = isset($_GET['withpath']);   // include folder_path + file_ext when set
-        [$df, $cutoff] = days_filter();
+        [$df, $dfParams] = days_filter();
 
         // Extra columns: most-recent folder_path and file_ext for this item
         $extraCols = $withpath
@@ -216,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                , (SELECT file_ext   FROM events e3 WHERE e3.item_id=e.item_id AND e3.event='file_download' AND e3.file_ext IS NOT NULL ORDER BY e3.ts DESC LIMIT 1) AS file_ext"
             : '';
 
-        if ($cutoff) {
+        if (!empty($dfParams)) {
             $stmt = $pdo->prepare("
                 SELECT item_id, item_name,
                        SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
@@ -227,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 GROUP BY item_id, item_name
                 ORDER BY {$by} DESC LIMIT ?
             ");
-            $stmt->execute([$cutoff, $limit]);
+            $stmt->execute(array_merge($dfParams, [$limit]));
         } else {
             // All-time: join file_stats with a subquery for path/ext
             if ($withpath) {
@@ -250,8 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     // ── Folder activity  →  tracker.php?folders ───────────────────────────────
     if (isset($_GET['folders'])) {
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff] : [];
+        [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
             SELECT folder_path,
                    SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
@@ -261,39 +285,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             GROUP BY folder_path
             ORDER BY (views + downloads) DESC LIMIT 10
         ");
-        $stmt->execute($params);
+        $stmt->execute($dfParams);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
-    // ── Daily trend  →  tracker.php?trend&days=30 ─────────────────────────────
+    // ── Daily trend  →  tracker.php?trend&days=30 or ?trend&date_from=…&date_to=… ──
     if (isset($_GET['trend'])) {
-        $days = isset($_GET['days']) && (int)$_GET['days'] > 0
-            ? min((int)$_GET['days'], 365) : 90;
-        $stmt = $pdo->prepare("
-            SELECT date(ts,'unixepoch') AS day,
-                   SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
-                   SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
-            FROM events
-            WHERE ts >= strftime('%s','now','-'||?||' days')
-            GROUP BY day ORDER BY day
-        ");
-        $stmt->execute([$days]);
+        [$df, $dfParams] = days_filter();
+        if (!empty($dfParams)) {
+            // Use the same date filter as other endpoints (supports custom ranges)
+            $stmt = $pdo->prepare("
+                SELECT date(ts,'unixepoch','localtime') AS day,
+                       SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
+                       SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
+                FROM events
+                WHERE 1=1 {$df}
+                GROUP BY day ORDER BY day
+            ");
+            $stmt->execute($dfParams);
+        } else {
+            // All-time or default 90-day window
+            $days = isset($_GET['days']) && (int)$_GET['days'] > 0
+                ? min((int)$_GET['days'], 365) : 90;
+            $stmt = $pdo->prepare("
+                SELECT date(ts,'unixepoch','localtime') AS day,
+                       SUM(CASE WHEN event='file_view'     THEN 1 ELSE 0 END) AS views,
+                       SUM(CASE WHEN event='file_download' THEN 1 ELSE 0 END) AS downloads
+                FROM events
+                WHERE ts >= strftime('%s','now','-'||?||' days')
+                GROUP BY day ORDER BY day
+            ");
+            $stmt->execute([$days]);
+        }
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
     // ── Resource type breakdown  →  tracker.php?by_type ───────────────────────
     if (isset($_GET['by_type'])) {
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff] : [];
+        [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
             SELECT item_type, COUNT(*) AS downloads
             FROM events
             WHERE event='file_download' AND item_type IS NOT NULL AND item_type != '' {$df}
             GROUP BY item_type ORDER BY downloads DESC
         ");
-        $stmt->execute($params);
+        $stmt->execute($dfParams);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
@@ -302,8 +340,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Returns one row per unique user with visit stats: sessions, views, downloads, last seen.
     if (isset($_GET['users'])) {
         $limit = min((int)($_GET['limit'] ?? 200), 1000);
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff, $limit] : [$limit];
+        [$df, $dfParams] = days_filter();
+        $params = array_merge($dfParams, [$limit]);
         $stmt = $pdo->prepare("
             SELECT
                 user_name,
@@ -311,8 +349,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 COUNT(DISTINCT session_id)                                         AS sessions,
                 SUM(CASE WHEN event = 'file_view'     THEN 1 ELSE 0 END)         AS file_views,
                 SUM(CASE WHEN event = 'file_download' THEN 1 ELSE 0 END)         AS downloads,
-                SUM(CASE WHEN event = 'bookmark_add'  THEN 1 ELSE 0 END)
-                  - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)   AS bookmarks,
+                MAX(0,
+                  SUM(CASE WHEN event = 'bookmark_add'    THEN 1 ELSE 0 END)
+                  - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)
+                )                                                                   AS bookmarks,
                 SUM(CASE WHEN event = 'search'        THEN 1 ELSE 0 END)         AS searches,
                 datetime(MAX(ts), 'unixepoch', 'localtime')                       AS last_seen,
                 MAX(ts)                                                            AS last_ts
@@ -329,23 +369,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 
     if (isset($_GET['searches'])) {
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff] : [];
+        [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
             SELECT search_query, COUNT(*) AS count
             FROM events
             WHERE event='search' AND search_query IS NOT NULL AND search_query != '' {$df}
             GROUP BY search_query ORDER BY count DESC LIMIT 20
         ");
-        $stmt->execute($params);
+        $stmt->execute($dfParams);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
     // ── Downloads by grade  →  tracker.php?by_grade ───────────────────────────
     if (isset($_GET['by_grade'])) {
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff] : [];
+        [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
             SELECT json_extract(filters,'$.grade') AS grade, COUNT(*) AS downloads
             FROM events
@@ -354,15 +392,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
               AND json_extract(filters,'$.grade') != '' {$df}
             GROUP BY grade ORDER BY downloads DESC
         ");
-        $stmt->execute($params);
+        $stmt->execute($dfParams);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
     // ── Downloads by subject  →  tracker.php?by_subject ───────────────────────
     if (isset($_GET['by_subject'])) {
-        [$df, $cutoff] = days_filter();
-        $params = $cutoff ? [$cutoff] : [];
+        [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
             SELECT json_extract(filters,'$.subject') AS subject, COUNT(*) AS downloads
             FROM events
@@ -371,35 +408,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
               AND json_extract(filters,'$.subject') != '' {$df}
             GROUP BY subject ORDER BY downloads DESC
         ");
-        $stmt->execute($params);
+        $stmt->execute($dfParams);
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
     // ── Most bookmarked files  →  tracker.php?top_bookmarked&limit=8 ──────────
+    // Counts bookmark_add/bookmark_remove events within the selected date range
+    // so the card respects the same date filter as all other dashboard sections.
+    // folder_path: try bookmark events first, then fall back to any event for that item.
     if (isset($_GET['top_bookmarked'])) {
         $limit = min((int)($_GET['limit'] ?? 8), 100);
-        $stmt  = $pdo->prepare("
+        [$df, $dfParams] = days_filter();
+        $stmt = $pdo->prepare("
             SELECT
-                fs.item_id,
-                fs.item_name,
-                fs.bookmarks                                                                                    AS bookmark_count,
-                (SELECT e.item_type   FROM events e WHERE e.item_id = fs.item_id AND e.item_type   IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS item_type,
-                (SELECT e.file_ext    FROM events e WHERE e.item_id = fs.item_id AND e.file_ext    IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS file_ext,
-                (SELECT e.folder_path FROM events e WHERE e.item_id = fs.item_id AND e.folder_path IS NOT NULL ORDER BY e.ts DESC LIMIT 1) AS folder_path
-            FROM file_stats fs
-            WHERE fs.bookmarks > 0
-            ORDER BY fs.bookmarks DESC
+                e.item_id,
+                MAX(e.item_name)   AS item_name,
+                MAX(e.item_type)   AS item_type,
+                MAX(e.file_ext)    AS file_ext,
+                -- Prefer folder_path from bookmark events; fall back to any recorded event
+                COALESCE(
+                    MAX(CASE WHEN e.folder_path IS NOT NULL AND e.folder_path != '' THEN e.folder_path END),
+                    (SELECT ep.folder_path FROM events ep
+                     WHERE ep.item_id = e.item_id AND ep.folder_path IS NOT NULL AND ep.folder_path != ''
+                     ORDER BY ep.ts DESC LIMIT 1)
+                ) AS folder_path,
+                SUM(CASE WHEN e.event = 'bookmark_add'    THEN 1 ELSE 0 END)
+                - SUM(CASE WHEN e.event = 'bookmark_remove' THEN 1 ELSE 0 END) AS bookmark_count
+            FROM events e
+            WHERE e.item_id IS NOT NULL
+              AND e.event IN ('bookmark_add', 'bookmark_remove')
+              {$df}
+            GROUP BY e.item_id
+            HAVING bookmark_count > 0
+            ORDER BY bookmark_count DESC
             LIMIT ?
         ");
-        $stmt->execute([$limit]);
+        $stmt->execute(array_merge($dfParams, [$limit]));
         echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
         exit;
     }
 
-    // Default: return aggregated summary for a dashboard (with optional days filter)
-    [$df, $cutoff] = days_filter();
-    $params = $cutoff ? [$cutoff, $cutoff, $cutoff, $cutoff, $cutoff] : [];
+    // Default: return aggregated summary for a dashboard (with optional date filter)
+    [$df, $dfParams] = days_filter();
+    // The summary query has 6 sub-selects each needing the same WHERE fragment
+    $params = array_merge($dfParams, $dfParams, $dfParams, $dfParams, $dfParams, $dfParams);
     $w = $df; // WHERE fragment
     $summary = $pdo->prepare("
         SELECT
@@ -408,7 +461,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             (SELECT COUNT(*) FROM events WHERE event = 'file_download' {$w}) AS total_downloads,
             (SELECT COUNT(*) FROM events WHERE event = 'search' {$w}) AS total_searches,
             (SELECT COUNT(DISTINCT user_oid) FROM events WHERE user_oid IS NOT NULL {$w}) AS unique_users,
-            (SELECT COALESCE(SUM(bookmarks), 0) FROM file_stats) AS total_bookmarks
+            (SELECT MAX(0,
+                SUM(CASE WHEN event = 'bookmark_add'    THEN 1 ELSE 0 END)
+              - SUM(CASE WHEN event = 'bookmark_remove' THEN 1 ELSE 0 END)
+             ) FROM events WHERE event IN ('bookmark_add','bookmark_remove') {$w}) AS total_bookmarks
     ");
     $summary->execute($params);
     echo json_encode($summary->fetch(PDO::FETCH_ASSOC));
@@ -492,15 +548,10 @@ $stmt->execute([
 
 // For file events, return the updated counts so analytics.js can show them live
 $response = ['ok' => true, 'id' => $pdo->lastInsertId()];
-// Return updated counts so the badge refreshes immediately without a second fetch
+// Bug fix: removed duplicate block that overwrote counts without bookmarks.
+// Single block covers all trackable file events and always includes bookmarks.
 if (in_array($event, ['file_view', 'file_download', 'bookmark_add', 'bookmark_remove'], true) && $item_id) {
     $cs = $pdo->prepare('SELECT views, downloads, bookmarks FROM file_stats WHERE item_id = ?');
-    $cs->execute([$item_id]);
-    $counts = $cs->fetch(PDO::FETCH_ASSOC);
-    if ($counts) $response['counts'] = $counts;
-}
-if (in_array($event, ['file_view', 'file_download'], true) && $item_id) {
-    $cs = $pdo->prepare('SELECT views, downloads FROM file_stats WHERE item_id = ?');
     $cs->execute([$item_id]);
     $counts = $cs->fetch(PDO::FETCH_ASSOC);
     if ($counts) $response['counts'] = $counts;

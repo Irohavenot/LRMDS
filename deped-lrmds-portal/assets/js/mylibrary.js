@@ -40,12 +40,14 @@
   // Reconstruct the shape onedrive.js expects from a stored entry
   function _entryToItem(entry) {
     return {
-      id:     entry.id,
-      name:   entry.name,
-      webUrl: entry.webUrl,
-      size:   entry.size || 0,
-      file:   { mimeType: entry.mimeType || '' },
-      _meta:  entry.meta || {},
+      id:             entry.id,
+      name:           entry.name,
+      webUrl:         entry.webUrl,
+      size:           entry.size || 0,
+      file:           { mimeType: entry.mimeType || '' },
+      _meta:          entry.meta || {},
+      // Restore folder path so _trackBookmark can send it even when removing from panel
+      _folderPathStr: entry.folderPathStr || '',
     };
   }
 
@@ -58,13 +60,15 @@
       delete lib[item.id];
     } else {
       lib[item.id] = {
-        id:       item.id,
-        name:     item.name,
-        webUrl:   item.webUrl,
-        mimeType: item.file?.mimeType || '',
-        size:     item.size || 0,
-        meta:     item._meta || {},
-        savedAt:  Date.now(),
+        id:            item.id,
+        name:          item.name,
+        webUrl:        item.webUrl,
+        mimeType:      item.file?.mimeType || '',
+        size:          item.size || 0,
+        meta:          item._meta || {},
+        // Persist the folder path so it survives across sessions and panel-remove
+        folderPathStr: item._folderPathStr || (typeof window._folderPath === 'function' ? window._folderPath() : ''),
+        savedAt:       Date.now(),
       };
     }
     saveLibrary(lib);
@@ -77,11 +81,22 @@
 
   function _trackBookmark(item, eventName) {
     if (typeof window._track === 'function') {
+      // Priority order for folder_path:
+      // 1. item._folderPathStr  — set by onedrive.js on every file from the deep-cache
+      //    (reliable even when bookmarking from search results, where _folderPath()
+      //    would return "deped › Search Results" instead of the real path)
+      // 2. window._folderPath() — the current navigation path (correct when browsing folders)
+      // 3. Empty string fallback
+      const folderPath = item._folderPathStr
+        || (typeof window._folderPath === 'function' ? window._folderPath() : '')
+        || '';
+
       window._track(eventName, {
-        item_id:   item.id,
-        item_name: item.name,
-        item_type: (item._meta && item._meta.type) || '',
-        file_ext:  (item.name || '').split('.').pop().toLowerCase(),
+        item_id:     item.id,
+        item_name:   item.name,
+        item_type:   (item._meta && item._meta.type) || '',
+        file_ext:    (item.name || '').split('.').pop().toLowerCase(),
+        folder_path: folderPath,
       });
     }
   }
