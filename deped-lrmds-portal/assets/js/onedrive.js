@@ -733,11 +733,15 @@ function loadScript(src) {
 }
 
 // ── Load a folder ─────────────────────────────────────────────
-async function loadFolder(itemId, folderName) {
+// _keepCache: pass true when navigating from search results so goBack can
+//             restore the search without re-crawling from the wrong folder.
+async function loadFolder(itemId, folderName, _keepCache) {
   if (currentItemId !== itemId) clearPreviewCache();
-  currentItemId    = itemId;
-  allItemsCache    = null;
-  deepCachePromise = null;
+  currentItemId = itemId;
+  if (!_keepCache) {
+    allItemsCache    = null;
+    deepCachePromise = null;
+  }
 
   renderLoading();
   updateBreadcrumb(folderName);
@@ -748,7 +752,7 @@ async function loadFolder(itemId, folderName) {
     const data = await graphGet(url);
     const items = data.value || [];
     renderItems(items, folderName || ONEDRIVE_ROOT_FOLDER);
-    startBackgroundDeepCache(itemId);
+    if (!_keepCache) startBackgroundDeepCache(itemId);
   } catch (e) {
     renderError(e.message);
   }
@@ -767,33 +771,61 @@ function startBackgroundDeepCache(itemId) {
     .catch(err => { console.warn('[LRMDS] Cache failed:', err.message); deepCachePromise = null; });
 }
 
-async function collectAllItemsDeepParallel(itemId, _pathSegments, _pathIds) {
-  const pathSegments = _pathSegments || [];
+async function collectAllItemsDeepParallel(itemId, _pathSegments, _parentNavHistory) {
+  // _pathSegments    : string names of the path to the CURRENT folder (not including root label)
+  //                    e.g. when inside folder "a" inside "3": ['3', 'a']
+  // _parentNavHistory: folderHistory entries for every level ABOVE the current folder.
+  //                    Each entry = { id, name } that goBack() can loadFolder() with.
+  //                    Root level passes [].
+  const pathSegments     = _pathSegments     || [];
+  const parentNavHistory = _parentNavHistory || [];
+
   const url    = await buildChildrenUrl(itemId);
   const data   = await graphGet(url);
   const items  = data.value || [];
   const files  = items.filter(i => i.file);
   const folders = items.filter(i => i.folder);
 
+  // Full display path for this folder level, e.g. ['deped', '3', 'a']
+  const thisLevelPath = pathSegments.length
+    ? [ONEDRIVE_ROOT_FOLDER, ...pathSegments]
+    : [ONEDRIVE_ROOT_FOLDER];
+
+  // navHistory to reach THIS folder's contents:
+  // = parentNavHistory + one entry for this folder itself.
+  // goBack() will call loadFolder(entry.id, entry.name) for each popped entry.
+  // To show THIS folder's children the entry needs id=itemId, name=thisFolder's name.
+  const thisFolderName = pathSegments.length ? pathSegments[pathSegments.length - 1] : ONEDRIVE_ROOT_FOLDER;
+  const thisNavHistory = [...parentNavHistory, { id: itemId, name: thisFolderName }];
+
+  // Files: store the full path and the nav-history needed to OPEN their containing folder.
+  // When "Open folder" is clicked we want to navigate INTO itemId (this folder),
+  // so the history we store is parentNavHistory (ancestors above this folder).
   files.forEach(f => {
-    f._folderPath     = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
-    f._folderPathStr  = f._folderPath.join(' › ');
-    f._parentFolderId = itemId;           // parent folder's Graph ID (kept for compat)
-    f._folderId       = itemId;           // same — the folder that directly contains this file
-    f._folderPathIds  = _pathIds || [];   // ancestor Graph IDs for rebuilding back-history
+    f._folderPath        = [...thisLevelPath];          // display path of containing folder
+    f._folderPathStr     = f._folderPath.join(' › ');
+    f._folderId          = itemId;
+    f._folderName        = thisFolderName;
+    f._folderNavHistory  = [...parentNavHistory];       // history BEFORE entering this folder
   });
 
+  // Folders: store the nav-history needed to navigate INTO them.
+  // When clicked, we push to history then load. The history to restore the PARENT view
+  // is thisNavHistory (which ends with this folder's own entry).
   folders.forEach(d => {
-    d._parentPath    = pathSegments.length ? pathSegments : [ONEDRIVE_ROOT_FOLDER];
-    d._parentPathStr = d._parentPath.join(' › ');
-    d._parentId      = itemId;
-    d._fullPath      = [...d._parentPath, d.name];
-    d._fullPathStr   = d._fullPath.join(' › ');
-    d._pathIds       = _pathIds || [];    // ancestor IDs up to (but not including) this folder
+    d._parentPath        = [...thisLevelPath];          // display path of parent (this level)
+    d._parentPathStr     = d._parentPath.join(' › ');
+    d._fullPath          = [...thisLevelPath, d.name];
+    d._fullPathStr       = d._fullPath.join(' › ');
+    d._folderNavHistory  = [...thisNavHistory];         // history to restore parent view on Back
   });
 
   const sub = await Promise.all(
-    folders.map(f => collectAllItemsDeepParallel(f.id, [...pathSegments, f.name], [...(_pathIds || []), itemId]))
+    folders.map(f => collectAllItemsDeepParallel(
+      f.id,
+      [...pathSegments, f.name],
+      thisNavHistory   // pass as parent history for f's children
+    ))
   );
   return files.concat(folders, ...sub);
 }
@@ -873,11 +905,12 @@ function goBack() {
   if (!folderHistory.length) return;
   const prev = folderHistory.pop();
   if (prev.isSearch) {
-    // Restore search results — don't change currentItemId, just re-run the search
-    // (filters are still set from when the user searched)
+    // Restore search — keep the cache so we don't re-crawl from the wrong folder
     applySearch();
   } else {
-    loadFolder(prev.id, prev.name);
+    // If there are still search-related entries deeper in the stack, keep the cache
+    const stillInSearchCtx = folderHistory.some(e => e.isSearch);
+    loadFolder(prev.id, prev.name, stillInSearchCtx);
   }
 }
 
@@ -960,10 +993,11 @@ function renderItems(items, titleText, isSearch = false) {
         const key = item._folderPathStr || ONEDRIVE_ROOT_FOLDER;
         if (!groups.has(key)) {
           groups.set(key, {
-            pathArr:      item._folderPath    || [ONEDRIVE_ROOT_FOLDER],
-            folderId:     item._folderId      || null,   // the folder's own Graph ID
-            folderPathIds: item._folderPathIds || [],    // ancestor IDs for back-history
-            files:        []
+            pathArr:    item._folderPath       || [ONEDRIVE_ROOT_FOLDER],
+            folderId:   item._folderId         || null,
+            folderName: item._folderName       || ONEDRIVE_ROOT_FOLDER,
+            navHistory: item._folderNavHistory || [],   // pre-built history to reach this folder
+            files:      []
           });
         }
         groups.get(key).files.push(item);
@@ -985,38 +1019,14 @@ function renderItems(items, titleText, isSearch = false) {
           </div>
           <button class="button ghost small sfg-open-btn">Open folder ›</button>`;
         header.querySelector('.sfg-open-btn').addEventListener('click', () => {
-          // folderPathIds = Graph IDs of ancestor folders from root down to parent of this folder
-          // e.g. for path  root › A › B › ThisFolder :
-          //   folderPathIds = [null, A.id, B.id]   (length = pathArr.length - 1)
-          //   ancestorNames = ['deped', 'A', 'B']  (pathArr.slice(0,-1))
-          //
-          // folderHistory is a stack of "states to go back TO".
-          // Each entry: { id: <that-folder's-id>, name: <that-folder's-name> }
-          // goBack() pops the top entry and calls loadFolder(entry.id, entry.name).
-          //
-          // Stack (bottom → top) we need:
-          //   { isSearch:true, id:null, name:'Search Results' }   ← go back to search
-          //   { id: folderPathIds[0], name: ancestorNames[0] }    ← root level (id=null)
-          //   { id: folderPathIds[1], name: ancestorNames[1] }    ← A
-          //   { id: folderPathIds[2], name: ancestorNames[2] }    ← B
-          // then we navigate into ThisFolder (group.folderId).
-
-          const ancestorIds   = group.folderPathIds;   // [null, A.id, B.id, …]
-          const ancestorNames = group.pathArr.slice(0, -1); // ['deped', 'A', 'B', …]
-
-          const newHistory = [
-            { id: null, name: resultsTitleEl.textContent, isSearch: true }, // search results
+          // group.navHistory = pre-built history entries for every ancestor above this folder.
+          // Just prepend the search-results entry and load directly — no reconstruction.
+          folderHistory = [
+            { id: null, name: 'Search Results', isSearch: true },
+            ...group.navHistory,
           ];
-
-          for (let i = 0; i < ancestorNames.length; i++) {
-            newHistory.push({
-              id:   ancestorIds[i] !== undefined ? ancestorIds[i] : null,
-              name: ancestorNames[i],
-            });
-          }
-
-          folderHistory = newHistory;
-          loadFolder(group.folderId, folderName);
+          currentItemId = group.folderId;
+          loadFolder(group.folderId, folderName, true);
         });
         resultsGrid.appendChild(header);
         for (const file of group.files) resultsGrid.appendChild(buildFileCard(file, true));
@@ -1048,30 +1058,15 @@ function buildFolderCard(item, isSearch = false) {
     <div class="folder-meta"><span style="margin-left:auto;">${item.folder.childCount ?? '?'} items ›</span></div>`;
 
   const open = () => {
-    if (isSearch && item._pathIds !== undefined && item._parentPath) {
-      // _parentPath  = name segments of ancestors above this folder e.g. ['deped','A','B']
-      // _pathIds     = Graph IDs of those same ancestors            e.g. [null, A.id, B.id]
-      //
-      // History stack (bottom → top):
-      //   search-results entry  { isSearch:true, id:null, name:'Search Results' }
-      //   root entry            { id: _pathIds[0], name: _parentPath[0] }
-      //   …
-      //   immediate-parent      { id: _pathIds[n-1], name: _parentPath[n-1] }
-      // then we navigate INTO this folder.
-      const ancestorNames = item._parentPath;
-      const ancestorIds   = item._pathIds;   // [null, A.id, B.id, …]
-
-      const newHistory = [
-        { id: null, name: resultsTitleEl.textContent, isSearch: true },
+    if (isSearch && item._folderNavHistory !== undefined) {
+      // _folderNavHistory = pre-built history entries for every ancestor above this folder.
+      // Just prepend the search-results entry and load directly — no reconstruction.
+      folderHistory = [
+        { id: null, name: 'Search Results', isSearch: true },
+        ...item._folderNavHistory,
       ];
-      for (let i = 0; i < ancestorNames.length; i++) {
-        newHistory.push({
-          id:   ancestorIds[i] !== undefined ? ancestorIds[i] : null,
-          name: ancestorNames[i],
-        });
-      }
-      folderHistory = newHistory;
-      loadFolder(item.id, item.name);
+      currentItemId = item.id;
+      loadFolder(item.id, item.name, true);
     } else {
       navigateTo(item.id, item.name);
     }
@@ -1191,22 +1186,39 @@ document.addEventListener('click', e => {
 // ── Breadcrumb ────────────────────────────────────────────────
 function updateBreadcrumb(currentName) {
   let html = `<a onclick="loadFolder(null,'${ONEDRIVE_ROOT_FOLDER}')">Home</a><span class="bc-sep">›</span>`;
-  if (!folderHistory.length && currentItemId === null) {
+
+  // Filter out the isSearch sentinel — it's a navigation marker, not a real breadcrumb level.
+  const visibleHistory = folderHistory.filter(h => !h.isSearch);
+
+  if (!visibleHistory.length && currentItemId === null) {
     html += `<span class="bc-current">${escHtml(ONEDRIVE_ROOT_FOLDER)}</span>`;
   } else {
     html += `<span class="bc-crumb" onclick="clearSearch()">${escHtml(ONEDRIVE_ROOT_FOLDER)}</span>`;
-    folderHistory.forEach((h, idx) => {
-      html += `<span class="bc-sep">›</span><span class="bc-crumb" data-idx="${idx}">${escHtml(h.name)}</span>`;
+    visibleHistory.forEach((h, idx) => {
+      if (currentName && h.name === currentName) return;
+      html += `<span class="bc-sep">›</span><span class="bc-crumb" data-visidx="${idx}">${escHtml(h.name)}</span>`;
     });
-    if (currentName) html += `<span class="bc-sep">›</span><span class="bc-current">${escHtml(currentName)}</span>`;
+    const lastVisibleName = visibleHistory.length ? visibleHistory[visibleHistory.length - 1].name : null;
+    if (currentName && currentName !== lastVisibleName) {
+      html += `<span class="bc-sep">›</span><span class="bc-current">${escHtml(currentName)}</span>`;
+    }
   }
   breadcrumbEl.innerHTML = html;
-  breadcrumbEl.querySelectorAll('[data-idx]').forEach(el => {
-    const idx = parseInt(el.dataset.idx);
+  breadcrumbEl.querySelectorAll('[data-visidx]').forEach(el => {
+    const visIdx = parseInt(el.dataset.visidx);
     el.addEventListener('click', () => {
-      const target = folderHistory[idx];
-      folderHistory = folderHistory.slice(0, idx);
-      loadFolder(target.id, target.name);
+      const target = visibleHistory[visIdx];
+      // Find this entry's real index in folderHistory so we slice correctly.
+      // Keep the isSearch sentinel if present (it sits at index 0).
+      const hasSearch = folderHistory.length && folderHistory[0].isSearch;
+      const realIdx   = hasSearch ? visIdx + 1 : visIdx;
+      folderHistory = folderHistory.slice(0, realIdx);
+      if (target.isSearch) {
+        applySearch();
+      } else {
+        const stillInSearch = folderHistory.some(e => e.isSearch);
+        loadFolder(target.id, target.name, stillInSearch);
+      }
     });
   });
 }

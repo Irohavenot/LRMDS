@@ -512,8 +512,8 @@ textarea { width: 100%; font-family: inherit; }
   position: relative;
 background:
   linear-gradient(rgba(255,255,255,0.90), rgba(255,255,255,0.90)),
-  url("../img/depedcarcarlogo.jpg");
-  background-size: 24%;
+  url("../img/fullogo.png");
+  background-size: 70%;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;  /* parallax-lite: image stays put while content scrolls */
