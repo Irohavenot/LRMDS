@@ -9,7 +9,7 @@
  *   2. Create a project (or pick an existing one)
  *   3. APIs & Services → Credentials → Create Credentials → OAuth client ID
  *   4. Application type: Web application
- *   5. Authorized redirect URIs: http://localhost/lrmds/google_callback.php
+ *   5. Authorized redirect URIs: http://localhost/deped-lrmds-portal/auth/google_callback.php
  *      (change to your actual domain in production)
  *   6. Copy the Client ID and Client Secret into the constants below
  */
@@ -26,13 +26,13 @@ define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
 // Build the redirect URI from the actual request host so the same code
 // works from localhost (laptop browser) AND from your LAN IP (mobile/tablet).
 // Google Cloud Console: register BOTH of these as Authorized Redirect URIs:
-//   http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php
-//   http://192.168.x.x/LRMDS/deped-lrmds-portal/auth/google_callback.php
+//   http://localhost/deped-lrmds-portal/auth/google_callback.php
+//   http://192.168.x.x/deped-lrmds-portal/auth/google_callback.php
 //   (replace 192.168.x.x with your laptop's actual local IP)
 define('GOOGLE_REDIRECT_URI', (function () {
     $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';   // e.g. 192.168.1.5 or localhost
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . $host . '/LRMDS/deped-lrmds-portal/auth/google_callback.php';
+    return $scheme . '://' . $host . '/deped-lrmds-portal/auth/google_callback.php';
 })());
 // ─────────────────────────────────────────────
 

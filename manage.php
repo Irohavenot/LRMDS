@@ -196,7 +196,7 @@ include 'includes/profile_panel.php';
 
   <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
   <aside class="sidebar">
-    <a class="sidebar-brand" href="http://localhost/lrmds/deped-lrmds-portal/index.php" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px" title="Back to Home">
+    <a class="sidebar-brand" href="http://localhost/deped-lrmds-portal/index.php" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px" title="Back to Home">
       <div class="logo-box">DE</div>
       <div class="brand-text">
         <span class="brand-name">LRMDS</span>
@@ -227,7 +227,7 @@ include 'includes/profile_panel.php';
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Analytics
       </button>
-      <a class="nav-item" href="/lrmds/deped-lrmds-portal/onedrive/admindashboard.php" target="_blank">
+      <a class="nav-item" href="/deped-lrmds-portal/onedrive/admindashboard.php" target="_blank">
       <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M3 15a4 4 0 0 0 4 4h9a5 5 0 0 0 1.8-9.7 6 6 0 0 0-11.8.7A4 4 0 0 0 3 15z"/>
       </svg>

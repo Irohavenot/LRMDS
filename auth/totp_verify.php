@@ -41,7 +41,7 @@ define('LOCKOUT_SECONDS', 300);
 
 /* ── Guard ── */
 if (empty($_SESSION['totp_pending_user_id'])) {
-    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
+    header('Location: /deped-lrmds-portal/auth/signin.php');
     exit;
 }
 
@@ -69,7 +69,7 @@ $user = $stmt->fetch();
 
 if (!$user || !$user['totp_enabled'] || !$user['totp_secret']) {
     session_destroy();
-    header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
+    header('Location: /deped-lrmds-portal/auth/signin.php');
     exit;
 }
 
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$locked) {
         $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
             ->execute([$user['id']]);
 
-        header('Location: /LRMDS/deped-lrmds-portal/index.php');
+        header('Location: /deped-lrmds-portal/index.php');
         exit;
     }
 }

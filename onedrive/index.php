@@ -85,7 +85,7 @@
       <nav class="header-nav">
         <!-- "Home" replaced with "Return to Main Site" -->
         <a class="nav-link return-link"
-           href="http://localhost/lrmds/deped-lrmds-portal/index.php"
+           href="http://localhost/deped-lrmds-portal/index.php"
            title="Go back to the main LRMDS portal">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

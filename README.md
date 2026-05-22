@@ -46,10 +46,10 @@ Restart Apache after editing.
 Place the folder here (default layout used in this project):
 
 ```
-C:\xampp\htdocs\LRMDS\deped-lrmds-portal\
+C:\xampp\htdocs\deped-lrmds-portal\
 ```
 
-URL: **http://localhost/LRMDS/deped-lrmds-portal/**
+URL: **http://localhost/deped-lrmds-portal/**
 
 If you use a different path, update `APP_BASE_URL` in `.env` and Google OAuth redirect URIs (see below).
 
@@ -64,7 +64,7 @@ If you use a different path, update `APP_BASE_URL` in `.env` and Google OAuth re
 Open a terminal in the project root:
 
 ```bash
-cd C:\xampp\htdocs\LRMDS\deped-lrmds-portal
+cd C:\xampp\htdocs\deped-lrmds-portal
 composer install
 ```
 
@@ -114,7 +114,7 @@ Create if missing (Apache/PHP user must be able to write):
 
 ### 7. Open the site
 
-**http://localhost/LRMDS/deped-lrmds-portal/**
+**http://localhost/deped-lrmds-portal/**
 
 ---
 
@@ -135,7 +135,7 @@ Copy `.env.example` → `.env`, then set your own accounts and keys.
 
 | Variable | Description |
 |----------|-------------|
-| `APP_BASE_URL` | Public base URL, **no trailing slash**. Used in verification email links. Example: `http://localhost/LRMDS/deped-lrmds-portal` |
+| `APP_BASE_URL` | Public base URL, **no trailing slash**. Used in verification email links. Example: `http://localhost/deped-lrmds-portal` |
 
 ### Google OAuth (Sign in with Google)
 
@@ -152,7 +152,7 @@ Copy `.env.example` → `.env`, then set your own accounts and keys.
 4. **Authorized redirect URIs** (add all you use):
 
    ```
-   http://localhost/LRMDS/deped-lrmds-portal/auth/google_callback.php
+   http://localhost/deped-lrmds-portal/auth/google_callback.php
    ```
 
    For mobile/LAN testing, also add your PC’s LAN IP (see comment in `auth/google_oauth.php`).

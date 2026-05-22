@@ -49,7 +49,7 @@ function send_verification_email(PDO $pdo, int $user_id, string $email, string $
     }
 
     // 4. Build verification URL
-    $base_url   = rtrim(env('APP_BASE_URL', 'http://localhost/lrmds'), '/');
+    $base_url   = rtrim(env('APP_BASE_URL', 'http://localhost/deped-lrmds-portal'), '/');
     $verify_url = $base_url . '/registration/verify.php?token=' . urlencode($token);
 
     // 5. Build email content

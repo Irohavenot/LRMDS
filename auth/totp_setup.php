@@ -70,7 +70,7 @@ if (!empty($_SESSION['pending_registration'])) {
 
     if (time() > ($reg['expires_at'] ?? 0)) {
         unset($_SESSION['pending_registration']);
-        header('Location: /LRMDS/deped-lrmds-portal/registration/register.php?expired=1');
+        header('Location: /deped-lrmds-portal/registration/register.php?expired=1');
         exit;
     }
 
@@ -104,7 +104,7 @@ if (!empty($_SESSION['pending_registration'])) {
     if (!$u_row) {
         // User no longer exists — bail cleanly
         unset($_SESSION['totp_setup_user_id']);
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
+        header('Location: /deped-lrmds-portal/auth/signin.php');
         exit;
     }
 
@@ -144,7 +144,7 @@ if (!empty($_SESSION['pending_registration'])) {
     $u_row = $u_guard->fetch();
 
     if (!$u_row) {
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
+        header('Location: /deped-lrmds-portal/auth/signin.php');
         exit;
     }
 
@@ -166,7 +166,7 @@ if (!empty($_SESSION['pending_registration'])) {
     }
 
 } else {
-    header('Location: /LRMDS/deped-lrmds-portal/registration/register.php');
+    header('Location: /deped-lrmds-portal/registration/register.php');
     exit;
 }
 
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['totp_setup_user_id'], $_SESSION['pending_totp_secret']);
 
             $_SESSION['flash_success'] = '🔐 Two-factor authentication is now active on your account. Welcome back, ' . $u_row['first_name'] . '!';
-            header('Location: /LRMDS/deped-lrmds-portal/index.php');
+            header('Location: /deped-lrmds-portal/index.php');
             exit;
         }
 
@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             unset($_SESSION['pending_totp_secret']);
             $_SESSION['flash_success'] = '🔐 Two-factor authentication has been confirmed and is active on your account.';
-            header('Location: /LRMDS/deped-lrmds-portal/index.php');
+            header('Location: /deped-lrmds-portal/index.php');
             exit;
         }
 
@@ -260,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($dup->fetch()) {
             unset($_SESSION['pending_registration'], $_SESSION['pending_totp_secret']);
             $_SESSION['flash_error'] = 'An account with that email was just created. Please sign in or use a different email.';
-            header('Location: /LRMDS/deped-lrmds-portal/registration/register.php');
+            header('Location: /deped-lrmds-portal/registration/register.php');
             exit;
         }
 
@@ -333,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             . '(' . $title_line . ') '
             . "Your account is pending admin approval. We'll email you when it's ready.";
 
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php');
+        header('Location: /deped-lrmds-portal/auth/signin.php');
         exit;
     }
 }

@@ -29,7 +29,7 @@ define('GOOGLE_CLIENT_SECRET', getenv('GOOGLE_CLIENT_SECRET'));
 define('GOOGLE_REDIRECT_URI', (function () {
     $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . $host . '/LRMDS/deped-lrmds-portal/auth/google_callback.php';
+    return $scheme . '://' . $host . '/deped-lrmds-portal/auth/google_callback.php';
 })());
 
 // ── DB ───────────────────────────────────────────────────────
@@ -144,15 +144,15 @@ if ($user) {
         // Account was registered via email/password but never verified.
         // Google sign-in cannot bypass the email verification requirement.
         $resend = urlencode('resend_verification.php?email=' . urlencode($user['email']));
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=email_pending&resend=' . $resend);
+        header('Location: /deped-lrmds-portal/auth/signin.php?err=email_pending&resend=' . $resend);
         exit;
     }
     if ($user['status'] === 'suspended') {
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=suspended');
+        header('Location: /deped-lrmds-portal/auth/signin.php?err=suspended');
         exit;
     }
     if ($user['status'] === 'pending') {
-        header('Location: /LRMDS/deped-lrmds-portal/auth/signin.php?err=pending');
+        header('Location: /deped-lrmds-portal/auth/signin.php?err=pending');
         exit;
     }
 
@@ -164,13 +164,13 @@ if ($user) {
             // via manage.php after the user already existed as a guest).
             // Store user_id so totp_setup.php can pick it up via the upgrade path.
             $_SESSION['totp_setup_user_id'] = $user['id'];
-            header('Location: /LRMDS/deped-lrmds-portal/auth/totp_setup.php');
+            header('Location: /deped-lrmds-portal/auth/totp_setup.php');
             exit;
         }
 
         // TOTP enabled — hold in pending session, redirect to verify page
         $_SESSION['totp_pending_user_id'] = $user['id'];
-        header('Location: /LRMDS/deped-lrmds-portal/auth/totp_verify.php');
+        header('Location: /deped-lrmds-portal/auth/totp_verify.php');
         exit;
     }
 
@@ -180,7 +180,7 @@ if ($user) {
     $_SESSION['user_name'] = $user['first_name'];
     $_SESSION['user']      = $user['email'];
 
-    header('Location: /LRMDS/deped-lrmds-portal/index.php');
+    header('Location: /deped-lrmds-portal/index.php');
     exit;
 }
 
@@ -194,7 +194,7 @@ $_SESSION['google_pending'] = [
     'expires_at'=> time() + 900,   // 15-minute window to complete
 ];
 
-header('Location: /LRMDS/deped-lrmds-portal/auth/google_complete.php');
+header('Location: /deped-lrmds-portal/auth/google_complete.php');
 exit;
 
 
