@@ -28,7 +28,7 @@ try {
 } catch (PDOException $e) { /* silently fallback to initials */ }
 
 // Roles that can access manage.php at all
-$manage_roles = ['admin', 'developer', 'school-head'];
+$manage_roles = ['admin', 'developer', 'sds', 'asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod'];
 if (!in_array($actor_role, $manage_roles)) {
     header('Location: index.php');
     exit;
@@ -37,10 +37,11 @@ if (!in_array($actor_role, $manage_roles)) {
 // What this role can approve
 function approvable_labels(string $role): string {
     return match($role) {
-        'admin'       => 'Teachers, School Heads, PSDS, SDS/ASDS (Developers), Admins',
-        'developer'   => 'School Heads, PSDS & below',
-        'school-head' => 'Teachers & below (Learners, Parents)',
-        default       => 'None',
+        'admin', 'sds', 'asds' => 'All DepEd Staff (SDS, ASDS, CES, EPS, PSDS, School Heads, Teachers, PDOs, Specialists)',
+        'ces', 'eps', 'pdo'    => 'Teachers and School Heads',
+        'psds'                 => 'School Heads and Teachers',
+        'school-head'          => 'Teachers, Learners, and Parents',
+        default                => 'None',
     };
 }
 ?>
@@ -142,7 +143,7 @@ include 'includes/profile_panel.php';
   <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
   <aside class="sidebar">
     <a class="sidebar-brand" href="http://localhost/deped-lrmds-portal/index.php" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px" title="Back to Home">
-      <div class="logo-box">DE</div>
+      <img src="assets/img/depedcarcarlogo.jpg" alt="DepEd" style="width:34px;height:34px;border-radius:8px;object-fit:cover;background:#fff;padding:2px">
       <div class="brand-text">
         <span class="brand-name">LRMDS</span>
         <span class="brand-sub">Manage Portal</span>
@@ -239,6 +240,13 @@ include 'includes/profile_panel.php';
         <span class="topbar-sub"   id="topbar-sub">Carcar City Division — SY 2025–2026</span>
       </div>
       <div class="topbar-right">
+        <button class="btn btn-secondary topbar-refresh-btn" onclick="umRefresh()" title="Refresh Data" style="padding:7px;min-width:34px;justify-content:center">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>
+          </svg>
+        </button>
         <div class="notif-btn" onclick="showPanel('notifications')">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span class="notif-dot"></span>

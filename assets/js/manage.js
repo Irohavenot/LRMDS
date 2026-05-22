@@ -33,26 +33,42 @@ const FEED_ITEMS = [
 ];
 
 const ROLE_COLORS = {
-  teacher:      '#0B4F9C',
-  learner:      '#047857',
-  parent:       '#7C3AED',
-  'school-head':'#C62828',
-  developer:    '#F59E0B',
-  admin:        '#0F172A',
-  guest:        '#94A3B8',
+  admin:           '#0F172A',
+  sds:             '#C62828',
+  asds:            '#C62828',
+  ces:             '#C62828',
+  eps:             '#C62828',
+  psds:            '#D97706',
+  'school-head':   '#D97706',
+  pdo:             '#0B4F9C',
+  specialist:      '#0B4F9C',
+  'specialist-sgod':'#0B4F9C',
+  developer:       '#7C3AED',
+  teacher:         '#0B4F9C',
+  learner:         '#047857',
+  parent:          '#7C3AED',
+  guest:           '#94A3B8',
 };
 const ROLE_LABELS = {
-  teacher:      'Teacher',
-  learner:      'Learner',
-  parent:       'Parent',
-  'school-head':'School Head / PSDS',
-  developer:    'SDS / ASDS',
-  admin:        'Admin',
-  guest:        'Guest',
+  admin:           'Super Administrator',
+  sds:             'SDS',
+  asds:            'ASDS',
+  ces:             'Chief Ed. Supervisor',
+  eps:             'Ed. Program Supervisor',
+  psds:            'PSDS',
+  'school-head':   'School Head',
+  pdo:             'Project Dev. Officer',
+  specialist:      'Specialist (CID)',
+  'specialist-sgod':'Specialist (SGOD)',
+  developer:       'Content Developer',
+  teacher:         'Teacher',
+  learner:         'Learner',
+  parent:          'Parent / Guardian',
+  guest:           'Guest',
 };
 
 // Roles that require TOTP — must mirror users_handler.php / signin_handler.php
-const TOTP_ROLES    = ['teacher', 'school-head', 'developer', 'admin'];
+const TOTP_ROLES    = ['admin', 'sds', 'asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher'];
 const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
 
 /* ════════════════════════════
@@ -60,24 +76,27 @@ const NO_TOTP_ROLES = ['guest', 'learner', 'parent'];
    ─────────────────────────
    Hierarchy (highest → lowest):
      admin        → manage everyone
-     developer    → manage school-head, psds, teacher, learner, parent, guest
-                    (SDS/ASDS are at this level)
-     school-head  → manage teacher, learner, parent, guest
-                    (School Heads and PSDS are at this level)
-     teacher/learner/parent/guest → no management rights
+     sds/asds     → manage everyone below admin
+     psds         → manage school-head, teacher, learner, parent
+     school-head  → manage teacher, learner, parent
 ════════════════════════════ */
 
 // Roles that each actor can edit/manage
 const EDITABLE_BY = {
-  'admin':       ['admin', 'developer', 'school-head', 'teacher', 'learner', 'parent', 'guest'],
-  'developer':   ['school-head', 'teacher', 'learner', 'parent', 'guest'],
-  'school-head': ['teacher'],   // School heads may only edit teachers
+  'admin':       ['admin', 'sds', 'asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher', 'learner', 'parent', 'guest'],
+  'sds':         ['asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher', 'learner', 'parent', 'guest'],
+  'asds':        ['ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher', 'learner', 'parent', 'guest'],
+  'psds':        ['school-head', 'teacher', 'learner', 'parent'],
+  'school-head': ['teacher', 'learner', 'parent'],
+  'developer':   ['teacher', 'learner', 'parent', 'guest'],
 };
 
 // Roles that each actor can approve (pending registrations)
 const APPROVABLE_BY = {
-  'admin':       ['admin', 'developer', 'school-head', 'teacher'],
-  'developer':   ['school-head', 'developer'],
+  'admin':       ['sds', 'asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher'],
+  'sds':         ['asds', 'ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher'],
+  'asds':        ['ces', 'eps', 'psds', 'school-head', 'pdo', 'specialist', 'specialist-sgod', 'developer', 'teacher'],
+  'psds':        ['school-head', 'teacher'],
   'school-head': ['teacher'],
 };
 
@@ -526,7 +545,7 @@ function umUserRow(u) {
   // Role select — only show roles the current actor can assign
   // Always include the user's current role (may be read-only if above actor's scope)
   const assignable = EDITABLE_BY[CURRENT_USER_ROLE] || [];
-  const roleOptions = ['teacher','learner','parent','school-head','developer','admin','guest']
+  const roleOptions = Object.keys(ROLE_LABELS)
     .filter(r => assignable.includes(r) || r === u.role)
     .map(r => {
       const dis = !assignable.includes(r) ? 'disabled' : '';
@@ -1129,7 +1148,7 @@ function euPopulate(u) {
 
   // Rebuild role <select> options based on actor's editable scope
   const assignableRoles = EDITABLE_BY[CURRENT_USER_ROLE] || [];
-  const allOptions = ['teacher','learner','parent','school-head','developer','admin','guest'];
+  const allOptions = Object.keys(ROLE_LABELS);
   roleSelect.innerHTML = allOptions
     .filter(r => assignableRoles.includes(r) || r === u.role)
     .map(r => {
@@ -1561,6 +1580,39 @@ function bulkExportCSV() {
   a.href     = URL.createObjectURL(blob);
   a.download = 'users_export_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
+}
+
+/* ── Refresh logic ── */
+async function umRefresh() {
+  const btn = document.querySelector('.topbar-refresh-btn');
+  const icon = btn?.querySelector('svg');
+  
+  if (btn) {
+    btn.disabled = true;
+    if (icon) icon.style.transition = 'transform 0.5s ease-in-out';
+    if (icon) icon.style.transform = 'rotate(360deg)';
+  }
+
+  try {
+    await Promise.all([
+      umLoadStats(),
+      umLoadPending(),
+      umLoadUsers()
+    ]);
+    
+    // Refresh feeds
+    renderFeed('feed-short', 4);
+    renderFeed('feed-full');
+
+    umToast('Data refreshed successfully.', 'success');
+  } catch (e) {
+    umToast('Refresh failed. Please try again.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      setTimeout(() => { if (icon) icon.style.transform = ''; }, 500);
+    }
+  }
 }
 
 /* ════════════════════════════
