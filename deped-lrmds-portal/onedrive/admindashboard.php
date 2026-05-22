@@ -85,18 +85,113 @@
 .user-chip-name  { font-size: 12px; font-weight: 500; color: var(--text-1); }
 .user-chip-email { font-size: 10px; color: var(--text-3); font-family: 'DM Mono', monospace; }
 
-/* ── Folder path in log table ── */
-.folder-path-sm {
+/* ── Search Success Rate card ── */
+.ssr-kpi-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.ssr-kpi {
+  flex: 1;
+  min-width: 80px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ssr-kpi-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.ssr-rate-val {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  line-height: 1;
+}
+.ssr-good { color: #16A34A; }
+.ssr-mid  { color: #D97706; }
+.ssr-bad  { color: #DC2626; }
+.ssr-kpi-num {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+  line-height: 1;
+  color: var(--text-1);
+}
+.ssr-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .ssr-body { grid-template-columns: 1fr; }
+}
+.ssr-fail-section {
+  min-width: 210px;
+  max-width: 280px;
+}
+.ssr-fail-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 2px;
+}
+.ssr-fail-subtitle {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+.ssr-fail-row {
   display: flex;
   align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ssr-fail-row:last-child { border-bottom: none; }
+.ssr-fail-query {
   font-size: 11px;
-  color: var(--text-2);
   font-family: 'DM Mono', monospace;
+  color: var(--text-1);
+  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 240px;
+  max-width: 130px;
 }
+.ssr-fail-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #EF4444;
+  font-family: 'DM Mono', monospace;
+  flex-shrink: 0;
+}
+
+/* ── Folder path in log table (multi-line aware) ── */
+.folder-path-sm {
+  display: flex;
+  align-items: flex-start;
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: 'DM Mono', monospace;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 220px;
+  line-height: 1.4;
+}
+
 
 /* ── Redesigned date-range picker ── */
 .dr-wrap {
@@ -754,6 +849,50 @@
         </div>
 
       </div><!-- /bottom-row -->
+
+      <!-- ── Search Success Rate — full-width row ── -->
+      <div class="card" id="search-success-card" style="margin-bottom:20px">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Search success rate</div>
+            <div class="card-subtitle">
+              Daily breakdown of searches that returned results vs. zero-result searches ·
+              <strong>zero-result queries below</strong> reveal repository gaps — what teachers need but cannot find
+            </div>
+          </div>
+        </div>
+        <!-- KPI pills -->
+        <div class="ssr-kpi-row">
+          <div class="ssr-kpi">
+            <span class="ssr-kpi-label">Success rate</span>
+            <span class="ssr-rate-val ssr-mid" id="ssr-rate">—</span>
+          </div>
+          <div class="ssr-kpi">
+            <span class="ssr-kpi-label">With results</span>
+            <span class="ssr-kpi-num" style="color:#16A34A" id="ssr-success">—</span>
+          </div>
+          <div class="ssr-kpi">
+            <span class="ssr-kpi-label">No results</span>
+            <span class="ssr-kpi-num" style="color:#DC2626" id="ssr-zero">—</span>
+          </div>
+          <div class="ssr-kpi">
+            <span class="ssr-kpi-label">Total searches</span>
+            <span class="ssr-kpi-num" id="ssr-total">—</span>
+          </div>
+        </div>
+        <!-- Chart (takes remaining width) + failed queries panel side-by-side -->
+        <div class="ssr-body">
+          <div class="chart-wrap" style="height:240px">
+            <canvas id="search-success-chart" role="img" aria-label="Stacked bar chart of search results vs no results per day"></canvas>
+          </div>
+          <div class="ssr-fail-section">
+            <div class="ssr-fail-title">⚠ Zero-result queries</div>
+            <div class="ssr-fail-subtitle">Add these resources to the repository to close the gap</div>
+            <div id="ssr-failed-list"><div class="empty" style="font-size:12px;padding:6px 0">Loading…</div></div>
+          </div>
+        </div>
+        <div id="search-success-wrap" style="display:none"></div>
+      </div>
 
       <!-- ── Download Log ── -->
       <div class="card" style="margin-bottom:20px" id="download-log-card">

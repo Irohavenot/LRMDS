@@ -77,6 +77,8 @@ $pdo->exec(<<<SQL
         folder_path  TEXT,               -- breadcrumb trail at time of event
         user_email   TEXT,               -- UPN / email from Microsoft account
         search_query TEXT,               -- for search events
+        result_count INTEGER,            -- number of results returned (search events)
+        has_results  INTEGER,            -- 1 if result_count > 0, 0 if zero results (search events)
         filters      TEXT,               -- JSON: {grade, subject, type}
         duration_sec INTEGER,            -- for session_end events
         ts           INTEGER NOT NULL DEFAULT (strftime('%s','now'))
@@ -149,7 +151,9 @@ SQL);
 
 // Migrate existing databases — ADD COLUMN is idempotent via try/catch
 foreach (['ALTER TABLE events ADD COLUMN file_ext TEXT', 'ALTER TABLE events ADD COLUMN user_email TEXT',
-          'ALTER TABLE file_stats ADD COLUMN bookmarks INTEGER NOT NULL DEFAULT 0'] as $_sql) {
+          'ALTER TABLE file_stats ADD COLUMN bookmarks INTEGER NOT NULL DEFAULT 0',
+          'ALTER TABLE events ADD COLUMN result_count INTEGER',
+          'ALTER TABLE events ADD COLUMN has_results INTEGER'] as $_sql) {
     try { $pdo->exec($_sql); } catch (Exception $_e) { /* column already exists */ }
 }
 
@@ -444,6 +448,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    // ── Search success rate  →  tracker.php?search_success&days=30 ───────────────
+    // Returns daily breakdown of searches with vs without results, plus totals.
+    // Used by the "Search Success Rate" chart in the admin dashboard.
+    if (isset($_GET['search_success'])) {
+        [$df, $dfParams] = days_filter();
+
+        // Daily trend: searches with results vs zero-result searches
+        $trendStmt = $pdo->prepare("
+            SELECT
+                date(ts,'unixepoch','localtime') AS day,
+                COUNT(*)                                               AS total_searches,
+                SUM(CASE WHEN has_results = 1 THEN 1 ELSE 0 END)      AS success_count,
+                SUM(CASE WHEN has_results = 0 THEN 1 ELSE 0 END)      AS zero_count
+            FROM events
+            WHERE event = 'search' {$df}
+            GROUP BY day ORDER BY day
+        ");
+        $trendStmt->execute($dfParams);
+        $trend = $trendStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Overall totals for the period
+        $totStmt = $pdo->prepare("
+            SELECT
+                COUNT(*)                                          AS total,
+                SUM(CASE WHEN has_results = 1 THEN 1 ELSE 0 END) AS success,
+                SUM(CASE WHEN has_results = 0 THEN 1 ELSE 0 END) AS zero_results
+            FROM events
+            WHERE event = 'search' {$df}
+        ");
+        $totStmt->execute($dfParams);
+        $totals = $totStmt->fetch(PDO::FETCH_ASSOC);
+
+        // Top zero-result queries (what teachers searched for and found nothing)
+        $failStmt = $pdo->prepare("
+            SELECT search_query, COUNT(*) AS count
+            FROM events
+            WHERE event = 'search' AND has_results = 0
+              AND search_query IS NOT NULL AND search_query != ''
+              {$df}
+            GROUP BY search_query
+            ORDER BY count DESC
+            LIMIT 10
+        ");
+        $failStmt->execute($dfParams);
+        $failed_queries = $failStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'trend'          => $trend,
+            'totals'         => $totals,
+            'failed_queries' => $failed_queries,
+        ]);
+        exit;
+    }
+
     if (isset($_GET['searches'])) {
         [$df, $dfParams] = days_filter();
         $stmt = $pdo->prepare("
@@ -589,14 +647,16 @@ if (empty($session_id)) {
 
 $file_ext   = substr($data['file_ext']   ?? '', 0, 20);
 $user_email = substr($data['user_email'] ?? '', 0, 200);
+$result_count = isset($data['result_count']) ? max(0, (int)$data['result_count']) : null;
+$has_results  = isset($data['has_results'])  ? ((int)$data['has_results'] > 0 ? 1 : 0) : null;
 
 $stmt = $pdo->prepare(<<<SQL
     INSERT INTO events
         (session_id, user_oid, user_name, user_email, event, item_id, item_name, item_type,
-         file_ext, folder_path, search_query, filters, duration_sec)
+         file_ext, folder_path, search_query, result_count, has_results, filters, duration_sec)
     VALUES
         (:session_id, :user_oid, :user_name, :user_email, :event, :item_id, :item_name, :item_type,
-         :file_ext, :folder_path, :search_query, :filters, :duration_sec)
+         :file_ext, :folder_path, :search_query, :result_count, :has_results, :filters, :duration_sec)
 SQL);
 
 $stmt->execute([
@@ -611,6 +671,8 @@ $stmt->execute([
     ':file_ext'     => $file_ext  ?: null,
     ':folder_path'  => $folder_path ?: null,
     ':search_query' => $search_query ?: null,
+    ':result_count' => $result_count,
+    ':has_results'  => $has_results,
     ':filters'      => $filters,
     ':duration_sec' => $duration_sec,
 ]);

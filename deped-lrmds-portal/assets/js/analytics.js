@@ -1,13 +1,32 @@
 /* ============================================================
    DepEd Carcar City LRMDS – Analytics Badge Module
-   analytics.js  (v4)
+   analytics.js  (v4.1)
    ============================================================
    Responsibilities:
      1. Attach 👁/⬇ count badges to file cards.
+     2. Fire the 'search' tracking event AFTER renderItems paints
+        results — fixes the Search Success Rate always reading 0.
 
    My Library is now handled by mylibrary.js.
    All other event tracking (page_view, file_view, file_download,
    folder_open, search, session_end) is handled by onedrive.js
+
+   v4.1 fix:
+     The old applySearch wrapper in onedrive.js read the DOM for
+     result cards immediately after calling _origApplySearch(),
+     but that call is async (Graph API fetch) so the cards were
+     never in the DOM yet — result_count was always 0.
+
+     Fix: onedrive.js now stores the pending search context in
+     window._pendingSearchMeta instead of firing _track() itself.
+     This renderItems hook reads that context once results are
+     actually painted and fires _track('search', …) with the
+     correct result count.
+
+     IMPORTANT: also remove (or comment out) the _track('search',…)
+     call inside the applySearch wrapper in onedrive.js, otherwise
+     you will get duplicate search events. Replace that block with
+     the _pendingSearchMeta assignment shown in the comment below.
    ============================================================ */
 
 (function () {
@@ -21,8 +40,6 @@
   })();
 
   const COUNT_FETCH_DELAY = 800;
-  // My Library key kept here only for backwards-compat reading by mylibrary.js
-  // (analytics.js no longer manages library — see mylibrary.js)
 
   // ── In-memory counts cache ───────────────────────────────────
   const _countsCache = new Map();
@@ -30,11 +47,6 @@
   // ── Pending badge items ──────────────────────────────────────
   const _pendingBadge = new Map();
   let   _badgeFetchTimer = null;
-
-  // ═══════════════════════════════════════════════════════════
-  //  LIBRARY — delegated to mylibrary.js
-  //  analytics.js no longer manages bookmarks, panel, or badge.
-  // ═══════════════════════════════════════════════════════════
 
   // ═══════════════════════════════════════════════════════════
   //  COUNTS: view/download badges
@@ -106,7 +118,11 @@
   });
 
   // ═══════════════════════════════════════════════════════════
-  //  HOOKS: renderItems (for badge attachment)
+  //  HOOKS: renderItems
+  //  — attaches 👁/⬇ badges to every file card
+  //  — fires the 'search' tracking event with the REAL result
+  //    count, after the DOM has been updated (fixes the bug
+  //    where result_count was always 0 in the dashboard)
   // ═══════════════════════════════════════════════════════════
 
   function wrapWhenReady(fnName, wrapper, retries = 40) {
@@ -119,6 +135,8 @@
 
   wrapWhenReady('renderItems', original => function (items, titleText, isSearch) {
     const result = original.call(this, items, titleText, isSearch);
+
+    // ── 1. Badge attachment (unchanged) ──────────────────────
     _pendingBadge.clear();
     setTimeout(() => {
       const grid = document.getElementById('results');
@@ -129,9 +147,36 @@
         attachBadgeToCard(card, itemId);
       });
     }, 0);
+
+    // ── 2. Search tracking — fires only for search renders ───
+    //
+    // onedrive.js applySearch wrapper must be updated to STOP
+    // calling _track('search', …) directly and instead just set:
+    //
+    //   window._pendingSearchMeta = { q, g, s, t };
+    //
+    // (and remove the _track call + resultCount DOM read from there)
+    //
+    // This hook then picks up that context here, where items.length
+    // is the true result count available synchronously.
+    if (isSearch) {
+      const meta = window._pendingSearchMeta;
+      if (meta) {
+        window._pendingSearchMeta = null; // consume — prevent double-fire
+        const resultCount = Array.isArray(items) ? items.length : 0;
+        if (typeof window._track === 'function') {
+          window._track('search', {
+            search_query: meta.q,
+            filters:      { grade: meta.g, subject: meta.s, type: meta.t },
+            result_count: resultCount,
+            has_results:  resultCount > 0 ? 1 : 0,
+          });
+        }
+      }
+    }
+
     return result;
   });
-  // showApp is wrapped by mylibrary.js to inject the library tab
 
   // ═══════════════════════════════════════════════════════════
   //  STYLES  (counts badge only — library styles in mylibrary.js)

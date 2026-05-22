@@ -124,6 +124,44 @@ function demoData() {
       { search_query: 'mapeh grade 7',      count: 13 },
       { search_query: 'grade 10 tg',        count: 11 },
     ],
+    search_success: (function() {
+      // Last 10 days of representative search data — realistic, not random
+      var rawDays = [
+        { success: 18, zero: 4 },
+        { success: 22, zero: 5 },
+        { success: 15, zero: 6 },
+        { success: 27, zero: 3 },
+        { success: 20, zero: 7 },
+        { success: 31, zero: 4 },
+        { success: 24, zero: 8 },
+        { success: 19, zero: 5 },
+        { success: 28, zero: 3 },
+        { success: 33, zero: 6 },
+      ];
+      var trend = rawDays.map(function(row, i) {
+        var d = new Date(); d.setDate(d.getDate() - (9 - i));
+        return {
+          day: d.toISOString().slice(0, 10),
+          total_searches: row.success + row.zero,
+          success_count:  row.success,
+          zero_count:     row.zero,
+        };
+      });
+      var totSuccess = trend.reduce(function(a,r){return a + r.success_count;}, 0);
+      var totZero    = trend.reduce(function(a,r){return a + r.zero_count;}, 0);
+      return {
+        trend: trend,
+        totals: { total: totSuccess + totZero, success: totSuccess, zero_results: totZero },
+        // Zero-result queries — these are what analysts should add to the repository
+        failed_queries: [
+          { search_query: 'grade 7 epp video',      count: 8 },
+          { search_query: 'kinder mapeh q4 slm',    count: 6 },
+          { search_query: 'dll grade 12 q2',        count: 5 },
+          { search_query: 'science grade 2 q3 slm', count: 4 },
+          { search_query: 'filipino grade 9 dll',   count: 3 },
+        ],
+      };
+    })(),
     trend: trend(30),
   };
 }
@@ -198,9 +236,8 @@ async function fetchAllData() {
     return d;
   }
 
-  // Live mode — fetch everything in parallel
-  // Note: top_bookmarked now respects the selected date range (fixed in tracker.php)
-  const [summary, topDl, topVw, folders, types, grades, subjects, searches, trendRaw, topBookmarked] = await Promise.all([
+  // Live mode — fetch everything in parallel  // Note: top_bookmarked now respects the selected date range (fixed in tracker.php)
+  const [summary, topDl, topVw, folders, types, grades, subjects, searches, trendRaw, topBookmarked, searchSuccess] = await Promise.all([
     get(dq('',                                     days)),
     get(dq('?top&by=downloads&limit=8&withpath=1', days)),
     get(dq('?top&by=views&limit=8&withpath=1',     days)),
@@ -211,6 +248,7 @@ async function fetchAllData() {
     get(dq('?searches',                            days)),
     get(dq('?trend',                               days)),
     get(dq('?top_bookmarked&limit=8', days)),              // respects selected date range
+    get(dq('?search_success',                      days)),
   ]);
 
   const trend = { labels: [], dl: [], vw: [] };
@@ -222,7 +260,7 @@ async function fetchAllData() {
     });
   }
 
-  return { summary, top_downloads: topDl, top_views: topVw, folders, types, grades, subjects, searches, trend, top_bookmarked: topBookmarked };
+  return { summary, top_downloads: topDl, top_views: topVw, folders, types, grades, subjects, searches, trend, top_bookmarked: topBookmarked, search_success: searchSuccess };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -507,6 +545,116 @@ function buildTypeChart(types) {
   });
 }
 
+
+// ── Search Success Rate ────────────────────────────────────────
+var _searchSuccessChart = null;
+
+function renderSearchSuccess(data) {
+  var container = document.getElementById('search-success-wrap');
+  if (!container) return;
+
+  if (!data || !data.totals) {
+    container.innerHTML = '<div class="empty">No search data yet — run a search in the portal to populate this chart.</div>';
+    return;
+  }
+
+  var totals = data.totals;
+  var total  = parseInt(totals.total   || 0, 10);
+  var succ   = parseInt(totals.success || 0, 10);
+  var zero   = parseInt(totals.zero_results || 0, 10);
+  var rate   = total > 0 ? Math.round(succ / total * 100) : 0;
+
+  // Update KPI pills
+  var elRate   = document.getElementById('ssr-rate');
+  var elSucc   = document.getElementById('ssr-success');
+  var elZero   = document.getElementById('ssr-zero');
+  var elTotal  = document.getElementById('ssr-total');
+  if (elRate)  elRate.textContent  = rate + '%';
+  if (elSucc)  elSucc.textContent  = succ.toLocaleString();
+  if (elZero)  elZero.textContent  = zero.toLocaleString();
+  if (elTotal) elTotal.textContent = total.toLocaleString();
+
+  // Colour the rate pill based on threshold
+  if (elRate) {
+    elRate.className = 'ssr-rate-val ' + (rate >= 70 ? 'ssr-good' : rate >= 40 ? 'ssr-mid' : 'ssr-bad');
+  }
+
+  // Build daily stacked bar chart
+  var trend = Array.isArray(data.trend) ? data.trend : [];
+  var labels  = trend.map(function(r) {
+    var d = new Date(r.day + 'T00:00:00');
+    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+  });
+  var succData = trend.map(function(r) { return parseInt(r.success_count || 0, 10); });
+  var zeroData = trend.map(function(r) { return parseInt(r.zero_count    || 0, 10); });
+
+  if (_searchSuccessChart) { _searchSuccessChart.destroy(); _searchSuccessChart = null; }
+  var canvas = document.getElementById('search-success-chart');
+  if (!canvas) return;
+  canvas.style.width = ''; canvas.style.height = '';
+  canvas.removeAttribute('width'); canvas.removeAttribute('height');
+
+  _searchSuccessChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Results found',
+          data: succData,
+          backgroundColor: 'rgba(22,163,74,.75)',
+          borderRadius: 3,
+          stack: 'searches',
+        },
+        {
+          label: 'No results',
+          data: zeroData,
+          backgroundColor: 'rgba(220,38,38,.55)',
+          borderRadius: 3,
+          stack: 'searches',
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'top', labels: { font: { size: 11, family: 'DM Mono' }, boxWidth: 12 } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var total2 = ctx.chart.data.datasets.reduce(function(a, ds) { return a + (ds.data[ctx.dataIndex] || 0); }, 0);
+              var pct = total2 > 0 ? Math.round(ctx.parsed.y / total2 * 100) : 0;
+              return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y + ' (' + pct + '%)';
+            },
+          },
+        },
+      },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 10, family: 'DM Mono' }, maxTicksLimit: 10, color: '#9B9A95' }, grid: { display: false }, border: { display: false } },
+        y: { stacked: true, ticks: { font: { size: 10, family: 'DM Mono' }, color: '#9B9A95', stepSize: 1 }, grid: { color: 'rgba(0,0,0,.05)' }, border: { display: false } },
+      },
+    },
+  });
+
+  // Failed queries list
+  var failList = document.getElementById('ssr-failed-list');
+  if (failList) {
+    var failed = Array.isArray(data.failed_queries) ? data.failed_queries : [];
+    if (!failed.length) {
+      failList.innerHTML = '<div class="empty" style="font-size:12px;padding:8px 0">No zero-result searches yet 🎉</div>';
+    } else {
+      failList.innerHTML = failed.map(function(f) {
+        return '<div class="ssr-fail-row">'
+          + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0">'
+          + '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
+          + '<span class="ssr-fail-query">' + escHtml(f.search_query) + '</span>'
+          + '<span class="ssr-fail-count">' + f.count + '×</span>'
+          + '</div>';
+      }).join('');
+    }
+  }
+}
+
 function buildSubjectChart(subjects) {
   if (!Array.isArray(subjects) || !subjects.length) return;
   _subjectChart = destroyChart(_subjectChart, 'subject-chart');
@@ -578,6 +726,7 @@ async function loadAll() {
     if (d.types)           buildTypeChart(d.types);
     if (d.subjects)        buildSubjectChart(d.subjects);
     renderBookmarks(d.top_bookmarked || []);
+    renderSearchSuccess(d.search_success || null);
 
     const now = new Date();
     document.getElementById('last-updated').textContent =
@@ -796,15 +945,28 @@ function renderLogTable(query) {
     var extBadge = ext ? '<span class="ext-badge ext-' + r.file_ext.toLowerCase() + '">' + ext + '</span>' : '';
     var typeCombined = typeBadge(r.item_type) + extBadge;
 
-    var path      = r.folder_path || '—';
-    var pathParts = path.split(' › ');
-    var shortPath = pathParts.length > 1 ? pathParts.slice(1).join(' › ') : path;
-    if (shortPath.length > 50) shortPath = '…' + shortPath.slice(-48);
-    var pathHtml = path !== '—'
-      ? '<span class="folder-path-sm" title="' + escHtml(path) + '">'
+    var path      = r.folder_path || '';
+    var pathHtml;
+    if (!path || path === '—') {
+      pathHtml = '<span style="color:var(--text-3)">—</span>';
+    } else {
+      // Smart path formatter: always show root and the last 1-2 segments,
+      // collapse everything in between to "…" so the cell stays compact.
+      var parts = path.split(' › ');
+      var ext   = r.file_ext ? r.file_ext.toUpperCase() : '';
+      var displayPath;
+      if (parts.length <= 3) {
+        // Short enough — show everything
+        displayPath = parts.join(' › ');
+      } else {
+        // root › … › second-last › last
+        displayPath = parts[0] + ' › \u2026 › ' + parts.slice(-2).join(' › ');
+      }
+      var extPart = ext ? ' · ' + ext : '';
+      pathHtml = '<span class="folder-path-sm" title="' + escHtml(path + extPart) + '">'
         + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" style="margin-right:3px;vertical-align:-1px;flex-shrink:0"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
-        + escHtml(shortPath) + '</span>'
-      : '<span style="color:var(--text-3)">—</span>';
+        + escHtml(displayPath) + '<span style="color:var(--text-3)">' + escHtml(extPart) + '</span></span>';
+    }
 
     return '<tr>'
       + '<td style="white-space:nowrap;font-size:11px;font-family:\'DM Mono\',monospace;color:var(--text-3)">' + escHtml(display) + '</td>'

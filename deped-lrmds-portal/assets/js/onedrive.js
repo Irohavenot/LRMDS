@@ -1362,16 +1362,20 @@ navigateTo = function (itemId, folderName) {
 // guarded by _viewTracked so re-opening a cached file doesn't re-count.
 // The wrapper is intentionally removed to prevent double-firing.
 
-// Fire search event — deduped: same query+filters within 500 ms only fires once.
+// Fire search event — context stored here, result count resolved in analytics.js renderItems hook.
+// This fixes the Search Success Rate always reading 0: _origApplySearch() is async (Graph API fetch),
+// so the DOM cards are never present when this wrapper runs. Instead we store the search context in
+// window._pendingSearchMeta and let the renderItems hook in analytics.js fire _track('search', …)
+// with the real result count once the DOM has actually been updated.
 var _lastSearchSig = '';
 var _lastSearchTs  = 0;
 var _origApplySearch = applySearch;
 applySearch = function () {
   _origApplySearch();
   var q = (searchInput && searchInput.value && searchInput.value.trim()) || '';
-  var g = (filterGrade && filterGrade.value) || '';
+  var g = (filterGrade   && filterGrade.value)   || '';
   var s = (filterSubject && filterSubject.value) || '';
-  var t = (filterType && filterType.value) || '';
+  var t = (filterType    && filterType.value)    || '';
   if (q || g || s || t) {
     // Collapse duplicate fires (e.g. Enter key + button click on same frame)
     var sig = q + '|' + g + '|' + s + '|' + t;
@@ -1379,10 +1383,9 @@ applySearch = function () {
     if (sig === _lastSearchSig && now - _lastSearchTs < 500) return;
     _lastSearchSig = sig;
     _lastSearchTs  = now;
-    _track('search', {
-      search_query: q,
-      filters: { grade: g, subject: s, type: t },
-    });
+    // Store context — analytics.js renderItems hook reads this after the DOM is updated
+    // and fires _track('search', …) with the real result count.
+    window._pendingSearchMeta = { q: q, g: g, s: s, t: t };
   }
 };
 

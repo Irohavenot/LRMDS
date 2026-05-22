@@ -57,13 +57,15 @@ function _downloadFile(filename, content, mime) {
 }
 function _slugDate() { return new Date().toISOString().slice(0, 10); }
 
-/** Truncate a folder path (separator " › ") to at most maxSegs parts. */
+/** Truncate a folder path (separator " › ") to at most maxSegs TAIL parts.
+ *  e.g. "Root › A › B › C › D › E › file.pdf" → "… › D › E › file.pdf"  (maxSegs=3)
+ */
 function _truncFolder(raw, maxSegs) {
   if (!raw || raw === '—') return raw || '—';
   const SEP   = raw.includes(' › ') ? ' › ' : '/';
   const parts = raw.split(SEP);
   if (parts.length <= maxSegs) return raw;
-  return parts.slice(0, maxSegs).join(SEP) + SEP + '…';
+  return '… › ' + parts.slice(parts.length - maxSegs).join(SEP);
 }
 
 function _escHtmlR(str) {
@@ -105,6 +107,37 @@ function _getSearchData() {
     const text = clone.textContent.trim();
     return { search_query: text, count };
   });
+}
+
+function _getSearchSuccessData() {
+  // Pull KPI values from the DOM elements populated by renderSearchSuccess()
+  var rateEl    = document.getElementById('ssr-rate');
+  var succEl    = document.getElementById('ssr-success');
+  var zeroEl    = document.getElementById('ssr-zero');
+  var totalEl   = document.getElementById('ssr-total');
+  var failListEl= document.getElementById('ssr-failed-list');
+
+  var rate  = rateEl   ? rateEl.textContent.trim()   : '—';
+  var succ  = succEl   ? parseInt(succEl.textContent.replace(/\D/g,''), 10) || 0 : 0;
+  var zero  = zeroEl   ? parseInt(zeroEl.textContent.replace(/\D/g,''), 10) || 0 : 0;
+  var total = totalEl  ? parseInt(totalEl.textContent.replace(/\D/g,''), 10) || 0 : 0;
+
+  // Zero-result failed queries from the rendered list
+  var failed = [];
+  if (failListEl) {
+    failListEl.querySelectorAll('.ssr-fail-row').forEach(function(row) {
+      var qEl = row.querySelector('.ssr-fail-query');
+      var cEl = row.querySelector('.ssr-fail-count');
+      if (qEl) {
+        failed.push({
+          query: qEl.textContent.trim(),
+          count: cEl ? parseInt(cEl.textContent.replace(/\D/g,''), 10) || 0 : 0,
+        });
+      }
+    });
+  }
+
+  return { rate: rate, success: succ, zero: zero, total: total, failed_queries: failed };
 }
 
 function _getBookmarkData() {
@@ -186,6 +219,22 @@ function exportCSV() {
   csv += _row(['Rank','Search Query','Count']);
   searchData.forEach((s,i) => csv += _row([i+1,s.search_query||'—',s.count??0]));
   csv += _row([]);
+
+  // Search Success Rate
+  const ssrData = _getSearchSuccessData();
+  csv += _row(['=== SEARCH SUCCESS RATE ===']);
+  csv += _row(['Metric','Value']);
+  csv += _row(['Success Rate', ssrData.rate]);
+  csv += _row(['Searches with Results', ssrData.success]);
+  csv += _row(['Zero-result Searches',  ssrData.zero]);
+  csv += _row(['Total Searches',        ssrData.total]);
+  csv += _row([]);
+  if (ssrData.failed_queries.length) {
+    csv += _row(['=== ZERO-RESULT QUERIES (REPOSITORY GAPS) ===']);
+    csv += _row(['Rank','Query','Times Searched with No Results']);
+    ssrData.failed_queries.forEach((q,i) => csv += _row([i+1, q.query||'—', q.count??0]));
+    csv += _row([]);
+  }
 
   // Trend
   if (_trendChart && _trendChart.data) {
@@ -435,6 +484,7 @@ function exportReport() {
   const folderData = _getFolderData().slice(0, 5);
   const searchData = _getSearchData().slice(0, 10);
   const bmData     = _getBookmarkData().slice(0, 8);
+  const ssrData    = _getSearchSuccessData();
 
   // ── Trend table rows (last 14 points) ────────────────────────
   let trendRows = '';
@@ -776,6 +826,33 @@ tbody tr:nth-child(even) { background: var(--row-alt); }
 }
 .empty-srch { color: #b8d0bf; font-style: italic; font-family: 'DM Mono', monospace; font-size: 12px; }
 
+/* ── Search Success Rate summary grid ── */
+.ssr-summary-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 11px; margin-bottom: 4px;
+}
+.ssr-mc {
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; background: var(--green-bg);
+}
+.ssr-mc-label {
+  font-size: 9px; font-family: 'DM Mono', monospace;
+  color: var(--text-3); text-transform: uppercase;
+  letter-spacing: .07em; margin-bottom: 4px;
+}
+.ssr-mc-val {
+  font-size: 24px; font-weight: 700; color: var(--green-dk);
+  font-family: 'DM Mono', monospace; line-height: 1;
+}
+.ssr-good { color: #16A34A !important; }
+.ssr-mid  { color: #D97706 !important; }
+.ssr-bad  { color: #DC2626 !important; }
+.ssr-gap-note {
+  font-size: 11.5px; color: var(--text-2);
+  background: #FFF7ED; border: 1px solid #FDE68A;
+  border-radius: 8px; padding: 9px 14px;
+  margin-bottom: 10px; font-family: 'DM Mono', monospace;
+}
+
 /* ── Report footer ── */
 .report-footer {
   margin-top: 44px; padding-top: 14px; padding-bottom: 20px;
@@ -958,7 +1035,32 @@ function _doPrint() {
   <div class="section-hd"><h2>Top Search Queries</h2></div>
   <div class="search-cloud">${searchCloud}</div>
 
-  <!-- ══ 6. Most Active Users ══ -->
+    <!-- ══ 6. Search Success Rate ══ -->
+  <div class="section-hd"><h2>Search Success Rate &amp; Repository Gaps</h2></div>
+  <div class="ssr-summary-grid">
+    <div class="ssr-mc"><div class="ssr-mc-label">Success Rate</div><div class="ssr-mc-val ${parseInt(ssrData.rate)>=70?'ssr-good':parseInt(ssrData.rate)>=40?'ssr-mid':'ssr-bad'}">${ssrData.rate}</div></div>
+    <div class="ssr-mc"><div class="ssr-mc-label">With Results</div><div class="ssr-mc-val" style="color:#16A34A">${ssrData.success.toLocaleString()}</div></div>
+    <div class="ssr-mc"><div class="ssr-mc-label">No Results</div><div class="ssr-mc-val" style="color:#DC2626">${ssrData.zero.toLocaleString()}</div></div>
+    <div class="ssr-mc"><div class="ssr-mc-label">Total Searches</div><div class="ssr-mc-val">${ssrData.total.toLocaleString()}</div></div>
+  </div>
+  ${ssrData.failed_queries.length ? `
+  <div class="section-hd" style="margin-top:16px"><h2>Zero-result Queries — Repository Gaps</h2></div>
+  <div class="ssr-gap-note">These searches returned no results. Prioritise adding these resources to the repository to close the gap.</div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th style="width:28px">#</th>
+        <th>Query — What teachers searched for</th>
+        <th class="num">Times Searched</th>
+      </tr></thead>
+      <tbody>${ssrData.failed_queries.map(function(q,i){
+        return '<tr><td class="rank">'+(i+1)+'</td><td style="font-family:\'DM Mono\',monospace;font-size:11px">'+_escHtmlR(q.query)+'</td><td class="num strong">'+q.count+'×</td></tr>';
+      }).join('')}</tbody>
+    </table>
+  </div>` : `
+  <div class="ssr-gap-note">🎉 No zero-result queries recorded in this period — all searches returned at least one match.</div>`}
+
+  <!-- ══ 7. Most Active Users ══ --><!-- ══ 7. Most Active Users ══ -->
   <div class="section-hd"><h2>Most Active Users</h2></div>
   <div class="card">
     <table>
