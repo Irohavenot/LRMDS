@@ -338,7 +338,7 @@ function showGeneralError(msg) {
           // ── Success ──────────────────────────────────────────
           // Check if the handler wants a redirect (e.g. totp_verify.php for
           // TOTP-enabled accounts, or dashboard.php / index.php for normal users)
-          var dest = data.redirect || 'index.php';
+          var dest = data.redirect || '/deped-lrmds-portal/index.php';
           var isTOTP = /totp/i.test(dest);
 
           if (isTOTP) {

@@ -112,68 +112,13 @@ function approvable_labels(string $role): string {
     }
     .hierarchy-notice strong { color: #92400E; }
 
-    /* ── Applicant cards ── */
-    .applicant-grid {
+    /* ── Applicant grid override (ensure grid layout if desired) ── */
+    #um-section-pending .applicant-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 14px;
-      padding: 4px 0 8px;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      align-items: start;
     }
-    .app-card {
-      background: #fff;
-      border: 1.5px solid #E5E7EB;
-      border-radius: 12px;
-      padding: 16px;
-      position: relative;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .app-card:hover { border-color: #93C5FD; box-shadow: 0 2px 12px rgba(59,130,246,.1); }
-    .app-card-head {
-      display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;
-    }
-    .app-avatar {
-      width: 42px; height: 42px; border-radius: 10px;
-      background: linear-gradient(135deg, #0B4F9C, #3B82F6);
-      color: #fff; font-weight: 700; font-size: 15px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .app-name  { font-weight: 700; font-size: 14px; color: #111827; }
-    .app-email { font-size: 12px; color: #6B7280; margin-top: 2px; word-break: break-all; }
-    .app-meta  {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      margin-bottom: 12px; font-size: 12px;
-    }
-    .app-meta-item {
-      background: #F3F4F6; border-radius: 6px;
-      padding: 3px 8px; color: #374151; font-weight: 500;
-    }
-    .app-meta-item.totp-ok  { background: #ECFDF5; color: #065F46; }
-    .app-meta-item.totp-no  { background: #FEF2F2; color: #991B1B; }
-    .app-meta-item.role-badge {
-      background: #EFF6FF; color: #1D4ED8; font-weight: 700; text-transform: capitalize;
-    }
-    .app-date { font-size: 11px; color: #9CA3AF; margin-bottom: 12px; }
-    .app-actions { display: flex; gap: 8px; }
-    .btn-approve {
-      flex: 1; padding: 8px 12px; border: none; border-radius: 8px;
-      background: #0B4F9C; color: #fff; font-weight: 600; font-size: 13px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
-      transition: background .15s;
-    }
-    .btn-approve:hover { background: #1D4ED8; }
-    .btn-reject-card {
-      padding: 8px 12px; border: 1.5px solid #FECACA; border-radius: 8px;
-      background: #fff; color: #DC2626; font-weight: 600; font-size: 13px;
-      cursor: pointer; transition: background .15s;
-    }
-    .btn-reject-card:hover { background: #FEF2F2; }
-    .btn-view-card {
-      padding: 8px 12px; border: 1.5px solid #E5E7EB; border-radius: 8px;
-      background: #fff; color: #374151; font-weight: 600; font-size: 13px;
-      cursor: pointer; transition: background .15s;
-    }
-    .btn-view-card:hover { background: #F9FAFB; }
 
     /* empty state */
     .um-empty {
@@ -213,6 +158,7 @@ include 'includes/profile_panel.php';
       <button class="nav-item" onclick="showPanel('pipeline')">
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
         Pipeline
+        <span class="proto-tag">Prototype</span>
         <span class="nav-badge">7</span>
       </button>
       <button class="nav-item" onclick="showPanel('resources')">
@@ -236,6 +182,7 @@ include 'includes/profile_panel.php';
       <button class="nav-item" onclick="showPanel('qa')">
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
         QA Tools
+        <span class="proto-tag">Prototype</span>
       </button>
     </div>
 
@@ -244,6 +191,7 @@ include 'includes/profile_panel.php';
       <button class="nav-item" onclick="showPanel('notifications')">
         <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         Notifications
+        <span class="proto-tag">Prototype</span>
         <span class="nav-badge">3</span>
       </button>
       <button class="nav-item" onclick="showPanel('users')" id="nav-users">
@@ -472,16 +420,16 @@ include 'includes/profile_panel.php';
         </div>
 
         <div class="kpi-grid" style="margin-bottom:0">
-          <div class="kpi-card blue"><div class="kpi-top"><span class="kpi-label">Search Success Rate</span><div class="kpi-icon blue"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div></div><div class="kpi-value">73.2%</div><div class="kpi-delta up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>+3.1% vs last month</div></div>
-          <div class="kpi-card red"><div class="kpi-top"><span class="kpi-label">Zero-Result Queries</span><div class="kpi-icon red"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg></div></div><div class="kpi-value">418</div><div class="kpi-delta down"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>Top gap: "SLM Grade 2 MTB"</div></div>
-          <div class="kpi-card green"><div class="kpi-top"><span class="kpi-label">Avg. Time-to-Download</span><div class="kpi-icon green"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div><div class="kpi-value">1m 42s</div><div class="kpi-delta up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>Improved 18s</div></div>
-          <div class="kpi-card yellow"><div class="kpi-top"><span class="kpi-label">Repeat Sessions</span><div class="kpi-icon yellow"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div></div><div class="kpi-value">62.8%</div><div class="kpi-delta neu">Stable this week</div></div>
+          <div class="kpi-card blue"><div class="kpi-top"><span class="kpi-label">Search Success Rate <span class="proto-tag">Prototype</span></span><div class="kpi-icon blue"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div></div><div class="kpi-value">73.2%</div><div class="kpi-delta up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>+3.1% vs last month</div></div>
+          <div class="kpi-card red"><div class="kpi-top"><span class="kpi-label">Zero-Result Queries <span class="proto-tag">Prototype</span></span><div class="kpi-icon red"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg></div></div><div class="kpi-value">418</div><div class="kpi-delta down"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>Top gap: "SLM Grade 2 MTB"</div></div>
+          <div class="kpi-card green"><div class="kpi-top"><span class="kpi-label">Avg. Time-to-Download <span class="proto-tag">Prototype</span></span><div class="kpi-icon green"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div><div class="kpi-value">1m 42s</div><div class="kpi-delta up"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>Improved 18s</div></div>
+          <div class="kpi-card yellow"><div class="kpi-top"><span class="kpi-label">Repeat Sessions <span class="proto-tag">Prototype</span></span><div class="kpi-icon yellow"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div></div><div class="kpi-value">62.8%</div><div class="kpi-delta neu">Stable this week</div></div>
         </div>
         <div class="charts-grid">
           <div class="card"><div class="card-header"><span class="card-title">Downloads by Resource Type (30d)</span></div><div class="card-body"><div class="chart-wrap"><canvas id="typeChart"></canvas></div></div></div>
-          <div class="card"><div class="card-header"><span class="card-title">Top Queries with Zero Results</span></div><div class="card-body"><div class="progress-row"><div class="prog-item"><div class="prog-head"><span class="prog-label">SLM Grade 2 MTB</span><span class="prog-val">87</span></div><div class="prog-bar"><div class="prog-fill" style="width:87%;background:#F87171"></div></div></div><div class="prog-item"><div class="prog-head"><span class="prog-label">Kinder Filipino SLM</span><span class="prog-val">74</span></div><div class="prog-bar"><div class="prog-fill" style="width:74%;background:#FBBF24"></div></div></div><div class="prog-item"><div class="prog-head"><span class="prog-label">Grade 1 Math video</span><span class="prog-val">61</span></div><div class="prog-bar"><div class="prog-fill" style="width:61%;background:#FBBF24"></div></div></div></div></div></div>
+          <div class="card"><div class="card-header"><span class="card-title">Top Queries with Zero Results <span class="proto-tag">Prototype</span></span></div><div class="card-body"><div class="progress-row"><div class="prog-item"><div class="prog-head"><span class="prog-label">SLM Grade 2 MTB</span><span class="prog-val">87</span></div><div class="prog-bar"><div class="prog-fill" style="width:87%;background:#F87171"></div></div></div><div class="prog-item"><div class="prog-head"><span class="prog-label">Kinder Filipino SLM</span><span class="prog-val">74</span></div><div class="prog-bar"><div class="prog-fill" style="width:74%;background:#FBBF24"></div></div></div><div class="prog-item"><div class="prog-head"><span class="prog-label">Grade 1 Math video</span><span class="prog-val">61</span></div><div class="prog-bar"><div class="prog-fill" style="width:61%;background:#FBBF24"></div></div></div></div></div></div>
         </div>
-        <div class="card"><div class="card-header"><span class="card-title">Contribution Funnel — SY 2025–2026</span></div><div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="funnelChart"></canvas></div></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Contribution Funnel — SY 2025–2026 <span class="proto-tag">Prototype</span></span></div><div class="card-body"><div class="chart-wrap" style="height:180px"><canvas id="funnelChart"></canvas></div></div></div>
       </div>
 
       <!-- ══ QA TOOLS ══ -->

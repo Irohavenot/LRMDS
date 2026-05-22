@@ -1,3 +1,53 @@
+<?php
+session_start();
+if (empty($_SESSION['user'])) {
+    header('Location: ../index.php?signin=1&dest=onedrive/admindashboard.php');
+    exit;
+}
+
+$actor_role = $_SESSION['user_role'] ?? 'guest';
+$actor_name = htmlspecialchars($_SESSION['user_name'] ?? 'User');
+$actor_init = strtoupper(substr($_SESSION['user_name'] ?? 'U', 0, 2));
+
+// Fetch avatar and role label
+$actor_avatar = null;
+$full_role    = ucwords(str_replace('-', ' ', $actor_role));
+try {
+    $mgr_pdo = new PDO(
+        'mysql:host=localhost;dbname=lrmds;charset=utf8mb4',
+        'root', '',
+        [PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+         PDO::ATTR_EMULATE_PREPARES   => false]
+    );
+    $mgr_s = $mgr_pdo->prepare('SELECT avatar, role FROM users WHERE id = ? LIMIT 1');
+    $mgr_s->execute([(int)($_SESSION['user_id'] ?? 0)]);
+    $mgr_row = $mgr_s->fetch();
+    if ($mgr_row) {
+        if (!empty($mgr_row['avatar'])) {
+            $actor_avatar = '../' . htmlspecialchars($mgr_row['avatar']);
+        }
+        $rl = [
+            'admin'           => 'Super Administrator',
+            'developer'       => 'SDS / Content Developer',
+            'sds'             => 'Division Superintendent',
+            'asds'            => 'Assistant Superintendent',
+            'pdo'             => 'Project Dev. Officer',
+            'ces'             => 'Chief Ed. Supervisor',
+            'specialist'      => 'Specialist (CID)',
+            'specialist-sgod' => 'Specialist (SGOD)',
+        ];
+        $full_role = $rl[$mgr_row['role']] ?? $full_role;
+    }
+} catch (PDOException $e) { /* fallback */ }
+
+// Roles that can access this analytics dashboard (high-level only)
+$manage_roles = ['admin', 'developer', 'sds', 'asds', 'pdo', 'ces', 'specialist', 'specialist-sgod'];
+if (!in_array($actor_role, $manage_roles)) {
+    header('Location: ../index.php');
+    exit;
+}
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -412,6 +462,33 @@
 .bm-bar-wrap {
   width: 70px; flex-shrink: 0;
 }
+
+/* ── Sidebar User Chip ── */
+.sidebar-footer .user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden;
+}
+.user-name {
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 140px; line-height: 1.2;
+}
+.user-role {
+  font-size: 11px; color: var(--text-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 140px; margin-top: 2px;
+}
 </style>
 </head>
 <body>
@@ -423,7 +500,7 @@
 
   <!-- ══ Sidebar ══ -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
+    <a class="sidebar-brand" href="../index.php" style="text-decoration:none; display:block;">
       <div class="brand-logo">
         <div class="brand-shield">
           <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"
@@ -436,7 +513,7 @@
           <div class="brand-sub">DepEd Carcar City</div>
         </div>
       </div>
-    </div>
+    </a>
 
     <nav class="sidebar-nav">
       <div class="nav-section-label">Analytics</div>
@@ -513,8 +590,23 @@
     </nav>
 
     <div class="sidebar-footer">
-      <span class="status-text"><span class="status-dot"></span>Live · tracker.php</span>
-      <span style="margin-top:4px">v1.2 · <span id="db-size">—</span></span>
+      <div class="status-text" style="color:var(--green); font-weight:600;">
+        <span class="status-dot"></span>Tracker Active
+      </div>
+      
+      <div class="user-chip">
+        <div class="user-avatar">
+          <?php if ($actor_avatar): ?>
+            <img src="<?= $actor_avatar ?>" alt="" style="width:100%;height:100%;object-fit:cover;">
+          <?php else: ?>
+            <?= $actor_init ?>
+          <?php endif; ?>
+        </div>
+        <div>
+          <div class="user-name"><?= $actor_name ?></div>
+          <div class="user-role"><?= htmlspecialchars($full_role) ?></div>
+        </div>
+      </div>
     </div>
   </aside>
 

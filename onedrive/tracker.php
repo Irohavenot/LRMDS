@@ -197,12 +197,24 @@ function days_filter(): array {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
+    // ── Public Endpoint: counts ──
     if (isset($_GET['counts']) && !empty($_GET['item_id'])) {
         // Bug fix: also return bookmarks so analytics badge and live counts are complete
         $stmt = $pdo->prepare('SELECT views, downloads, bookmarks FROM file_stats WHERE item_id = ?');
         $stmt->execute([trim($_GET['item_id'])]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         echo json_encode($row ?: ['views' => 0, 'downloads' => 0, 'bookmarks' => 0]);
+        exit;
+    }
+
+    // ── ADMIN PROTECTION ──
+    // All subsequent GET endpoints are for the analytics dashboard
+    session_start();
+    $actor_role = $_SESSION['user_role'] ?? 'guest';
+    $manage_roles = ['admin', 'developer', 'sds', 'asds', 'pdo', 'ces', 'specialist', 'specialist-sgod'];
+    if (!in_array($actor_role, $manage_roles)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Access denied. Administrator privileges required.']);
         exit;
     }
 

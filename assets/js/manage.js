@@ -427,7 +427,7 @@ async function umLoadUsers() {
   }
 }
 
-/* ── Applicant card (click-to-expand) ── */
+/* ── Applicant card (compact & professional) ── */
 function umApplicantCard(u) {
   const name     = escHtml(u.first_name + ' ' + u.last_name);
   const email    = escHtml(u.email);
@@ -435,78 +435,45 @@ function umApplicantCard(u) {
   const initials = ((u.first_name[0] || '') + (u.last_name[0] || '')).toUpperCase();
   const meta     = u.meta || {};
 
-  // Build expanded detail rows from all available fields
-  const detailRows = [];
-  if (u.region)          detailRows.push(['Region',       u.region]);
-  if (u.division)        detailRows.push(['Division',     u.division]);
-  if (u.employee_id)     detailRows.push(['Employee ID',  u.employee_id]);
-  if (meta.grade_level)  detailRows.push(['Grade Level',  meta.grade_level]);
-  if (meta.subjects)     detailRows.push(['Subjects',     meta.subjects]);
-  if (meta.school_name)  detailRows.push(['School',       meta.school_name]);
-  if (meta.lrn)          detailRows.push(['LRN',          meta.lrn]);
-  if (meta.child_grade)  detailRows.push(['Child Grade',  meta.child_grade]);
-  if (meta.child_school) detailRows.push(['Child School', meta.child_school]);
-  if (meta.position)     detailRows.push(['Position',     meta.position]);
-
-  const detailHtml = detailRows.map(([label, val]) => `
-    <div class="app-detail-row">
-      <span class="app-detail-label">${escHtml(label)}</span>
-      <span class="app-detail-val">${escHtml(String(val))}</span>
-    </div>`).join('');
-
   const totpBadge   = u.totp_enabled
-    ? `<span class="app-badge app-badge-green"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>2FA On</span>`
-    : `<span class="app-badge app-badge-gray">No 2FA</span>`;
+    ? `<span class="chip chip-green" style="font-size:10px;padding:2px 6px"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>2FA</span>`
+    : '';
   const googleBadge = u.google_id
-    ? `<span class="app-badge app-badge-blue">Google</span>`
+    ? `<span class="chip chip-blue" style="font-size:10px;padding:2px 6px">Google</span>`
     : '';
 
   const safeName = name.replace(/'/g, "\\'");
 
   return `
-    <div class="app-card" id="applicant-${u.id}">
-      <div class="app-card-head" onclick="appToggle(${u.id})" role="button" tabindex="0"
-           onkeydown="if(event.key==='Enter'||event.key===' ')appToggle(${u.id})"
-           aria-expanded="false" id="app-head-${u.id}">
-        <div class="app-avatar" style="background:${color}">${initials}</div>
-        <div class="app-head-info">
-          <div class="app-name">${name}</div>
-          <div class="app-email">${email}</div>
+    <div class="applicant-card" id="applicant-${u.id}">
+      <div class="applicant-avatar" style="background:${color}" onclick="vmOpen(${u.id})" title="Quick Preview">
+        ${initials}
+      </div>
+      <div class="applicant-main">
+        <div class="applicant-name" style="cursor:pointer" onclick="vmOpen(${u.id})" title="Quick Preview">${name}</div>
+        <div class="applicant-email">${email}</div>
+        <div class="applicant-chips">
+          <span class="chip" style="background:${color}20;color:${color};border:1px solid ${color}40">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
+          ${totpBadge}
+          ${googleBadge}
         </div>
-        <div class="app-head-right">
-          <span class="app-role-badge" style="background:${color}20;color:${color};border:1px solid ${color}30">${escHtml(ROLE_LABELS[u.role] || u.role)}</span>
-          ${totpBadge}${googleBadge}
-          <span class="app-date-inline">Applied ${escHtml(u.created_at_human)}</span>
-          <svg class="app-chevron" id="app-chevron-${u.id}" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        <div class="applicant-meta">
+          Applied ${escHtml(u.created_at_human)} • ${escHtml(u.region || 'No Region')}
         </div>
       </div>
-
-      <div class="app-details" id="app-details-${u.id}">
-        <div class="app-details-inner">
-          <div class="app-details-grid">
-            ${detailHtml || '<p class="app-no-details">No additional registration details provided.</p>'}
-            <div class="app-detail-row">
-              <span class="app-detail-label">Applied</span>
-              <span class="app-detail-val">${escHtml(u.created_at_human)}</span>
-            </div>
-          </div>
-          <div class="app-card-actions">
-            <button class="app-btn-view" onclick="event.stopPropagation();vmOpen(${u.id})">
-              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              View Full Profile
-            </button>
-            <div class="app-action-group">
-              <button class="app-btn-reject" onclick="event.stopPropagation();umOpenReject(${u.id}, '${safeName}')">
-                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Reject
-              </button>
-              <button class="app-btn-approve" onclick="event.stopPropagation();umApprove(${u.id}, '${safeName}')">
-                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
-                Approve
-              </button>
-            </div>
-          </div>
-        </div>
+      <div class="applicant-actions">
+        <button class="btn-approve" onclick="umApprove(${u.id}, '${safeName}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          Approve
+        </button>
+        <button class="btn-reject" onclick="umOpenReject(${u.id}, '${safeName}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Reject
+        </button>
+        <button class="tbl-btn primary" onclick="vmOpen(${u.id})" style="margin-top:4px;width:100%;justify-content:center">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Preview Details
+        </button>
       </div>
     </div>`;
 }
@@ -915,6 +882,18 @@ function vmPopulate(u) {
       <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)">${title}</span>
     </div>`;
 
+  const meta = u.meta || {};
+  const metaRows = [];
+  if (meta.grade_level)  metaRows.push(field('Grade Level', meta.grade_level));
+  if (meta.subjects)     metaRows.push(field('Subjects',    meta.subjects));
+  if (meta.school_name)  metaRows.push(field('School',      meta.school_name));
+  if (meta.lrn)          metaRows.push(field('LRN',         meta.lrn, true));
+  if (meta.child_grade)  metaRows.push(field('Child Grade', meta.child_grade));
+  if (meta.child_school) metaRows.push(field('Child School',meta.child_school));
+  if (meta.position)     metaRows.push(field('Position',    meta.position));
+  if (meta.dev_position) metaRows.push(field('Dev Position',meta.dev_position));
+  if (meta.affiliation)  metaRows.push(field('Affiliation', meta.affiliation));
+
   const totpBlock = totpOn
     ? `<div style="grid-column:1/-1">
          <div class="vm-field-label">Two-Factor Auth</div>
@@ -941,6 +920,9 @@ function vmPopulate(u) {
     ${sectionHeader('Organization', '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>')}
     ${field('Region',   u.region   || '—')}
     ${field('Division', u.division || '—')}
+    
+    ${metaRows.length > 0 ? sectionHeader('Attached Details', '<path d="M15.5 2H8.6c-.4 0-.8.2-1.1.5L4.5 5.5c-.3.3-.5.7-.5 1.1V21c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6.5L15.5 2z"/><path d="M15 2v5h5"/>') : ''}
+    ${metaRows.join('')}
 
     ${sectionHeader('Access', '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>')}
     <div>

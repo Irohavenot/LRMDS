@@ -181,5 +181,5 @@ $_SESSION['user']       = $user['email'];   // keeps header.php check working
 $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = ?')
     ->execute([$user['id']]);
 
-echo json_encode(['ok' => true, 'redirect' => '../index.php']);
+echo json_encode(['ok' => true, 'redirect' => '/deped-lrmds-portal/index.php']);
 exit;
