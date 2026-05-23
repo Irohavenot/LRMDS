@@ -93,7 +93,7 @@
     const SEP   = raw.includes(' › ') ? ' › ' : '/';
     const parts = raw.split(SEP);
     if (parts.length <= maxSegs) return raw;
-    return parts.slice(0, maxSegs).join(SEP) + SEP + '…';
+    return '… ' + SEP + parts.slice(-maxSegs).join(SEP);
   }
 
   function _downloadFile(filename, content, mime) {
@@ -125,10 +125,11 @@
   function _fileCell(name, path, type, ext) {
     const short = (name || '—').length > 52 ? (name || '—').slice(0, 50) + '…' : (name || '—');
     const p     = path ? _truncFolder(path, 3) : '';
+    const fullPath = path || '';
     return `<td>
       <div class="ua-fname" title="${_escAttr(name || '')}">${_escHtml(short)}</div>
       ${type || ext ? `<div class="ua-fmeta">${_escHtml(type || '')}${ext ? ' · ' + _escHtml(String(ext).toUpperCase()) : ''}</div>` : ''}
-      ${p ? `<div class="ua-fpath">${_escHtml(p)}</div>` : ''}
+      ${p ? `<div class="ua-fpath" data-fullpath="${_escAttr(fullPath)}" title="Click to view full path">${_escHtml(p)}</div>` : ''}
     </td>`;
   }
 
@@ -196,7 +197,14 @@
       .ua-table .rank{width:32px;color:#9CA3AF;font-family:'DM Mono',monospace;font-weight:600}
       .ua-fname{font-weight:600;color:#111827}
       .ua-fmeta{font-size:10px;color:#6B7280;margin-top:2px}
-      .ua-fpath{font-size:10px;color:#9CA3AF;font-family:'DM Mono',monospace;margin-top:2px;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .ua-fpath{font-size:10px;color:#9CA3AF;font-family:'DM Mono',monospace;margin-top:2px;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left;cursor:pointer;border-radius:3px;padding:1px 2px;transition:background .15s,color .15s}
+      .ua-fpath:hover{background:#f0f7f2;color:#1a5c2a}
+      /* Full-path popover */
+      .ua-path-popover{position:fixed;z-index:12000;background:#1a1a2e;color:#e2e8f0;font-family:'DM Mono',monospace;
+        font-size:11px;line-height:1.6;padding:10px 14px;border-radius:8px;max-width:min(90vw,560px);
+        word-break:break-all;box-shadow:0 8px 32px rgba(0,0,0,.45);pointer-events:none;
+        opacity:0;transition:opacity .15s}
+      .ua-path-popover.visible{opacity:1}
       .ua-time{font-size:11px;font-family:'DM Mono',monospace;color:#6B7280;white-space:nowrap}
       .ua-loading{padding:40px;text-align:center;color:#6B7280}
       .user-activity-link{background:none;border:none;padding:0;font:inherit;font-size:12px;font-weight:500;
@@ -297,6 +305,56 @@
         _close();
         document.removeEventListener('keydown', onEsc);
       }
+    });
+
+    // ── Full-path popover on .ua-fpath click ─────────────────────
+    let _popover = null;
+    function _removePopover() {
+      if (_popover) { _popover.remove(); _popover = null; }
+    }
+    backdrop.addEventListener('click', function (e) {
+      const cell = e.target.closest('.ua-fpath[data-fullpath]');
+      if (!cell) { _removePopover(); return; }
+      e.stopPropagation();
+      _removePopover();
+
+      const full = cell.dataset.fullpath || '';
+      if (!full) return;
+
+      const pop = document.createElement('div');
+      pop.className = 'ua-path-popover';
+      // Display path segments separated by › for readability
+      const display = full.includes(' › ')
+        ? full.split(' › ').join(' ›\u200B ')   // zero-width space for wrap hints
+        : full;
+      pop.textContent = display;
+      document.body.appendChild(pop);
+      _popover = pop;
+
+      // Position near the clicked element
+      const rect = cell.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const popW = Math.min(560, vw * 0.9);
+      let left = rect.left;
+      let top  = rect.bottom + 6;
+      if (left + popW > vw - 12) left = vw - popW - 12;
+      if (left < 8) left = 8;
+      if (top + 100 > vh) top = rect.top - 10;   // flip above if no room below
+
+      pop.style.left = left + 'px';
+      pop.style.top  = top  + 'px';
+      pop.style.maxWidth = popW + 'px';
+      pop.style.pointerEvents = 'none';
+      requestAnimationFrame(() => pop.classList.add('visible'));
+
+      // Auto-dismiss after 6 s or on next click anywhere
+      const tid = setTimeout(_removePopover, 6000);
+      document.addEventListener('click', function once() {
+        clearTimeout(tid);
+        _removePopover();
+        document.removeEventListener('click', once);
+      }, { once: true });
     });
   }
 

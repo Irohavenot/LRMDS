@@ -1,16 +1,19 @@
 <?php
 /**
- * DepEd LRMDS – forgot_password.php
+ * DepEd LRMDS – forgot_password.php  (auth/)
  *
- * Step 1 (REQUEST)  – user enters their email
- * Step 2 (OTP)      – user enters the 6-digit code emailed to them
- *                     TOTP roles also enter their authenticator code here
- * Step 3 (RESET)    – user sets a new password
- * Step 4 (DONE)     – success, redirect to sign-in
+ * Step 1  REQUEST  – user enters their email
+ * Step 2  OTP      – email OTP + TOTP (for teacher-and-above roles)
+ *                    OR "no authenticator" → retrieval request sub-form
+ * Step 3  RESET    – set new password  (skipped for retrieval path)
+ * Step 4  DONE     – success
+ * Step 5  RETRIEVE – retrieval request submitted confirmation
  *
- * No session login required — this is the unauthenticated reset flow.
- * Uses the same send_password_otp / verify_password_otp helpers as
- * change_password.php so no new DB tables are needed.
+ * Flow by role
+ * ─────────────────────────────────────────────────────────────
+ * parent / learner     Email → OTP → New password
+ * teacher & above      Email → OTP + TOTP → New password
+ * teacher (lost TOTP)  Email → "No authenticator" form → DB request → Admin reviews
  */
 
 session_start();
@@ -20,16 +23,18 @@ define('DB_CHARSET', 'utf8mb4');
 define('FP_OTP_COOLDOWN', 60);   // seconds between resend attempts
 
 // Roles that require TOTP in addition to the email OTP
-define('FP_TOTP_ROLES', ['teacher', 'school-head', 'psds', 'eps', 'eps-sgod',
-                          'ces', 'ces-sgod', 'specialist', 'specialist-sgod',
-                          'asds', 'sds', 'pdo', 'developer', 'admin']);
+define('FP_TOTP_ROLES', [
+    'teacher', 'school-head', 'psds', 'eps', 'eps-sgod',
+    'ces', 'ces-sgod', 'specialist', 'specialist-sgod',
+    'asds', 'sds', 'pdo', 'developer', 'admin',
+]);
 
 /* ── DB ─────────────────────────────────────────────────────── */
 try {
     $pdo = new PDO(
         sprintf('mysql:host=%s;dbname=%s;charset=%s',
-            env('DB_HOST','localhost'), env('DB_NAME','lrmds'), DB_CHARSET),
-        env('DB_USER','root'), env('DB_PASS',''),
+            env('DB_HOST', 'localhost'), env('DB_NAME', 'lrmds'), DB_CHARSET),
+        env('DB_USER', 'root'), env('DB_PASS', ''),
         [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -43,18 +48,20 @@ try {
 }
 
 /* ── State vars ─────────────────────────────────────────────── */
-$step         = $_SESSION['fp_step']    ?? 'request';   // request | otp | reset | done
-$fp           = $_SESSION['fp']         ?? [];           // carries data across steps
-$errors       = [];
-$otp_resent   = false;
+$step       = $_SESSION['fp_step'] ?? 'request';
+$fp         = $_SESSION['fp']      ?? [];
+$errors     = [];
+$otp_resent = false;
 
-// Helper: rate-limit check
-function fp_cooldown_wait(string $email): int {
+// OTP cooldown helpers
+function fp_cooldown_wait(string $email): int
+{
     $key  = 'fp_otp_ts_' . md5($email);
     $last = $_SESSION[$key] ?? 0;
     return max(0, FP_OTP_COOLDOWN - (time() - $last));
 }
-function fp_record_send(string $email): void {
+function fp_record_send(string $email): void
+{
     $_SESSION['fp_otp_ts_' . md5($email)] = time();
 }
 
@@ -65,23 +72,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
 
     $action = $_POST['_action'] ?? '';
 
-    /* ── STEP 1: submit email ─────────────────────────────────── */
+    /* ── STEP 1: submit email ────────────────────────────────── */
     if ($action === 'request_reset') {
         $email = strtolower(trim($_POST['email'] ?? ''));
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors['email'] = 'Please enter a valid email address.';
         } else {
-            // Look up user — always show same message to prevent enumeration
             $stmt = $pdo->prepare('
-                SELECT id, first_name, email, role, status,
+                SELECT id, first_name, last_name, email, role, status,
                        totp_enabled, totp_secret, password_hash
-                FROM users WHERE email = ? LIMIT 1
+                FROM   users WHERE email = ? LIMIT 1
             ');
             $stmt->execute([$email]);
             $user = $stmt->fetch();
 
-            // Block Google-only accounts (no password_hash set)
             if ($user && $user['password_hash'] === '') {
                 $errors['email'] = 'This account uses Google sign-in. Use the "Sign in with Google" button instead.';
             } elseif ($user && $user['status'] === 'suspended') {
@@ -95,20 +100,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
                     [$ok, $lookup_token, $err] = send_password_otp(
                         $pdo, (int)$user['id'], $user['email'], $user['first_name']
                     );
-
                     if ($ok) {
                         fp_record_send($email);
                         $_SESSION['fp_step'] = 'otp';
                         $_SESSION['fp'] = [
-                            'user_id'      => $user['id'],
-                            'email'        => $user['email'],
-                            'first_name'   => $user['first_name'],
-                            'role'         => $user['role'],
-                            'totp_enabled' => $user['totp_enabled'],
-                            'totp_secret'  => $user['totp_secret'],
-                            'lookup_token' => $lookup_token,
-                            'expires_at'   => time() + 600,
-                            'totp_verified'=> false,
+                            'user_id'       => $user['id'],
+                            'email'         => $user['email'],
+                            'first_name'    => $user['first_name'],
+                            'last_name'     => $user['last_name'],
+                            'role'          => $user['role'],
+                            'totp_enabled'  => $user['totp_enabled'],
+                            'totp_secret'   => $user['totp_secret'],
+                            'lookup_token'  => $lookup_token,
+                            'expires_at'    => time() + 600,
+                            'totp_verified' => false,
                         ];
                         header('Location: forgot_password.php');
                         exit;
@@ -118,16 +123,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
                     }
                 }
             } else {
-                // User not found — fake success to prevent enumeration
+                // User not found — fake success to prevent email enumeration
                 $_SESSION['fp_step'] = 'otp';
                 $_SESSION['fp'] = [
-                    'user_id'      => 0,
-                    'email'        => $email,
-                    'first_name'   => 'there',
-                    'role'         => '',
-                    'lookup_token' => '',
-                    'expires_at'   => time() + 600,
-                    'totp_verified'=> false,
+                    'user_id'       => 0,
+                    'email'         => $email,
+                    'first_name'    => 'there',
+                    'last_name'     => '',
+                    'role'          => '',
+                    'lookup_token'  => '',
+                    'expires_at'    => time() + 600,
+                    'totp_verified' => false,
                 ];
                 header('Location: forgot_password.php');
                 exit;
@@ -136,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
         $step = 'request';
     }
 
-    /* ── STEP 2a: verify OTP (and optionally TOTP) ─────────────── */
+    /* ── STEP 2a: verify OTP (+ optional TOTP) ──────────────── */
     elseif ($action === 'verify_otp') {
         if (empty($fp) || time() > ($fp['expires_at'] ?? 0)) {
             unset($_SESSION['fp_step'], $_SESSION['fp']);
@@ -150,9 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
                        && !empty($fp['totp_enabled'])
                        && !empty($fp['totp_secret']);
 
-            // --- Verify email OTP ---
             if ($fp['user_id'] === 0) {
-                // Fake user — always fail silently, but show OTP error
                 $errors['otp'] = 'Incorrect code. Please try again.';
             } else {
                 require_once __DIR__ . '/../lib/send_password_otp.php';
@@ -161,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
                 if (!$ok) {
                     $errors['otp'] = $err ?: 'Incorrect code. Please try again.';
                 } elseif ($needs_totp && !$fp['totp_verified']) {
-                    // --- Also verify TOTP if required ---
+                    // Load TOTP library
                     require_once __DIR__ . '/../lib/TwoFactorAuthException.php';
                     require_once __DIR__ . '/../lib/Algorithm.php';
                     require_once __DIR__ . '/../lib/Providers/Rng/IRNGProvider.php';
@@ -182,22 +186,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
 
                     if (strlen($submitted_totp) !== 6) {
                         $errors['totp'] = 'Please enter the 6-digit code from your authenticator app.';
-                        // Re-issue a new OTP since we consumed the old one
+                        // Re-issue OTP since we consumed it
                         [$ok2, $new_token,] = send_password_otp($pdo, $fp['user_id'], $fp['email'], $fp['first_name']);
-                        if ($ok2) { $_SESSION['fp']['lookup_token'] = $new_token; $_SESSION['fp']['expires_at'] = time() + 600; fp_record_send($fp['email']); }
+                        if ($ok2) {
+                            $_SESSION['fp']['lookup_token'] = $new_token;
+                            $_SESSION['fp']['expires_at']   = time() + 600;
+                            fp_record_send($fp['email']);
+                        }
                     } elseif (!$tfa->verifyCode($fp['totp_secret'], $submitted_totp)) {
                         $errors['totp'] = 'Incorrect authenticator code. Please try again.';
                         [$ok2, $new_token,] = send_password_otp($pdo, $fp['user_id'], $fp['email'], $fp['first_name']);
-                        if ($ok2) { $_SESSION['fp']['lookup_token'] = $new_token; $_SESSION['fp']['expires_at'] = time() + 600; fp_record_send($fp['email']); }
+                        if ($ok2) {
+                            $_SESSION['fp']['lookup_token'] = $new_token;
+                            $_SESSION['fp']['expires_at']   = time() + 600;
+                            fp_record_send($fp['email']);
+                        }
                     } else {
-                        // Both verified!
                         $_SESSION['fp']['totp_verified'] = true;
                         $_SESSION['fp_step'] = 'reset';
                         header('Location: forgot_password.php');
                         exit;
                     }
                 } else {
-                    // OTP ok, no TOTP required
+                    // OTP OK, no TOTP required
                     $_SESSION['fp_step'] = 'reset';
                     header('Location: forgot_password.php');
                     exit;
@@ -211,7 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
     /* ── STEP 2b: resend OTP ─────────────────────────────────── */
     elseif ($action === 'resend_otp') {
         if (empty($fp) || $fp['user_id'] === 0) {
-            $step = 'otp'; // Stay on page, do nothing for fake users
+            $step = 'otp';
         } else {
             $wait = fp_cooldown_wait($fp['email']);
             if ($wait > 0) {
@@ -232,6 +243,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
             }
             $step = 'otp';
             $fp   = $_SESSION['fp'] ?? [];
+        }
+    }
+
+    /* ── STEP 2c: account retrieval request (no authenticator) ── */
+    elseif ($action === 'submit_retrieval') {
+        if (empty($fp) || $fp['user_id'] === 0) {
+            unset($_SESSION['fp_step'], $_SESSION['fp']);
+            header('Location: forgot_password.php');
+            exit;
+        }
+
+        $reason = trim($_POST['reason'] ?? '');
+        if (strlen($reason) < 20) {
+            $errors['reason'] = 'Please describe your situation in at least 20 characters so an administrator can assist you.';
+            $step = 'otp';
+            $fp   = $_SESSION['fp'] ?? [];
+        } else {
+            // Check for a duplicate pending request from this user
+            $dup = $pdo->prepare('
+                SELECT id FROM account_retrieval_requests
+                WHERE user_id = ? AND status = "pending"
+                LIMIT 1
+            ');
+            $dup->execute([$fp['user_id']]);
+
+            if ($dup->fetch()) {
+                // Already has a pending request — don't insert again
+                $_SESSION['fp_step'] = 'retrieve';
+                $_SESSION['fp_already_pending'] = true;
+                unset($_SESSION['fp'], $_SESSION['fp_step']);
+                $_SESSION['fp_step'] = 'retrieve';
+                header('Location: forgot_password.php');
+                exit;
+            }
+
+            $full_name = trim(($fp['first_name'] ?? '') . ' ' . ($fp['last_name'] ?? ''));
+
+            $pdo->prepare('
+                INSERT INTO account_retrieval_requests
+                    (user_id, email, full_name, role, reason, status, submitted_at)
+                VALUES (?, ?, ?, ?, ?, "pending", NOW())
+            ')->execute([
+                $fp['user_id'],
+                $fp['email'],
+                $full_name,
+                $fp['role'],
+                $reason,
+            ]);
+
+            unset($_SESSION['fp'], $_SESSION['fp_step']);
+            $_SESSION['fp_step'] = 'retrieve';
+            header('Location: forgot_password.php');
+            exit;
         }
     }
 
@@ -282,36 +346,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $db_ok) {
     }
 }
 
-// Sync step from session after a GET (redirect after POST)
+/* ── Sync step from session after GET redirect ──────────────── */
 if (empty($_POST)) {
     $step = $_SESSION['fp_step'] ?? 'request';
     $fp   = $_SESSION['fp']      ?? [];
 }
 
-// Guard: if we're on otp/reset but session is gone or expired, restart
-if (in_array($step, ['otp','reset']) && (empty($fp) || time() > ($fp['expires_at'] ?? 0))) {
+// Guard: expired or missing session on multi-step pages
+if (in_array($step, ['otp', 'reset']) && (empty($fp) || time() > ($fp['expires_at'] ?? 0))) {
     unset($_SESSION['fp_step'], $_SESSION['fp']);
     $step = 'request';
 }
 
-// On done page, clear session
-if ($step === 'done') {
+// Clear session on terminal steps
+if (in_array($step, ['done', 'retrieve'])) {
     unset($_SESSION['fp_step'], $_SESSION['fp']);
 }
 
-/* ── View helpers ─────────────────────────────────────────── */
+/* ── View helpers ────────────────────────────────────────────── */
 $needs_totp = in_array($fp['role'] ?? '', FP_TOTP_ROLES, true)
            && !empty($fp['totp_enabled'])
            && !empty($fp['totp_secret']);
 
+// TOTP role but device not set up OR unknown (show retrieval link)
+$totp_role_no_device = in_array($fp['role'] ?? '', FP_TOTP_ROLES, true)
+                    && empty($fp['totp_enabled']);
+
 $masked_email = '';
 if (!empty($fp['email'])) {
-    $masked_email = preg_replace_callback('/^(.)(.*?)(@.+)$/', function($m) {
+    $masked_email = preg_replace_callback('/^(.)(.*?)(@.+)$/', function ($m) {
         return $m[1] . str_repeat('*', max(1, strlen($m[2]))) . $m[3];
     }, $fp['email']);
 }
 
 $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
+$already_pending = $_SESSION['fp_already_pending'] ?? false;
+unset($_SESSION['fp_already_pending']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -342,6 +412,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       --error-bg:    #FEF2F2;
       --warning:     #D97706;
       --warning-bg:  #FFFBEB;
+      --amber:       #92400E;
       --radius:      12px;
       --radius-sm:   8px;
       --shadow:      0 4px 20px rgba(0,0,0,.08);
@@ -361,7 +432,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
 
     .fp-wrap { width: 100%; max-width: 460px; }
 
-    /* ── Brand bar ── */
+    /* Brand bar */
     .fp-brand {
       display: flex; align-items: center; gap: 10px;
       margin-bottom: 24px; justify-content: center;
@@ -369,7 +440,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     .fp-brand-name { font-size: 15px; font-weight: 800; color: var(--brand); }
     .fp-brand-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
 
-    /* ── Card ── */
+    /* Card */
     .fp-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -378,7 +449,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       overflow: hidden;
     }
 
-    /* ── Step pill ── */
+    /* Step dots */
     .fp-steps {
       display: flex; align-items: center; padding: 20px 28px 0;
     }
@@ -387,32 +458,33 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       background: #E5E7EB; color: #9CA3AF; transition: .2s;
     }
-    .fp-step-dot.active { background: var(--brand); color: #fff; }
-    .fp-step-dot.done   { background: var(--success); color: #fff; }
+    .fp-step-dot.active { background: var(--brand);   color: #fff; }
+    .fp-step-dot.done   { background: var(--success);  color: #fff; }
     .fp-step-line { flex: 1; height: 2px; background: #E5E7EB; margin: 0 6px; }
     .fp-step-line.done { background: var(--success); }
 
-    /* ── Card sections ── */
+    /* Card sections */
     .fp-header { padding: 20px 28px 0; }
     .fp-title  { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 5px; }
     .fp-desc   { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; }
     .fp-body   { padding: 24px 28px 28px; }
 
-    /* ── Alert ── */
+    /* Alerts */
     .fp-alert {
       display: flex; align-items: flex-start; gap: 10px;
       padding: 11px 14px; border-radius: var(--radius-sm);
       font-size: 13px; line-height: 1.55; margin-bottom: 18px;
       animation: fadeIn .2s ease;
     }
-    .fp-alert-error   { background: var(--error-bg);   color: #B91C1C; border: 1px solid #FECACA; }
-    .fp-alert-success { background: var(--success-bg); color: #065F46; border: 1px solid #A7F3D0; }
+    .fp-alert a { color: inherit; font-weight: 700; }
+    .fp-alert-error   { background: var(--error-bg);    color: #B91C1C; border: 1px solid #FECACA; }
+    .fp-alert-success { background: var(--success-bg);  color: #065F46; border: 1px solid #A7F3D0; }
     .fp-alert-info    { background: var(--brand-light); color: #1E40AF; border: 1px solid #BFDBFE; }
-    .fp-alert-warning { background: var(--warning-bg); color: #92400E; border: 1px solid #FDE68A; }
+    .fp-alert-warning { background: var(--warning-bg);  color: var(--amber); border: 1px solid #FDE68A; }
     .fp-alert svg { flex-shrink: 0; margin-top: 1px; }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
 
-    /* ── Form fields ── */
+    /* Form fields */
     .fp-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }
     .fp-label { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
     .fp-req   { color: var(--error); }
@@ -424,10 +496,20 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       border-radius: var(--radius-sm); outline: none;
       transition: border-color .15s, box-shadow .15s;
     }
+    .fp-input-no-icon { padding-left: 13px; }
     .fp-input::placeholder { color: var(--text-subtle); }
     .fp-input:focus  { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
     .fp-input.invalid { border-color: var(--error);   background: var(--error-bg); }
     .fp-input.valid   { border-color: var(--success); }
+    .fp-textarea {
+      width: 100%; padding: 11px 13px; resize: vertical; min-height: 100px;
+      font-family: var(--font); font-size: 14px; color: var(--text);
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); outline: none; line-height: 1.6;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .fp-textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+    .fp-textarea.invalid { border-color: var(--error); background: var(--error-bg); }
     .fp-input-icon {
       position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
       color: var(--text-subtle); pointer-events: none; transition: color .15s;
@@ -441,12 +523,11 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     .fp-toggle:hover { color: var(--text); }
     .fp-field-error { font-size: 12px; color: var(--error); display: flex; align-items: center; gap: 4px; }
 
-    /* ── Strength ── */
+    /* Password strength */
     .fp-strength { margin-top: 6px; }
-    .fp-strength-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .fp-strength-bar  { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .fp-strength-fill { height: 100%; border-radius: 2px; width: 0%; transition: width .3s, background .3s; }
     .fp-strength-label { font-size: 11px; color: var(--text-subtle); margin-top: 4px; }
-    .fp-strength-label span { font-weight: 700; }
     .fp-reqs { list-style: none; display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
     .fp-req-item { font-size: 12px; color: var(--text-subtle); display: flex; align-items: center; gap: 5px; transition: color .2s; }
     .fp-req-item.met { color: var(--success); }
@@ -455,7 +536,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     .fp-req-item.met .dot   { display: none; }
     .fp-req-item.met .check { display: block; }
 
-    /* ── OTP digit boxes ── */
+    /* OTP digit boxes */
     .fp-otp-inputs { display: flex; gap: 8px; justify-content: center; margin: 16px 0 4px; }
     .fp-otp-digit {
       width: 50px; height: 58px; text-align: center;
@@ -466,13 +547,13 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       transition: border-color .15s, box-shadow .15s;
     }
     .fp-otp-digit:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
-    .fp-otp-digit.filled { border-color: var(--brand); background: var(--brand-light); }
+    .fp-otp-digit.filled  { border-color: var(--brand); background: var(--brand-light); }
     .fp-otp-digit.invalid { border-color: var(--error); box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
     #fp-otp-hidden { position: absolute; opacity: 0; pointer-events: none; width: 1px; }
     .fp-otp-timer { font-size: 12px; color: var(--text-subtle); text-align: center; margin-bottom: 4px; }
     .fp-otp-timer span { font-weight: 700; color: var(--text-muted); }
 
-    /* ── Email chip ── */
+    /* Email chip */
     .fp-email-chip {
       display: inline-flex; align-items: center; gap: 6px;
       background: var(--surface-2); border: 1px solid var(--border);
@@ -480,7 +561,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       font-size: 13px; font-weight: 600; color: var(--text); margin: 8px 0 16px;
     }
 
-    /* ── TOTP section ── */
+    /* TOTP section */
     .fp-totp-section {
       border-top: 1px solid var(--border); padding-top: 18px; margin-top: 4px;
     }
@@ -494,12 +575,38 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       border: 2px solid var(--border); border-radius: 10px; outline: none;
       transition: border-color .15s, box-shadow .15s;
     }
-    .fp-totp-input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
+    .fp-totp-input:focus   { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
     .fp-totp-input.invalid { border-color: var(--error); box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
     .fp-totp-refresh { font-size: 12px; color: var(--text-subtle); text-align: center; margin-top: 6px; }
     .fp-totp-refresh span { font-weight: 700; color: var(--brand); }
 
-    /* ── Buttons ── */
+    /* No-authenticator toggle link */
+    .fp-no-totp-link {
+      display: block; text-align: center; margin-top: 14px;
+      font-size: 12.5px; color: var(--text-subtle);
+    }
+    .fp-no-totp-link button {
+      background: none; border: none; cursor: pointer; font-family: var(--font);
+      font-size: 12.5px; color: var(--brand); font-weight: 600;
+      text-decoration: underline; text-underline-offset: 2px; padding: 0;
+    }
+
+    /* Retrieval request panel (hidden until toggle) */
+    .fp-retrieval-panel {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+      margin-top: 18px;
+      animation: fadeIn .2s ease;
+    }
+    .fp-retrieval-panel.open { display: block; }
+    .fp-retrieval-title {
+      font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .fp-char-count { font-size: 11px; color: var(--text-subtle); text-align: right; margin-top: 4px; }
+
+    /* Buttons */
     .fp-btn {
       width: 100%; padding: 12px 16px; border: none; border-radius: var(--radius-sm);
       font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer;
@@ -507,10 +614,16 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       transition: background .15s, box-shadow .15s, transform .1s;
       min-height: 48px;
     }
-    .fp-btn-primary { background: var(--brand); color: #fff; }
-    .fp-btn-primary:hover { background: var(--brand-hover); box-shadow: 0 4px 14px rgba(11,79,156,.25); }
-    .fp-btn-primary:active { transform: scale(.98); }
-    .fp-btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .fp-btn-primary  { background: var(--brand); color: #fff; box-shadow: 0 2px 8px rgba(11,79,156,.2); }
+    .fp-btn-primary:hover    { background: var(--brand-hover); box-shadow: 0 4px 14px rgba(11,79,156,.28); }
+    .fp-btn-primary:active   { transform: scale(.98); }
+    .fp-btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+    .fp-btn-amber {
+      background: #D97706; color: #fff; box-shadow: 0 2px 8px rgba(217,119,6,.2);
+      margin-top: 10px;
+    }
+    .fp-btn-amber:hover  { background: #B45309; }
+    .fp-btn-amber:active { transform: scale(.98); }
     .fp-btn-ghost {
       background: #fff; border: 1.5px solid var(--border); color: var(--text-muted);
       margin-top: 10px;
@@ -524,26 +637,36 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     }
     .fp-resend:disabled { color: var(--text-subtle); text-decoration: none; cursor: default; }
 
-    /* ── Success ── */
+    /* Success / retrieve screens */
     .fp-success { text-align: center; padding: 40px 28px; }
     .fp-success-icon {
-      width: 72px; height: 72px; border-radius: 50%; background: var(--success-bg);
+      width: 72px; height: 72px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 20px; color: var(--success);
+      margin: 0 auto 20px;
       animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
     }
+    .fp-success-icon.green  { background: var(--success-bg); color: var(--success); }
+    .fp-success-icon.amber  { background: var(--warning-bg); color: var(--warning); }
     @keyframes popIn { from { transform:scale(.4); opacity:0; } to { transform:scale(1); opacity:1; } }
     .fp-success-title { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
     .fp-success-desc  { font-size: 14px; color: var(--text-muted); line-height: 1.65; margin-bottom: 28px; }
+    .fp-success-detail {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px; font-size: 13px;
+      color: var(--text-muted); line-height: 1.6; margin-bottom: 24px; text-align: left;
+    }
+    .fp-success-detail strong { color: var(--text); }
 
-    /* ── Footer ── */
+    /* Footer */
     .fp-footer { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 18px; }
     .fp-footer a { color: var(--brand); font-weight: 600; text-decoration: none; }
     .fp-footer a:hover { text-decoration: underline; }
 
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     @media (max-width: 480px) {
       body { padding: 20px 12px 48px; align-items: flex-start; }
-      .fp-body { padding: 20px; }
+      .fp-body   { padding: 20px; }
       .fp-header { padding: 16px 20px 0; }
       .fp-steps  { padding: 16px 20px 0; }
       .fp-otp-digit { width: 42px; height: 52px; font-size: 22px; }
@@ -564,9 +687,9 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
   <div class="fp-card">
 
     <?php if ($step === 'done'): ?>
-    <!-- ══════════════════════ DONE ══════════════════════════════ -->
+    <!-- ═══════════════════ DONE ═══════════════════════════════ -->
     <div class="fp-success">
-      <div class="fp-success-icon">
+      <div class="fp-success-icon green">
         <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
         </svg>
@@ -576,7 +699,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
         Your password has been updated successfully.<br/>
         You can now sign in with your new password.
       </p>
-      <a href="signin.php" class="fp-btn fp-btn-primary" style="text-decoration:none;display:inline-flex;max-width:240px;margin:0 auto">
+      <a href="signin.php" class="fp-btn fp-btn-primary" style="text-decoration:none;max-width:240px;margin:0 auto">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
         </svg>
@@ -584,13 +707,39 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       </a>
     </div>
 
+    <?php elseif ($step === 'retrieve'): ?>
+    <!-- ═══════════════════ RETRIEVAL SUBMITTED ════════════════ -->
+    <div class="fp-success">
+      <div class="fp-success-icon amber">
+        <svg width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/>
+        </svg>
+      </div>
+      <div class="fp-success-title">Request Submitted</div>
+      <p class="fp-success-desc">
+        <?= $already_pending
+            ? 'You already have a pending retrieval request. An administrator will review it shortly.'
+            : 'Your account retrieval request has been submitted.' ?>
+      </p>
+      <div class="fp-success-detail">
+        <strong>What happens next?</strong><br/>
+        An LRMDS administrator will review your request and verify your identity.
+        You'll be notified at your registered email once a decision is made.
+        This typically takes <strong>1–3 working days</strong>.
+      </div>
+      <a href="signin.php" class="fp-btn fp-btn-ghost" style="text-decoration:none;max-width:260px;margin:0 auto">
+        ← Back to Sign In
+      </a>
+    </div>
+
     <?php else: ?>
-    <!-- Progress steps (3 steps: Request → Verify → Reset) -->
+    <!-- Progress dots (3 steps) -->
     <div class="fp-steps">
       <div class="fp-step-dot <?= $step === 'request' ? 'active' : 'done' ?>">
         <?= $step === 'request' ? '1' : '✓' ?>
       </div>
-      <div class="fp-step-line <?= in_array($step, ['otp','reset']) ? 'done' : '' ?>"></div>
+      <div class="fp-step-line <?= in_array($step, ['otp', 'reset']) ? 'done' : '' ?>"></div>
       <div class="fp-step-dot <?= $step === 'otp' ? 'active' : ($step === 'reset' ? 'done' : '') ?>">
         <?= $step === 'reset' ? '✓' : '2' ?>
       </div>
@@ -599,18 +748,20 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     </div>
 
     <?php if ($step === 'request'): ?>
-    <!-- ══════════════════════ STEP 1: REQUEST ═══════════════════ -->
+    <!-- ═══════════════════ STEP 1: REQUEST ═══════════════════ -->
     <div class="fp-header" style="margin-top:18px">
       <div class="fp-title">Forgot your password?</div>
       <p class="fp-desc">Enter the email address on your LRMDS account and we'll send you a verification code.</p>
     </div>
     <div class="fp-body">
+
       <?php if (!$db_ok): ?>
       <div class="fp-alert fp-alert-error">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Database connection failed. Make sure XAMPP MySQL is running.
       </div>
       <?php endif; ?>
+
       <?php if (!empty($errors['general'])): ?>
       <div class="fp-alert fp-alert-error">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -651,12 +802,14 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     </div>
 
     <?php elseif ($step === 'otp'): ?>
-    <!-- ══════════════════════ STEP 2: OTP ═══════════════════════ -->
+    <!-- ═══════════════════ STEP 2: OTP (+TOTP) ═══════════════ -->
     <div class="fp-header" style="margin-top:18px">
       <div class="fp-title">Verify your identity</div>
       <p class="fp-desc">
         We've sent a 6-digit code to your email.<?php if ($needs_totp): ?>
-        Since your account has two-factor authentication, you'll also need your authenticator app code.<?php endif; ?>
+        Since your account has two-factor authentication enabled, you'll also need your authenticator app code.<?php endif; ?>
+        <?php if ($totp_role_no_device): ?>
+        If you don't have access to your authenticator app, you can submit a retrieval request below.<?php endif; ?>
       </p>
     </div>
     <div class="fp-body">
@@ -681,6 +834,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
         <?= htmlspecialchars($masked_email) ?>
       </div>
 
+      <!-- OTP verify form -->
       <form method="POST" id="fp-otp-form" novalidate>
         <input type="hidden" name="_action" value="verify_otp"/>
         <input type="hidden" name="otp" id="fp-otp-hidden"/>
@@ -689,22 +843,20 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
           Email verification code
         </label>
         <div class="fp-otp-inputs" role="group" aria-label="6-digit code">
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 1" autocomplete="one-time-code"/>
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2"/>
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3"/>
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4"/>
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5"/>
-          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6"/>
+          <?php for ($i = 1; $i <= 6; $i++): ?>
+          <input class="fp-otp-digit <?= !empty($errors['otp']) ? 'invalid' : '' ?>"
+                 type="text" inputmode="numeric" maxlength="1"
+                 aria-label="Digit <?= $i ?>"
+                 <?= $i === 1 ? 'autocomplete="one-time-code"' : '' ?>/>
+          <?php endfor; ?>
         </div>
         <p class="fp-otp-timer">Code expires in <span id="fp-countdown">10:00</span></p>
 
         <?php if ($needs_totp): ?>
-        <!-- ── TOTP section ── -->
+        <!-- TOTP section: role has it enabled -->
         <div class="fp-totp-section">
           <div class="fp-totp-label">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             Authenticator App Code
           </div>
           <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;line-height:1.5">
@@ -718,18 +870,85 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
           <?php endif; ?>
           <input type="text" name="totp_code" id="fp-totp-input"
                  class="fp-totp-input <?= !empty($errors['totp']) ? 'invalid' : '' ?>"
-                 placeholder="000 000" maxlength="6"
-                 inputmode="numeric" pattern="\d{6}"
+                 placeholder="000 000" maxlength="6" inputmode="numeric" pattern="\d{6}"
                  autocomplete="one-time-code"/>
           <p class="fp-totp-refresh">Refreshes every <span id="fp-totp-cd">30</span>s</p>
         </div>
+
+        <!-- "No authenticator" escape hatch -->
+        <div class="fp-no-totp-link">
+          Don't have access to your authenticator?
+          <button type="button" id="fp-toggle-retrieval">Submit a retrieval request</button>
+        </div>
+
+        <?php elseif ($totp_role_no_device): ?>
+        <!-- TOTP role but never set up — skip OTP verify, go straight to retrieval -->
+        <div class="fp-alert fp-alert-warning" style="margin-top:14px">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+          Your account role requires two-factor authentication, but no authenticator has been set up yet.
+          Use the form below to request manual account recovery.
+        </div>
         <?php endif; ?>
 
+        <?php if (!$totp_role_no_device): ?>
         <button type="submit" class="fp-btn fp-btn-primary" id="fp-otp-btn" style="margin-top:18px" disabled>
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
           Confirm &amp; Continue
         </button>
+        <?php endif; ?>
       </form>
+
+      <!-- ── Retrieval Request Panel ───────────────────────────── -->
+      <?php
+        // Auto-open if TOTP role with no device setup; otherwise hidden until toggled
+        $panel_open = $totp_role_no_device ? 'open' : '';
+        $reason_val = htmlspecialchars($_POST['reason'] ?? '');
+      ?>
+      <div class="fp-retrieval-panel <?= $panel_open ?>" id="fp-retrieval-panel">
+
+        <div class="fp-retrieval-title">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/>
+          </svg>
+          Account Retrieval Request
+        </div>
+
+        <div class="fp-alert fp-alert-info" style="margin-bottom:14px">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span>An LRMDS administrator will review your request and verify your identity before restoring access.
+          This typically takes <strong>1–3 working days</strong>.</span>
+        </div>
+
+        <form method="POST" id="fp-retrieval-form">
+          <input type="hidden" name="_action" value="submit_retrieval"/>
+
+          <div class="fp-field">
+            <label class="fp-label" for="fp-reason">
+              Describe your situation <span class="fp-req">*</span>
+            </label>
+            <textarea class="fp-textarea <?= !empty($errors['reason']) ? 'invalid' : '' ?>"
+                      id="fp-reason" name="reason"
+                      placeholder="e.g. I lost my phone and can no longer access my authenticator app. My employee ID is..."
+                      maxlength="1000" required><?= $reason_val ?></textarea>
+            <div class="fp-char-count"><span id="fp-char-cur">0</span> / 1000</div>
+          </div>
+
+          <?php if (!empty($errors['reason'])): ?>
+          <div class="fp-alert fp-alert-error" style="margin-top:-10px;margin-bottom:14px">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <?= htmlspecialchars($errors['reason']) ?>
+          </div>
+          <?php endif; ?>
+
+          <button type="submit" class="fp-btn fp-btn-amber">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+            </svg>
+            Submit Retrieval Request
+          </button>
+        </form>
+      </div>
 
       <!-- Resend + back -->
       <div style="margin-top:14px;text-align:center;font-size:13px;color:var(--text-muted)">
@@ -748,7 +967,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     </div>
 
     <?php elseif ($step === 'reset'): ?>
-    <!-- ══════════════════════ STEP 3: RESET ═════════════════════ -->
+    <!-- ═══════════════════ STEP 3: RESET PASSWORD ════════════ -->
     <div class="fp-header" style="margin-top:18px">
       <div class="fp-title">Set a new password</div>
       <p class="fp-desc">Choose a strong password for your account. You'll use it to sign in from now on.</p>
@@ -765,7 +984,6 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
       <form method="POST" id="fp-reset-form" novalidate autocomplete="off">
         <input type="hidden" name="_action" value="set_password"/>
 
-        <!-- New password -->
         <div class="fp-field">
           <label class="fp-label" for="fp-new-pw">
             <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -817,7 +1035,6 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
           </ul>
         </div>
 
-        <!-- Confirm password -->
         <div class="fp-field">
           <label class="fp-label" for="fp-confirm-pw">
             <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
@@ -853,7 +1070,7 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
     </div>
 
     <?php endif; /* step checks */ ?>
-    <?php endif; /* done vs rest */ ?>
+    <?php endif; /* done/retrieve vs rest */ ?>
 
   </div><!-- /.fp-card -->
 
@@ -866,18 +1083,18 @@ $wait_left = (!empty($fp['email'])) ? fp_cooldown_wait($fp['email']) : 0;
 </div><!-- /.fp-wrap -->
 
 <script>
-/* ── Password show/hide ── */
+/* ── Password show/hide toggles ── */
 document.querySelectorAll('.fp-toggle').forEach(btn => {
   btn.addEventListener('click', () => {
     const inp  = document.getElementById(btn.dataset.target);
     const show = inp.type === 'password';
     inp.type   = show ? 'text' : 'password';
-    btn.querySelector('.eye-show').style.display = show ? 'none'  : '';
-    btn.querySelector('.eye-hide').style.display = show ? ''      : 'none';
+    btn.querySelector('.eye-show').style.display = show ? 'none' : '';
+    btn.querySelector('.eye-hide').style.display = show ? ''     : 'none';
   });
 });
 
-/* ── Password strength ── */
+/* ── Password strength (Step 3) ── */
 const newPw  = document.getElementById('fp-new-pw');
 const confPw = document.getElementById('fp-confirm-pw');
 if (newPw) {
@@ -886,49 +1103,58 @@ if (newPw) {
   const strText = document.getElementById('fp-str-text');
   const reqBox  = document.getElementById('fp-reqs');
   const reqs = {
-    len:  { el: document.getElementById('fpq-len'), fn: v => v.length >= 8 },
-    up:   { el: document.getElementById('fpq-up'),  fn: v => /[A-Z]/.test(v) },
-    num:  { el: document.getElementById('fpq-num'), fn: v => /[0-9]/.test(v) },
-    sp:   { el: document.getElementById('fpq-sp'),  fn: v => /[\W_]/.test(v) },
+    len: { el: document.getElementById('fpq-len'), fn: v => v.length >= 8 },
+    up:  { el: document.getElementById('fpq-up'),  fn: v => /[A-Z]/.test(v) },
+    num: { el: document.getElementById('fpq-num'), fn: v => /[0-9]/.test(v) },
+    sp:  { el: document.getElementById('fpq-sp'),  fn: v => /[\W_]/.test(v) },
   };
   const levels = [
-    {l:'Very Weak',c:'#EF4444',w:'15%'},
-    {l:'Weak',     c:'#F97316',w:'35%'},
-    {l:'Fair',     c:'#EAB308',w:'60%'},
-    {l:'Strong',   c:'#22C55E',w:'85%'},
-    {l:'Very Strong',c:'#059669',w:'100%'},
+    { l:'Very Weak',   c:'#EF4444', w:'15%'  },
+    { l:'Weak',        c:'#F97316', w:'35%'  },
+    { l:'Fair',        c:'#EAB308', w:'60%'  },
+    { l:'Strong',      c:'#22C55E', w:'85%'  },
+    { l:'Very Strong', c:'#059669', w:'100%' },
   ];
   function calcStr(v) {
-    let s=0;
-    if(v.length>=8)s++;if(v.length>=12)s++;
-    if(/[A-Z]/.test(v))s++;if(/[0-9]/.test(v))s++;if(/[\W_]/.test(v))s++;
-    return Math.min(s,4);
+    let s = 0;
+    if (v.length >= 8)  s++;
+    if (v.length >= 12) s++;
+    if (/[A-Z]/.test(v))  s++;
+    if (/[0-9]/.test(v))  s++;
+    if (/[\W_]/.test(v))  s++;
+    return Math.min(s, 4);
   }
   newPw.addEventListener('input', () => {
     const val = newPw.value;
-    if (!val) { strDiv.style.display=reqBox.style.display='none'; newPw.classList.remove('valid','invalid'); return; }
-    strDiv.style.display=reqBox.style.display='block';
-    let met=0;
-    Object.values(reqs).forEach(r=>{ const m=r.fn(val); r.el.classList.toggle('met',m); if(m)met++; });
-    const lv=levels[calcStr(val)];
-    strFill.style.width=lv.w; strFill.style.background=lv.c;
-    strText.textContent=lv.l; strText.style.color=lv.c;
-    newPw.classList.toggle('valid',  met===4);
-    newPw.classList.toggle('invalid', val.length>3 && met<4);
-    if(confPw&&confPw.value) syncConf();
+    if (!val) {
+      strDiv.style.display = reqBox.style.display = 'none';
+      newPw.classList.remove('valid', 'invalid');
+      return;
+    }
+    strDiv.style.display = reqBox.style.display = 'block';
+    let met = 0;
+    Object.values(reqs).forEach(r => { const m = r.fn(val); r.el.classList.toggle('met', m); if (m) met++; });
+    const lv = levels[calcStr(val)];
+    strFill.style.width      = lv.w;
+    strFill.style.background = lv.c;
+    strText.textContent      = lv.l;
+    strText.style.color      = lv.c;
+    newPw.classList.toggle('valid',   met === 4);
+    newPw.classList.toggle('invalid', val.length > 3 && met < 4);
+    if (confPw && confPw.value) syncConf();
   });
-  function syncConf(){
-    const ok = confPw.value===newPw.value&&confPw.value!=='';
-    confPw.classList.toggle('valid',  ok);
-    confPw.classList.toggle('invalid', !ok&&confPw.value.length>0);
+  function syncConf() {
+    const ok = confPw.value === newPw.value && confPw.value !== '';
+    confPw.classList.toggle('valid',   ok);
+    confPw.classList.toggle('invalid', !ok && confPw.value.length > 0);
   }
-  if(confPw) confPw.addEventListener('input', syncConf);
+  if (confPw) confPw.addEventListener('input', syncConf);
 }
 
-/* ── OTP digit boxes ── */
-(function(){
-  const digits = Array.from(document.querySelectorAll('.fp-otp-digit'));
-  const hidden = document.getElementById('fp-otp-hidden');
+/* ── OTP digit boxes (Step 2) ── */
+(function () {
+  const digits    = Array.from(document.querySelectorAll('.fp-otp-digit'));
+  const hidden    = document.getElementById('fp-otp-hidden');
   const submitBtn = document.getElementById('fp-otp-btn');
   const totpInput = document.getElementById('fp-totp-input');
   if (!digits.length || !hidden) return;
@@ -938,103 +1164,130 @@ if (newPw) {
   digits[0]?.focus();
 
   function sync() {
-    const val = digits.map(d=>d.value).join('');
+    const val = digits.map(d => d.value).join('');
     hidden.value = val;
-    digits.forEach(d=>d.classList.toggle('filled', d.value!==''));
-    const otpOk  = val.length===6;
-    const totpOk = !needsTotp || (totpInput && totpInput.value.replace(/\D/g,'').length===6);
+    digits.forEach(d => d.classList.toggle('filled', d.value !== ''));
+    const otpOk  = val.length === 6;
+    const totpOk = !needsTotp || (totpInput && totpInput.value.replace(/\D/g, '').length === 6);
     if (submitBtn) submitBtn.disabled = !(otpOk && totpOk);
   }
 
-  digits.forEach((box,i)=>{
-    box.addEventListener('input',e=>{
-      box.value=box.value.replace(/\D/g,'').slice(-1);
+  digits.forEach((box, i) => {
+    box.addEventListener('input', e => {
+      box.value = box.value.replace(/\D/g, '').slice(-1);
       sync();
-      if(box.value&&i<digits.length-1) digits[i+1].focus();
+      if (box.value && i < digits.length - 1) digits[i + 1].focus();
     });
-    box.addEventListener('keydown',e=>{
-      if(e.key==='Backspace'){
-        if(box.value){ box.value=''; sync(); }
-        else if(i>0){ digits[i-1].focus(); digits[i-1].value=''; sync(); }
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace') {
+        if (box.value) { box.value = ''; sync(); }
+        else if (i > 0) { digits[i - 1].focus(); digits[i - 1].value = ''; sync(); }
         e.preventDefault();
       }
-      if(e.key==='ArrowLeft'&&i>0)            digits[i-1].focus();
-      if(e.key==='ArrowRight'&&i<digits.length-1) digits[i+1].focus();
+      if (e.key === 'ArrowLeft'  && i > 0)              digits[i - 1].focus();
+      if (e.key === 'ArrowRight' && i < digits.length - 1) digits[i + 1].focus();
     });
-    box.addEventListener('paste',e=>{
+    box.addEventListener('paste', e => {
       e.preventDefault();
-      const p=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
-      p.split('').forEach((ch,j)=>{ if(digits[j]) digits[j].value=ch; });
+      const p = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+      p.split('').forEach((ch, j) => { if (digits[j]) digits[j].value = ch; });
       sync();
-      digits[Math.min(p.length,digits.length-1)].focus();
+      digits[Math.min(p.length, digits.length - 1)].focus();
     });
   });
 
-  if(totpInput){
-    totpInput.addEventListener('input',()=>{
-      totpInput.value=totpInput.value.replace(/\D/g,'').slice(0,6);
+  if (totpInput) {
+    totpInput.addEventListener('input', () => {
+      totpInput.value = totpInput.value.replace(/\D/g, '').slice(0, 6);
       sync();
     });
   }
 
-  // 10-min countdown
-  let secs = 10*60;
+  /* 10-min countdown */
+  let secs  = 10 * 60;
   const cdEl = document.getElementById('fp-countdown');
-  function tick(){
-    if(!cdEl) return;
-    const m=Math.floor(secs/60).toString().padStart(2,'0');
-    const s=(secs%60).toString().padStart(2,'0');
-    cdEl.textContent=m+':'+s;
-    if(secs<=60) cdEl.style.color='#DC2626';
-    if(secs<=0){
-      cdEl.textContent='Expired';
-      if(submitBtn) submitBtn.disabled=true;
-      digits.forEach(d=>{d.disabled=true;d.classList.add('invalid');});
+  function tick() {
+    if (!cdEl) return;
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    cdEl.textContent = m + ':' + s;
+    if (secs <= 60) cdEl.style.color = '#DC2626';
+    if (secs <= 0) {
+      cdEl.textContent = 'Expired';
+      if (submitBtn) submitBtn.disabled = true;
+      digits.forEach(d => { d.disabled = true; d.classList.add('invalid'); });
       return;
     }
     secs--;
-    setTimeout(tick,1000);
+    setTimeout(tick, 1000);
   }
   tick();
 
-  // TOTP counter
+  /* TOTP 30s counter */
   const totpCd = document.getElementById('fp-totp-cd');
-  if(totpCd){
-    function totpTick(){
-      const s=30-(Math.floor(Date.now()/1000)%30);
-      totpCd.textContent=s;
-      totpCd.style.color=s<=5?'#DC2626':'#0B4F9C';
+  if (totpCd) {
+    function totpTick() {
+      const s = 30 - (Math.floor(Date.now() / 1000) % 30);
+      totpCd.textContent = s;
+      totpCd.style.color = s <= 5 ? '#DC2626' : '#0B4F9C';
     }
-    totpTick(); setInterval(totpTick,1000);
+    totpTick();
+    setInterval(totpTick, 1000);
   }
 
-  // Resend cooldown
+  /* Resend cooldown */
   const resendBtn = document.getElementById('fp-resend-btn');
-  if(resendBtn){
+  if (resendBtn) {
     let cd = <?= $wait_left ?>;
     let iv = null;
-    function startCd(s){
-      cd=s; resendBtn.disabled=true;
-      iv=setInterval(()=>{
+    function startCd(s) {
+      cd = s; resendBtn.disabled = true;
+      iv = setInterval(() => {
         cd--;
-        resendBtn.textContent=`Resend code (${cd}s)`;
-        if(cd<=0){ clearInterval(iv); resendBtn.disabled=false; resendBtn.textContent='Resend code'; }
-      },1000);
+        resendBtn.textContent = `Resend code (${cd}s)`;
+        if (cd <= 0) { clearInterval(iv); resendBtn.disabled = false; resendBtn.textContent = 'Resend code'; }
+      }, 1000);
     }
-    if(cd>0) startCd(cd);
-    document.getElementById('fp-resend-form')?.addEventListener('submit',()=>startCd(<?= FP_OTP_COOLDOWN ?>));
+    if (cd > 0) startCd(cd);
+    document.getElementById('fp-resend-form')?.addEventListener('submit', () => startCd(<?= FP_OTP_COOLDOWN ?>));
   }
 
-  // Loading state on submit
-  document.getElementById('fp-otp-form')?.addEventListener('submit',function(){
-    if(submitBtn){ submitBtn.disabled=true; submitBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Verifying…'; }
+  /* Loading state on OTP submit */
+  document.getElementById('fp-otp-form')?.addEventListener('submit', function () {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Verifying…';
+    }
   });
 })();
 
+/* ── "No authenticator" toggle ── */
+const toggleBtn    = document.getElementById('fp-toggle-retrieval');
+const retrievalPanel = document.getElementById('fp-retrieval-panel');
+if (toggleBtn && retrievalPanel) {
+  toggleBtn.addEventListener('click', () => {
+    const isOpen = retrievalPanel.classList.toggle('open');
+    toggleBtn.textContent = isOpen ? 'Cancel retrieval request' : 'Submit a retrieval request';
+    if (isOpen) retrievalPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
+/* ── Retrieval textarea char counter ── */
+const reasonTa  = document.getElementById('fp-reason');
+const charCur   = document.getElementById('fp-char-cur');
+if (reasonTa && charCur) {
+  function updateCount() { charCur.textContent = reasonTa.value.length; }
+  reasonTa.addEventListener('input', updateCount);
+  updateCount(); // init on page load (e.g. after validation error re-renders the value)
+}
+
 /* ── Step 1 submit loading ── */
-document.getElementById('fp-req-btn')?.closest('form')?.addEventListener('submit',function(){
-  const btn=document.getElementById('fp-req-btn');
-  if(btn){ btn.disabled=true; btn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Sending…'; }
+document.getElementById('fp-req-btn')?.closest('form')?.addEventListener('submit', function () {
+  const btn = document.getElementById('fp-req-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Sending…';
+  }
 });
 </script>
 <style>@keyframes spin { to { transform: rotate(360deg); } }</style>

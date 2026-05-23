@@ -11,7 +11,8 @@ const ONEDRIVE_OWNER_UPN   = 'depedlrmdsonedrive@gmail.com';
 // ► Paste your OneDrive share link for the "deped" folder here.
 //   In OneDrive: right-click the deped folder → Share →
 //   "Anyone with the link" → Copy link  (e.g. https://1drv.ms/f/s!Abc…)
-const SHARED_FOLDER_URL = 'https://1drv.ms/f/c/08ca0a09e3f0f5ec/IgDZ4Ku9gqVJS5pwdr72dFqeAb5y0yQuHG3h8Bhva8UVFKs?e=itEVtt';
+const SHARED_FOLDER_URL = 'https://1drv.ms/f/c/08ca0a09e3f0f5ec/IgDZ4Ku9gqVJS5pwdr72dFqeAb5y0yQuHG3h8Bhva8UVFKs?e=saUtHs';
+
 // ──────────────────────────────────────────────────────────────
 
 const REDIRECT_URI = window.location.origin + window.location.pathname;
